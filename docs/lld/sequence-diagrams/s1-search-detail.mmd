@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor Reader as Reader / User
+    participant UI as React UI (Page/Component)
+    participant API as ResourceController
+    participant SVC as ResourceService
+    participant DB as Relational Database
+
+    %% Search Flow
+    Note over Reader, DB: 1. Search & Browse Flow
+    Reader->>UI: Enter keyword & Submit
+    UI->>API: GET /resources?q={keyword}
+    API->>SVC: getResources(keyword)
+    SVC->>DB: SELECT * FROM Resource WHERE title/author LIKE %keyword%
+    DB-->>SVC: List<Resource>
+    SVC-->>API: SearchResultDTO
+    API-->>UI: 200 OK { items: [...] }
+    UI-->>Reader: Render Resource Cards (or Empty State)
+
+    %% Detail & Availability Flow
+    Note over Reader, DB: 2. Resource Detail & Availability Flow
+    Reader->>UI: Click Resource Card (Select ID)
+    UI->>API: GET /resources/{id}
+    API->>SVC: getResourceById(id)
+    SVC->>DB: SELECT Resource, PhysicalItems, DigitalItem WHERE id = :id
+    DB-->>SVC: Entity Records
+    SVC->>SVC: Aggregate physical total/available & digital availability
+    SVC-->>API: ResourceDetailDTO
+    API-->>UI: 200 OK { id, title, accessTypes, physical, digital }
+    UI-->>Reader: Render Detail Page & Availability Section

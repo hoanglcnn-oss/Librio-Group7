@@ -1,0 +1,49 @@
+graph TD
+    subgraph Frontend["React SPA (Client)"]
+        UI_Search["Discovery / Search UI"]
+        UI_Detail["Resource Detail UI"]
+        UI_Avail["Availability Section"]
+        UI_Borrow["Borrow / Access UI (S2)"]
+    end
+
+    subgraph Backend["Spring Boot (Modular Monolith)"]
+        subgraph CatalogModule["Catalog Module"]
+            Mod_Resource["Resource Domain"]
+            Mod_Physical["PhysicalItem Domain"]
+            Mod_Digital["DigitalItem Domain"]
+            Mod_AvailAgg["Availability Aggregator (Derived)"]
+        end
+
+        subgraph CirculationModule["Circulation Module (S2)"]
+            Mod_Borrowing["Borrowing Transaction Manager"]
+        end
+
+        subgraph UserAdminModule["User & Admin Module"]
+            Mod_User["User Management"]
+            Mod_Admin["Administration"]
+        end
+    end
+
+    subgraph Storage["Database Layer"]
+        DB[(Relational DB)]
+    end
+
+    %% Client to Backend Interaction
+    UI_Search -->|HTTP REST| Mod_Resource
+    UI_Detail -->|HTTP REST| Mod_Resource
+    UI_Avail -->|HTTP REST| Mod_AvailAgg
+    UI_Borrow -->|HTTP REST| Mod_Borrowing
+
+    %% Catalog internal aggregation
+    Mod_AvailAgg --> Mod_Resource
+    Mod_AvailAgg --> Mod_Physical
+    Mod_AvailAgg --> Mod_Digital
+
+    %% Cross Module Boundary
+    Mod_Borrowing -->|Read/Update State| Mod_Physical
+    Mod_Borrowing -->|Verify Borrower| Mod_User
+
+    %% Persistence
+    CatalogModule --> DB
+    CirculationModule --> DB
+    UserAdminModule --> DB
