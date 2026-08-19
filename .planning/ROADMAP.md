@@ -2,70 +2,70 @@
 
 ## Overview
 
-Librio’s MVP proceeds from a reproducible reader-discovery slice to an account-backed physical lending workflow, then completes the return/overdue lifecycle and adds digital access with the minimum librarian operations that sustain the catalog. Phase 1 is the active Sprint 1 rescue/review milestone, and its success is a stable local full-stack demonstration rather than public deployment.
+Librio's MVP still spans discovery, borrowing, return/overdue, and digital access, but the active roadmap here tracks the current Sprint 1 milestone only. Sprint 1 is a local walking skeleton that proves browse/search, detail, and availability against the real backend before any future backlog work is pulled forward.
 
-**Current milestone:** Sprint 1 — Browse/Search → Resource Detail → Availability  
-**Phase 1 runtime target:** Clean-clone local Spring Boot + React/Vite + PostgreSQL environment; frontend consumes the real backend API with fixed seed data, documented commands, and test/evidence output.  
+**Current milestone:** Sprint 1
+**Phase 1 runtime target:** Clean-clone local Spring Boot + React/Vite + PostgreSQL environment; frontend consumes the real backend API with fixed seed data, documented commands, and test/evidence output.
 **Canonical Phase 1 API contract:** docs/lld/api-contracts/sprint-1-api.md
 
 ## Phases
 
 **Phase Numbering:**
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions, if needed after planning
+- Integer phases 1, 2, 3, 4: Planned milestone work
 
-- [ ] **Phase 1: Local Reader Discovery Demo** - Readers can browse, search, inspect resources, and see real availability in a reproducible local full-stack demo.
-- [ ] **Phase 2: Account-Backed Physical Borrowing** - An identified reader can safely borrow an available physical item with an authoritative due date and availability update.
-- [ ] **Phase 3: Return & Overdue Lifecycle** - The physical lending workflow correctly handles returns and makes overdue loans visible.
-- [ ] **Phase 4: Digital Access & Library Operations** - Readers access digital resources while librarians maintain the minimum catalog and circulation data.
+- [x] **Phase 1: Local Walking Skeleton & Seed** - Spring Boot, React/Vite, and PostgreSQL start locally with the resource/physical-item/digital-item model and fixed four-case seed data.
+- [ ] **Phase 2: Browse & Search Slice** - Readers can browse the default catalog and run trimmed keyword search with URL state and clear loading, empty, and error behavior.
+- [ ] **Phase 3: Detail & Availability Slice** - Readers can open resource detail, see access types and server-derived availability, and receive a 404 for unknown resources.
+- [ ] **Phase 4: Review Candidate & Evidence** - The local clone, backend/frontend builds and tests, demo-path API checks, README/curl/QA evidence, and secret-free source state are all reproducible.
 
 ## Phase Details
 
-### Phase 1: Local Reader Discovery Demo
-**Goal**: Readers can reliably discover a resource and see its true access and availability through a local end-to-end application that a developer can run from a clean clone.
+### Phase 1: Local Walking Skeleton & Seed
+**Goal**: Stand up the minimal local stack and seed model required to prove the Sprint 1 path end to end.
 **Depends on**: Nothing (first phase)
-**Requirements**: LIB-01, LIB-02, LIB-03, LIB-04, LIB-05, LIB-06, ENV-01
+**Requirements**: LIB-05
 **Success Criteria** (what must be TRUE):
-  1. From a clean clone, a developer can follow documented local commands to start PostgreSQL, the Spring Boot backend, and the React/Vite frontend with fixed seed data, then demonstrate Browse/Search → Resource Detail → Availability through the real API.
-  2. A reader can browse resource cards, select one, and reach its detail page with title, authors, and description.
-  3. A reader can submit a trimmed search keyword, see the query reflected in the URL, receive matching cards or a clear empty state, and browse normally when the query is blank.
-  4. A reader can see the server-provided physical copy counts and/or digital availability for physical-only, digital-only, mixed, and out-of-stock seed cases, without a misleading missing access block.
-  5. A reader can distinguish loading, API/network error with retry, and unknown-resource not-found states; tests and demo evidence confirm the documented contract behavior.
-**Plans**: TBD
+  1. Spring Boot, React/Vite, and PostgreSQL start locally from documented commands.
+  2. The resource, physical-item, and digital-item model exists in the running stack.
+  3. Fixed four-case seed data is available.
+  4. A minimal frontend-to-real-backend tracer path is working end to end.
+**Plans**: 2/2 plans complete (`01-01-PLAN.md`, `01-02-PLAN.md`)
 **UI hint**: yes
 
-### Phase 2: Account-Backed Physical Borrowing
-**Goal**: An identified reader can borrow an available physical item and receive a trustworthy, server-confirmed loan outcome.
+### Phase 2: Browse & Search Slice
+**Goal**: Readers can browse the default catalog and search with a trimmed keyword in a URL-driven flow.
 **Depends on**: Phase 1
-**Requirements**: ACC-01, LIB-07
+**Requirements**: LIB-01, LIB-02
 **Success Criteria** (what must be TRUE):
-  1. A reader can identify their account before starting a physical borrowing workflow, and the created loan is associated with that reader.
-  2. A reader can borrow an available physical item and receives a confirmation that includes the due date.
-  3. After a successful borrow, readers see the resource’s updated availability, and a second active loan for the same physical item is not granted.
+  1. A reader can browse the default catalog without a search term.
+  2. A reader can submit a trimmed keyword search and keep the query in the URL.
+  3. Result, empty, loading, and error states are all visible and distinct.
+  4. Search uses `GET /resources?q={keyword}`.
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 3: Return & Overdue Lifecycle
-**Goal**: Physical loans can be returned and overdue status is visible without violating the item lifecycle.
+### Phase 3: Detail & Availability Slice
+**Goal**: Readers can inspect a resource and see server-derived access and availability data.
 **Depends on**: Phase 2
-**Requirements**: LIB-08, LIB-09
+**Requirements**: LIB-03, LIB-04, LIB-06
 **Success Criteria** (what must be TRUE):
-  1. A reader or librarian can complete a return for an active physical loan, after which that item is available to borrow again.
-  2. A reader and librarian can view the loan due date and clearly identify a loan that has become overdue.
-  3. Resource availability continues to distinguish unavailable borrowed/overdue copies from copies made available by a completed return.
+  1. A reader can open a resource detail view and receive a not-found result for an unknown resource.
+  2. Resource detail shows access types plus server-derived physical and digital availability.
+  3. The phase covers physical-only, out-of-stock, digital-only, and mixed cases.
+  4. The complete Sprint 1 API contract is implemented.
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 4: Digital Access & Library Operations
-**Goal**: Readers can access available digital resources, and authorized librarians can maintain the operational data needed for the complete MVP workflow.
+### Phase 4: Review Candidate & Evidence
+**Goal**: Produce the evidence package that proves Sprint 1 works from a clean clone.
 **Depends on**: Phase 3
-**Requirements**: ACC-02, LIB-10, LIB-11
+**Requirements**: ENV-01
 **Success Criteria** (what must be TRUE):
-  1. A reader can open or otherwise access an available digital resource from its resource experience, without a digital-expiry workflow.
-  2. A librarian can enter the minimum staff operations appropriate to their role rather than exposing those controls to ordinary readers.
-  3. A librarian can create or update the resource and physical/digital item data that drives discovery, access type, and availability.
-  4. A librarian can maintain the circulation data needed to support the physical borrowing, return, and overdue workflow.
+  1. A clean clone starts the documented local stack and reaches the real API on the complete demo path.
+  2. Backend and frontend builds and tests pass.
+  3. README, curl responses, QA matrix, D02 Actual, and demo evidence are available.
+  4. Source is pushed without secrets or build artifacts.
 **Plans**: TBD
 **UI hint**: yes
 
@@ -73,7 +73,7 @@ Librio’s MVP proceeds from a reproducible reader-discovery slice to an account
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Local Reader Discovery Demo | 0/TBD | Not started | - |
-| 2. Account-Backed Physical Borrowing | 0/TBD | Not started | - |
-| 3. Return & Overdue Lifecycle | 0/TBD | Not started | - |
-| 4. Digital Access & Library Operations | 0/TBD | Not started | - |
+| 1. Local Walking Skeleton & Seed | 2/2 | Complete | 2026-08-19 |
+| 2. Browse & Search Slice | 0/TBD | Not started | - |
+| 3. Detail & Availability Slice | 0/TBD | Not started | - |
+| 4. Review Candidate & Evidence | 0/TBD | Not started | - |

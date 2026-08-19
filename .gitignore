@@ -1,2 +1,22 @@
 Mock
 .commandcode
+.planning
+
+# Build outputs & dependencies
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.log
