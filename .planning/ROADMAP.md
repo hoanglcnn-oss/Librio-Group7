@@ -14,7 +14,7 @@ Librio's MVP still spans discovery, borrowing, return/overdue, and digital acces
 
 - Integer phases 1, 2, 3, 4: Planned milestone work
 
-- [x] **Phase 1: Local Walking Skeleton & Seed** - Spring Boot, React/Vite, and PostgreSQL start locally with the resource/physical-item/digital-item model and fixed four-case seed data.
+- [ ] **Phase 1: Local Walking Skeleton & Seed** - Spring Boot, React/Vite, and PostgreSQL start locally with the resource/physical-item/digital-item model and fixed four-case seed data. (Implementation complete — In Review)
 - [ ] **Phase 2: Browse & Search Slice** - Readers can browse the default catalog and run trimmed keyword search with URL state and clear loading, empty, and error behavior.
 - [ ] **Phase 3: Detail & Availability Slice** - Readers can open resource detail, see access types and server-derived availability, and receive a 404 for unknown resources.
 - [ ] **Phase 4: Review Candidate & Evidence** - The local clone, backend/frontend builds and tests, demo-path API checks, README/curl/QA evidence, and secret-free source state are all reproducible.
@@ -30,7 +30,7 @@ Librio's MVP still spans discovery, borrowing, return/overdue, and digital acces
   2. The resource, physical-item, and digital-item model exists in the running stack.
   3. Fixed four-case seed data is available.
   4. A minimal frontend-to-real-backend tracer path is working end to end.
-**Plans**: 2/2 plans complete (`01-01-PLAN.md`, `01-02-PLAN.md`)
+**Plans**: 2/2 plans implemented (`01-01-PLAN.md`, `01-02-PLAN.md`) — In Review
 **UI hint**: yes
 
 ### Phase 2: Browse & Search Slice
@@ -73,7 +73,7 @@ Librio's MVP still spans discovery, borrowing, return/overdue, and digital acces
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Local Walking Skeleton & Seed | 2/2 | Complete | 2026-08-19 |
+| 1. Local Walking Skeleton & Seed | 2/2 | In Review | - |
 | 2. Browse & Search Slice | 0/TBD | Not started | - |
 | 3. Detail & Availability Slice | 0/TBD | Not started | - |
 | 4. Review Candidate & Evidence | 0/TBD | Not started | - |

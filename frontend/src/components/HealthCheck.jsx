@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { resourceApi } from '../services/apiClient';
 
 export default function HealthCheck() {

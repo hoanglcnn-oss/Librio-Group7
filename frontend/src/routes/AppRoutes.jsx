@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ResourceListPage from '../pages/ResourceListPage';
 import ResourceDetailPage from '../pages/ResourceDetailPage';

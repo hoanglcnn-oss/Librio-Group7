@@ -1,4 +1,3 @@
-import React from 'react';
 import ResourceCard from './ResourceCard';
 
 export default function ResourceList({ items }) {

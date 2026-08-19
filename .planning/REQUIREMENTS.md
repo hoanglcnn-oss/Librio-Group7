@@ -55,7 +55,7 @@ None defined. The explicitly excluded extensions below are not implicitly schedu
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIB-05 | Phase 1 | Pending |
+| LIB-05 | Phase 1 | In Review |
 | LIB-01 | Phase 2 | Pending |
 | LIB-02 | Phase 2 | Pending |
 | LIB-03 | Phase 3 | Pending |

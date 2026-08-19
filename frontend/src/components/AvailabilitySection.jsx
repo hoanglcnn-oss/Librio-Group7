@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function AvailabilitySection({ accessTypes = [], physical, digital }) {
   const hasPhysical = accessTypes.includes('PHYSICAL') && physical;
   const hasDigital = accessTypes.includes('DIGITAL') && digital;

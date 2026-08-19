@@ -20,7 +20,7 @@ CREATE TABLE physical_item (
 
 CREATE TABLE digital_item (
     id BIGINT PRIMARY KEY,
-    resource_id BIGINT NOT NULL,
+    resource_id BIGINT NOT NULL UNIQUE,
     CONSTRAINT fk_digital_resource FOREIGN KEY (resource_id) REFERENCES resource(id) ON DELETE CASCADE
 );
 
