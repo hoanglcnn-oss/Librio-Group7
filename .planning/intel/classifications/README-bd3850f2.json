@@ -1,0 +1,26 @@
+{
+  "source_path": "D:/FMềm/Librio-Group7/docs/database/README.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Database Design & ERD Specification — Overview",
+  "summary": "Overview of the Librio database design directory, linking the Mermaid ERD and schema specification files.",
+  "scope": [
+    "database design",
+    "ERD",
+    "logical schema",
+    "Mermaid",
+    "tables",
+    "columns",
+    "primary keys",
+    "foreign keys",
+    "business constraints"
+  ],
+  "cross_refs": [
+    "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/erd.mmd",
+    "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/schema-spec.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "No ADR, PRD, or direct schema-contract signals in the README itself; it is a prose directory overview linking database design artifacts."
+}

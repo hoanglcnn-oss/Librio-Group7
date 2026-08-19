@@ -1,0 +1,13 @@
+{
+  "source_path": "D:/FMềm/Librio-Group7/docs/README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "D03. Requirement & Design Documents — Librio Group 7",
+  "summary": "Index of Librio Group 7 requirements, database, high-level design, low-level design, API, and diagram documents.",
+  "scope": ["Librio", "requirements", "SRS", "database design", "HLD", "LLD", "API contracts", "Mermaid", "PlantUML"],
+  "cross_refs": ["file:///d:/FM%E1%BB%81m/Librio-Group7/docs/srs/README.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/srs/sprint-1-srs.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/README.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/erd.mmd", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/schema-spec.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/hld/architecture.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/hld/component-diagram.mmd", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/README.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/sprint-1-lld.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/api-contracts/sprint-1-api.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/frontend-lld.md", "file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/sequence-diagrams/s1-search-detail.mmd"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

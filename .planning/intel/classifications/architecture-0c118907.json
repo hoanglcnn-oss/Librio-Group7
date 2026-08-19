@@ -1,0 +1,13 @@
+{
+  "source_path": "D:/FMềm/Librio-Group7/docs/hld/architecture.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "D03 — High-Level Design (HLD) & System Architecture — Librio",
+  "summary": "High-level Librio architecture defining the modular monolith, technology stack, module boundaries, request flows, and transactional constraints.",
+  "scope": ["Librio", "Modular Monolith", "React SPA", "Spring Boot", "Catalog Module", "Circulation Module", "User/Admin Module", "PostgreSQL", "REST/HTTP JSON", "transaction boundary"],
+  "cross_refs": ["D03 SRS Baseline", "D03 LLD Baseline"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Technical architecture signals dominate: technology stack, module boundaries, request flows, architecture diagrams, layering, and transactional constraints. No SPEC filename/path convention or explicit frontmatter type was present. The document also contains an architectural decisions log, but it covers multiple decisions rather than one ADR." 
+}
