@@ -1,6 +1,6 @@
 # Kết quả kiểm thử Sprint 1
 
-Ngày kiểm thử: 2026-08-20 · Người kiểm thử: KL  
+Ngày kiểm thử: 2026-08-20 · Người kiểm thử: Nguyen Thi Khanh Linh
 Môi trường: FE `127.0.0.1:5173`, BE `127.0.0.1:8080`, H2 test profile.
 
 | ID | Kết quả thực tế | Kết quả |
@@ -12,7 +12,7 @@ Môi trường: FE `127.0.0.1:5173`, BE `127.0.0.1:8080`, H2 test profile.
 | TC05 | Query có khoảng trắng được trim | Đạt |
 | TC06 | Query trống trả 4 tài liệu mặc định | Đạt |
 | TC07 | `@#$%` trả rỗng, server không lỗi | Đạt |
-| TC08 | Chuỗi 500 ký tự trả rỗng, server không lỗi | Đạt |
+| TC08 | Chuỗi 100 ký tự trả rỗng, server không lỗi | Đạt |
 | TC09 | Browse hiện đúng 4 tài liệu seed | Đạt |
 | TC10 | Component hiện empty state khi `items=[]` | Đạt |
 | TC11 | 4 ID duy nhất, không lặp hoặc mất | Đạt |
