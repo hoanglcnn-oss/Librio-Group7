@@ -1,0 +1,23 @@
+import { Link } from 'react-router-dom'
+
+function ResourceCard({ resource }) {
+  return (
+    <article className="resource-card">
+      <div className="book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
+        <span className="cover-code">{resource.cover || 'LIB'}</span>
+        <small>LIBRIO COLLECTION</small>
+      </div>
+      <div className="card-content">
+        {resource.category && <span className="category-tag">{resource.category}</span>}
+        <h3>{resource.title}</h3>
+        <p>{resource.authors.join(', ')}</p>
+        <div className="card-footer">
+          <span className="card-hint">Xem &amp; mượn</span>
+          <Link className="detail-button" to={`/resources/${resource.id}`} aria-label={`Xem chi tiết ${resource.title}`}>→</Link>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+export default ResourceCard
