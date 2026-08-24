@@ -3,7 +3,7 @@
 **Project:** Librio
 **Sprint:** Sprint 2 — 20/08/2026–25/08/2026
 **Related analysis:** T-071, T-081, T-091
-**Related design:** T-072, T-082, T-092, T-093
+**Related design:** T-072, T-082, T-091 lightweight design
 
 ---
 
@@ -92,323 +92,143 @@ Backend phải lấy current account từ authenticated session. Reader-facing o
 
 ---
 
-## 3. Functional Requirements
-
-### 3.1 Account and Authentication
-
-#### `AUTH-01` — Public discovery
-
-Guest phải có thể sử dụng các chức năng discovery mà không cần đăng nhập, bao gồm:
-
-* Browse resources.
-* Search resources.
-* View resource detail.
-* View availability.
-
-#### `AUTH-02` — Protected reader operations
-
-Borrow request, request cancellation và personal circulation data phải yêu cầu authenticated account có reader access.
-
-#### `AUTH-03` — Protected librarian operations
-
-Các operation prepare, reject và fulfil request phải yêu cầu authenticated account có role `LIBRARIAN`.
-
-#### `AUTH-04` — Login
-
-Hệ thống phải cho phép `ACTIVE` account đăng nhập bằng canonical email và password hợp lệ.
-
-Login thành công phải tạo authenticated server-side session và trả safe account summary.
-
-#### `AUTH-05` — Generic login failure
-
-Email không tồn tại, password không đúng và account `DISABLED` phải nhận cùng một generic login failure.
-
-Response không được giúp client xác định account có tồn tại hay không.
-
-#### `AUTH-06` — Session restoration
-
-Frontend phải có thể khôi phục trạng thái đăng nhập từ server sau khi reload ứng dụng.
-
-#### `AUTH-07` — Logout
-
-Logout phải hủy authenticated session phía server và làm session cookie hiện tại hết hiệu lực.
-
-Chỉ xóa cookie hoặc state phía client không được xem là logout hoàn chỉnh.
-
-#### `AUTH-08` — Current account
-
-Authenticated client phải có thể lấy safe summary của current account.
-
-Safe summary không được chứa password hash, session credential hoặc dữ liệu nhạy cảm khác.
-
-#### `AUTH-09` — Disabled account
-
-Account có status `DISABLED` không được tạo authenticated session mới, kể cả khi password đúng.
-
-Sprint 2 chưa yêu cầu tự động hủy session đã tồn tại trước khi account bị disable.
-
-#### `AUTH-10` — Current-reader identity
-
-Backend phải xác định reader đang thao tác từ authenticated account ID.
-
-Client không được gửi `readerId` để thực hiện operation thay một reader khác.
-
-#### `AUTH-11` — No automatic circulation action
-
-Login thành công không được tự động tạo borrow request hoặc borrowing. Sau login, reader phải chủ động thực hiện operation tương ứng.
-
----
-
-### 3.2 Borrow Request and Checkout
-
-#### `BOR-01` — Submit request
-
-Authenticated active reader phải có thể gửi borrow request cho một resource có ít nhất một physical item khả dụng.
-
-#### `BOR-02` — Immediate item allocation
-
-Khi request được tạo thành công, hệ thống phải phân bổ một exact physical item đang `AVAILABLE` và chuyển item đó sang `RESERVED`.
-
-#### `BOR-03` — No availability
-
-Nếu không còn physical item khả dụng tại thời điểm commit, hệ thống không được tạo request và không được thay đổi item state.
-
-Sprint 2 không tạo waitlist trong trường hợp này.
-
-#### `BOR-04` — Duplicate prevention
-
-Reader không được tạo thêm active request cho một resource nếu reader đã có:
-
-* Active request cho resource đó; hoặc
-* Active borrowing cho resource đó.
-
-#### `BOR-05` — Active commitment limit
-
-Hệ thống phải kiểm tra server-defined active commitment limit trước khi tạo request.
-
-Giá trị cụ thể và cách cấu hình limit được xác định trong Sprint 2 technical design.
-
-#### `BOR-06` — Initial request state
-
-Request mới được tạo thành công phải có status `REQUESTED`.
-
-#### `BOR-07` — Prepare request
-
-Librarian phải có thể chuyển request hợp lệ từ `REQUESTED` sang `READY_FOR_PICKUP`.
-
-Exact physical item đã phân bổ phải tiếp tục được giữ ở trạng thái `RESERVED`.
-
-#### `BOR-08` — Reject or expire request
-
-Request không thể tiếp tục phải có thể chuyển sang `REJECTED` hoặc `EXPIRED` theo operation hoặc policy tương ứng.
-
-Khi request kết thúc mà chưa checkout, exact reserved item phải được giải phóng về `AVAILABLE`.
-
-#### `BOR-09` — Exact-item fulfilment
-
-Librarian chỉ được fulfil request bằng exact physical item đã được phân bổ cho request đó.
-
-Sprint 2 không cho phép tự động hoặc thủ công thay thế bằng một physical item khác trong lúc fulfil.
-
-#### `BOR-10` — Checkout
-
-Fulfil request thành công phải:
-
-1. Chuyển request sang `FULFILLED`.
-2. Tạo một active borrowing cho authenticated reader của request.
-3. Liên kết borrowing với exact reserved physical item.
-4. Chuyển item từ `RESERVED` sang `BORROWED`.
-5. Ghi thời điểm checkout và due date theo server policy.
-
-#### `BOR-11` — Atomic fulfilment
-
-Các thay đổi thuộc checkout phải được commit atomically.
-
-Hệ thống không được để lại trạng thái một phần như:
-
-* Request đã `FULFILLED` nhưng không có borrowing.
-* Borrowing đã tồn tại nhưng item vẫn `RESERVED`.
-* Item đã `BORROWED` nhưng request chưa fulfil.
-
-#### `BOR-12` — One active borrowing per item
-
-Một physical item chỉ được có tối đa một active borrowing tại cùng thời điểm.
-
-#### `BOR-13` — Due date creation
-
-Due date chỉ được tạo khi checkout thành công, không phải khi reader gửi request.
-
-Loan duration cụ thể được xác định bằng server policy trong technical design.
-
-#### `BOR-14` — Availability consistency
-
-Physical item ở trạng thái `RESERVED` hoặc `BORROWED` không được tính là available.
-
-Availability hiển thị cho reader phải phản ánh trạng thái đã commit trên server.
-
-#### `BOR-15` — Concurrent request handling
-
-Nếu nhiều reader cùng request bản khả dụng cuối cùng, chỉ một request được phép phân bổ item và commit thành công.
-
-Các request thua race phải thất bại mà không tạo partial data.
-
-#### `BOR-16` — Concurrent terminal operations
-
-Nếu hai operation cạnh tranh để kết thúc cùng một request, chỉ một valid transition được commit.
-
-Operation còn lại phải nhận conflict response và không được ghi đè kết quả đã commit.
-
----
-
-### 3.3 My Requests and My Borrowings
-
-#### `MYL-01` — My Library page
-
-Authenticated reader phải có một account area tại `/my-library` gồm hai section:
-
-* My Requests.
-* My Borrowings.
-
-Hai section phải luôn có vị trí hiển thị riêng, kể cả khi một collection đang rỗng hoặc tải thất bại.
-
-#### `MYL-02` — Active requests
-
-My Requests phải hiển thị active requests có status:
-
-* `REQUESTED`.
-* `READY_FOR_PICKUP`.
-
-#### `MYL-03` — Recent outcomes
-
-My Requests phải hiển thị tối đa năm terminal request gần nhất có status:
-
-* `FULFILLED`.
-* `CANCELLED`.
-* `REJECTED`.
-* `EXPIRED`.
-
-Full request history chưa thuộc Sprint 2.
-
-#### `MYL-04` — Active borrowings
-
-My Borrowings chỉ hiển thị borrowings chưa hoàn thành hoặc chưa return.
-
-Completed borrowing history chưa thuộc Sprint 2.
-
-#### `MYL-05` — Request and borrowing distinction
-
-Một fulfilled request có thể xuất hiện trong Recent Outcomes đồng thời với active borrowing tương ứng.
-
-Hai record có ý nghĩa khác nhau:
-
-* Request record giải thích kết quả của yêu cầu.
-* Borrowing record thể hiện nghĩa vụ trả sách hiện tại.
-
-#### `MYL-06` — Reader ownership
-
-Reader chỉ được nhận request và borrowing thuộc authenticated account ID.
-
-Reader-facing response không được chứa `readerId`.
-
-#### `MYL-07` — Bounded display data
-
-My Library phải cung cấp đủ dữ liệu để hiển thị:
-
-* Resource ID.
-* Resource title.
-* Authors.
-* Request status.
-* Relevant request timestamps.
-* Borrowed time.
-* Due date.
-
-Response không được làm lộ raw domain graph, password/account credential, internal reservation field hoặc physical-item identifier không cần thiết cho reader UI.
-
-#### `MYL-08` — Empty collections
-
-Không có request hoặc borrowing phải được xem là một collection rỗng hợp lệ, không phải resource-not-found error.
-
-#### `MYL-09` — Urgency-first ordering
-
-Hệ thống phải trả My Library data theo deterministic urgency-first ordering:
-
-* `READY_FOR_PICKUP` trước `REQUESTED`.
-* Active request sắp hết hạn trước.
-* Recent outcome mới nhất trước.
-* Active borrowing có due date gần nhất trước.
-
-Frontend không được tự áp dụng một thứ tự nghiệp vụ khác.
-
-#### `MYL-10` — Independent section loading
-
-My Requests và My Borrowings phải được tải và xử lý độc lập.
-
-Một section thất bại không được che dữ liệu đã tải thành công của section còn lại.
-
-#### `MYL-11` — Section retry
-
-Reader phải có thể retry riêng section tải thất bại mà không bắt buộc reload toàn bộ trang.
-
-#### `MYL-12` — Server revalidation
-
-Browser refresh phải lấy lại circulation data từ server.
-
-Circulation data không được phụ thuộc vào bản cache lâu dài phía client để xác định trạng thái hiện tại.
-
----
-
-### 3.4 Request Cancellation
-
-#### `CAN-01` — Cancellable states
-
-Reader phải có thể cancel request của chính mình khi request đang ở một trong hai trạng thái:
-
-* `REQUESTED`.
-* `READY_FOR_PICKUP`.
-
-#### `CAN-02` — Terminal requests
-
-Request ở trạng thái `FULFILLED`, `CANCELLED`, `REJECTED` hoặc `EXPIRED` không được cancel.
-
-#### `CAN-03` — Confirmation
-
-Frontend phải yêu cầu reader xác nhận trước khi gửi cancel operation.
-
-Nội dung confirmation phải cho reader biết reserved item sẽ được giải phóng cho reader khác.
-
-#### `CAN-04` — Atomic cancellation
-
-Cancel thành công phải atomically:
-
-1. Xác nhận request thuộc authenticated reader.
-2. Xác nhận request vẫn cancellable.
-3. Chuyển request sang `CANCELLED`.
-4. Chuyển exact reserved item từ `RESERVED` về `AVAILABLE`.
-5. Cập nhật thời điểm thay đổi trạng thái.
-
-#### `CAN-05` — Preserve request history
-
-Cancel không được xóa request record.
-
-Cancelled request có thể xuất hiện trong Recent Outcomes.
-
-#### `CAN-06` — Ownership-safe lookup
-
-Request không tồn tại và request thuộc reader khác phải có cùng observable not-found result.
-
-Hệ thống không được tiết lộ sự tồn tại của request thuộc account khác.
-
-#### `CAN-07` — Cancel/fulfil race
-
-Nếu cancel cạnh tranh với librarian fulfil, chỉ một operation được commit.
-
-Nếu fulfil thắng race, client phải có thể refresh cả request và borrowing data để phản ánh trạng thái mới.
-
-#### `CAN-08` — Post-cancel refresh
-
-Sau khi cancel thành công, client phải refresh My Requests để hiển thị kết quả đã được server commit.
-
-Không bắt buộc refresh My Borrowings nếu không có concurrent fulfil conflict.
+## 3. Detailed Functional Requirements
+
+### 3.1 AUTH-01 — Account Authentication
+
+* **Requirement:** Hệ thống phải cho phép `ACTIVE` account đăng nhập bằng canonical email và password hợp lệ, duy trì authenticated server-side session và đăng xuất an toàn.
+* **Objective:** Cung cấp danh tính ổn định cho các chức năng circulation mà không làm mất khả năng truy cập public discovery của Guest.
+* **Acceptance Criteria:**
+  * `AC-AUTH-01` Guest vẫn sử dụng được browse, search, resource detail và availability mà không cần đăng nhập.
+  * `AC-AUTH-02` `ACTIVE` account đăng nhập thành công bằng canonical email và password hợp lệ.
+  * `AC-AUTH-03` Login thành công tạo authenticated server-side session.
+  * `AC-AUTH-04` Login thành công trả safe account summary gồm ID, email, display name, role và account status.
+  * `AC-AUTH-05` Safe account summary không chứa password hash, session credential hoặc dữ liệu nhạy cảm khác.
+  * `AC-AUTH-06` Frontend khôi phục được current-account state từ server sau khi reload.
+  * `AC-AUTH-07` Logout invalidate authenticated session phía server và làm session cookie hiện tại hết hiệu lực.
+  * `AC-AUTH-08` Chỉ xóa cookie hoặc frontend state không được xem là logout hoàn chỉnh.
+  * `AC-AUTH-09` Email không tồn tại, password sai và account `DISABLED` nhận cùng generic login failure.
+  * `AC-AUTH-10` Authentication failure không giúp client xác định account có tồn tại hay không.
+  * `AC-AUTH-11` Account `DISABLED` không tạo được authenticated session mới.
+  * `AC-AUTH-12` Login thành công không tự động tạo borrow request hoặc borrowing.
+* **Related Business Rules:** `BR-A03–BR-A07`
+* **Related Security Requirements:** `SEC-01–SEC-07`, `SEC-12–SEC-13`
+
+### 3.2 AUTH-02 — Protected Access and Reader Identity
+
+* **Requirement:** Hệ thống phải bảo vệ circulation operation bằng authenticated account, role và ownership; backend phải xác định current reader từ authenticated session.
+* **Objective:** Ngăn client tự chọn reader identity hoặc truy cập dữ liệu và operation ngoài quyền hạn.
+* **Acceptance Criteria:**
+  * `AC-ACCESS-01` Borrow request, request cancellation và personal circulation data yêu cầu authenticated account có reader access.
+  * `AC-ACCESS-02` Prepare, reject, expire và fulfil request yêu cầu authenticated account có role `LIBRARIAN`.
+  * `AC-ACCESS-03` Protected operation chưa đăng nhập trả HTTP `401`.
+  * `AC-ACCESS-04` Account đã đăng nhập nhưng thiếu required role nhận HTTP `403`.
+  * `AC-ACCESS-05` Backend lấy current Account ID từ authenticated principal.
+  * `AC-ACCESS-06` Reader-facing operation không nhận `readerId` do client gửi để xác định người đang thao tác.
+  * `AC-ACCESS-07` Reader chỉ truy cập được request và borrowing thuộc authenticated Account ID.
+  * `AC-ACCESS-08` Request không tồn tại và request thuộc reader khác có cùng observable not-found result.
+  * `AC-ACCESS-09` Reader-facing response không chứa `readerId` hoặc internal credential không cần thiết.
+* **Related Business Rules:** `BR-A01`, `BR-A02`, `BR-A05`, `BR-A08`
+* **Related Security Requirements:** `SEC-08–SEC-13`
+
+### 3.3 BOR-01 — Submit Physical Borrow Request
+
+* **Requirement:** Hệ thống phải cho phép authenticated active reader gửi yêu cầu mượn physical resource và phân bổ ngay một exact physical item đang khả dụng.
+* **Objective:** Giữ một bản sách cụ thể cho reader và bảo đảm availability phản ánh đúng request đã được commit.
+* **Acceptance Criteria:**
+  * `AC-BOR-01` Authenticated active reader gửi được request cho resource có ít nhất một physical item `AVAILABLE`.
+  * `AC-BOR-02` Request thành công có initial status `REQUESTED`.
+  * `AC-BOR-03` Request thành công được phân bổ một exact physical item.
+  * `AC-BOR-04` Exact allocated item chuyển từ `AVAILABLE` sang `RESERVED`.
+  * `AC-BOR-05` Item `RESERVED` không còn được tính vào available copies.
+  * `AC-BOR-06` Nếu không còn item khả dụng tại thời điểm commit, hệ thống không tạo request và không thay đổi item state.
+  * `AC-BOR-07` Sprint 2 không tạo waitlist khi không còn item khả dụng.
+  * `AC-BOR-08` Reader không tạo được active request trùng resource nếu đã có active request cho resource đó.
+  * `AC-BOR-09` Reader không tạo được active request nếu đã có active borrowing cho cùng resource.
+  * `AC-BOR-10` Hệ thống kiểm tra server-defined active commitment limit trước khi tạo request.
+  * `AC-BOR-11` Nếu nhiều reader cùng yêu cầu item khả dụng cuối cùng, chỉ một request được phân bổ item và commit thành công.
+  * `AC-BOR-12` Request thua concurrent race không tạo partial request hoặc thay đổi item state.
+* **Related Business Rules:** `BR-A07`, `BR-I01–BR-I03`
+* **Related Non-functional Requirements:** `NFR-01–NFR-05`
+
+### 3.4 BOR-02 — Process Request and Checkout
+
+* **Requirement:** Hệ thống phải cho phép Librarian chuẩn bị, từ chối, expire hoặc fulfil borrow request theo lifecycle đã định nghĩa; checkout phải tạo borrowing cho exact reserved item.
+* **Objective:** Chuyển một request hợp lệ thành borrowing nhất quán mà không làm lệch request, borrowing và physical-item state.
+* **Acceptance Criteria:**
+  * `AC-CHECKOUT-01` Librarian chuyển được request hợp lệ từ `REQUESTED` sang `READY_FOR_PICKUP`.
+  * `AC-CHECKOUT-02` Exact allocated item tiếp tục ở trạng thái `RESERVED` khi request chuyển sang `READY_FOR_PICKUP`.
+  * `AC-CHECKOUT-03` Request có thể chuyển sang `REJECTED` hoặc `EXPIRED` theo operation hoặc policy tương ứng.
+  * `AC-CHECKOUT-04` Reject hoặc expire trước checkout giải phóng exact reserved item về `AVAILABLE`.
+  * `AC-CHECKOUT-05` Librarian chỉ fulfil request bằng exact physical item đã được phân bổ.
+  * `AC-CHECKOUT-06` Sprint 2 không cho phép tự động hoặc thủ công thay allocated item trong lúc fulfil.
+  * `AC-CHECKOUT-07` Fulfil thành công chuyển request sang `FULFILLED`.
+  * `AC-CHECKOUT-08` Fulfil thành công tạo một active borrowing cho reader của request.
+  * `AC-CHECKOUT-09` Borrowing liên kết với exact reserved physical item.
+  * `AC-CHECKOUT-10` Fulfil thành công chuyển item từ `RESERVED` sang `BORROWED`.
+  * `AC-CHECKOUT-11` Due date chỉ được tạo khi checkout thành công và được tính theo server policy.
+  * `AC-CHECKOUT-12` Một physical item chỉ có tối đa một active borrowing tại cùng thời điểm.
+  * `AC-CHECKOUT-13` Request, borrowing và item-state changes được commit atomically.
+  * `AC-CHECKOUT-14` Fulfil thất bại không để lại request `FULFILLED` mà thiếu borrowing.
+  * `AC-CHECKOUT-15` Fulfil thất bại không để lại borrowing trong khi item chưa `BORROWED`.
+  * `AC-CHECKOUT-16` Nếu nhiều operation cạnh tranh để kết thúc cùng request, chỉ một valid transition được commit.
+  * `AC-CHECKOUT-17` Operation thua race nhận conflict response và không ghi đè trạng thái đã commit.
+* **Related Business Rules:** `BR-R01–BR-R04`, `BR-I02–BR-I08`
+* **Related Non-functional Requirements:** `NFR-01–NFR-05`
+
+### 3.5 MYL-01 — View My Requests and My Borrowings
+
+* **Requirement:** Hệ thống phải cung cấp một account area tại `/my-library` để authenticated reader xem requests và active borrowings của chính mình.
+* **Objective:** Giúp reader biết yêu cầu nào đang được xử lý, kết quả gần đây và nghĩa vụ trả sách hiện tại.
+* **Acceptance Criteria:**
+  * `AC-MYL-01` Trang `/my-library` có hai section độc lập: My Requests và My Borrowings.
+  * `AC-MYL-02` Active Requests chỉ chứa request có status `REQUESTED` hoặc `READY_FOR_PICKUP`.
+  * `AC-MYL-03` Recent Outcomes chỉ chứa request có status `FULFILLED`, `CANCELLED`, `REJECTED` hoặc `EXPIRED`.
+  * `AC-MYL-04` Recent Outcomes chứa tối đa năm request terminal gần nhất.
+  * `AC-MYL-05` My Borrowings chỉ chứa active borrowings.
+  * `AC-MYL-06` Completed borrowing history chưa xuất hiện trong Sprint 2.
+  * `AC-MYL-07` Fulfilled request có thể xuất hiện trong Recent Outcomes đồng thời với active borrowing tương ứng.
+  * `AC-MYL-08` Request data cung cấp resource ID, title, authors, status và các timestamp cần thiết để render.
+  * `AC-MYL-09` Borrowing data cung cấp resource ID, title, authors, borrowed time và due date.
+  * `AC-MYL-10` Reader-facing response không chứa raw domain graph, internal reservation field hoặc physical-item identifier không cần thiết.
+  * `AC-MYL-11` Reader chỉ nhận request và borrowing thuộc authenticated account.
+  * `AC-MYL-12` Không có request hoặc borrowing trả collection rỗng thành công, không trả resource-not-found error.
+  * `AC-MYL-13` `READY_FOR_PICKUP` được hiển thị trước `REQUESTED`.
+  * `AC-MYL-14` Active request có expiration sớm hơn được hiển thị trước.
+  * `AC-MYL-15` Recent outcome mới nhất được hiển thị trước.
+  * `AC-MYL-16` Active borrowing có due date gần nhất được hiển thị trước.
+  * `AC-MYL-17` Backend bảo đảm deterministic ordering; frontend không tự áp dụng business sorting khác.
+  * `AC-MYL-18` Hai section có loading, success và error state độc lập.
+  * `AC-MYL-19` Một section lỗi không che dữ liệu đã tải thành công của section còn lại.
+  * `AC-MYL-20` Reader retry riêng được section tải thất bại.
+  * `AC-MYL-21` Browser refresh lấy lại circulation data từ server.
+  * `AC-MYL-22` Revalidation không xóa last successful in-memory data trước khi response mới hoàn thành.
+* **Related Business Rules:** `BR-A08`, `BR-M01–BR-M08`
+* **Related Non-functional Requirements:** `NFR-05–NFR-10`
+
+### 3.6 CAN-01 — Cancel Borrow Request
+
+* **Requirement:** Hệ thống phải cho phép authenticated reader hủy active request của chính mình và giải phóng exact reserved item.
+* **Objective:** Cho phép reader từ bỏ yêu cầu không còn cần thiết mà vẫn bảo toàn lịch sử request và availability consistency.
+* **Acceptance Criteria:**
+  * `AC-CAN-01` Reader cancel được request của chính mình khi status là `REQUESTED`.
+  * `AC-CAN-02` Reader cancel được request của chính mình khi status là `READY_FOR_PICKUP`.
+  * `AC-CAN-03` Request `FULFILLED`, `CANCELLED`, `REJECTED` hoặc `EXPIRED` không được cancel.
+  * `AC-CAN-04` Frontend yêu cầu confirmation trước khi gửi cancel operation.
+  * `AC-CAN-05` Confirmation cho reader biết reserved item sẽ được giải phóng cho reader khác.
+  * `AC-CAN-06` Cancel thành công chuyển request sang `CANCELLED`.
+  * `AC-CAN-07` Cancel thành công chuyển exact reserved item từ `RESERVED` về `AVAILABLE`.
+  * `AC-CAN-08` Request transition và item release được commit atomically.
+  * `AC-CAN-09` Cancel không xóa request record.
+  * `AC-CAN-10` Cancelled request có thể xuất hiện trong Recent Outcomes.
+  * `AC-CAN-11` Request không tồn tại và request thuộc reader khác trả cùng observable not-found result.
+  * `AC-CAN-12` Request không còn cancellable trả conflict response.
+  * `AC-CAN-13` Khi cancel cạnh tranh với fulfil, chỉ một operation được commit.
+  * `AC-CAN-14` Cancel thành công refresh My Requests sau khi server commit.
+  * `AC-CAN-15` Nếu fulfil thắng concurrent race, client có thể refresh cả My Requests và My Borrowings để phản ánh borrowing mới.
+* **Related Business Rules:** `BR-A08`, `BR-R01`, `BR-R03–BR-R05`, `BR-I05`
+* **Related Security Requirements:** `SEC-08–SEC-12`
+* **Related Non-functional Requirements:** `NFR-01–NFR-03`, `NFR-06–NFR-10`
 
 ---
 
@@ -566,11 +386,11 @@ Exact error-code vocabulary và JSON error shape được định nghĩa thống
 
 ### 6.1 Traceability matrix
 
-| Story   | Use cases                          | Requirement groups                     | Analysis source | Technical design |
-| ------- | ---------------------------------- | -------------------------------------- | --------------- | ---------------- |
-| `US-07` | `UC-S2-01`                         | `AUTH-*`, `BR-A*`, `SEC-*`             | T-071           | T-072            |
-| `US-08` | `UC-S2-02`, `UC-S2-03`, `UC-S2-04` | `BOR-*`, `BR-R*`, `BR-I*`, `NFR-01–05` | T-081           | T-082            |
-| `US-09` | `UC-S2-05`, `UC-S2-06`             | `MYL-*`, `CAN-*`, `BR-M*`, `NFR-06–10` | T-091           | T-092, T-093     |
+| Story | Use cases | Requirement groups | Analysis source | Design/implementation source |
+|---|---|---|---|---|
+| `US-07` | `UC-S2-01` | `AUTH-*`, `BR-A*`, `SEC-*` | T-071 | T-072 |
+| `US-08` | `UC-S2-02`, `UC-S2-03`, `UC-S2-04` | `BOR-*`, `BR-R*`, `BR-I*`, `NFR-01–05` | T-081 | T-082 |
+| `US-09` | `UC-S2-05`, `UC-S2-06` | `MYL-*`, `CAN-*`, `BR-M*`, `NFR-06–10` | T-091 | Thiết kế sơ bộ trong T-091; triển khai bởi T-092/T-093 |
 
 Các ma trận nghiệm thu (acceptance matrix) chi tiết được duy trì trong hồ sơ phân tích tương ứng:
 

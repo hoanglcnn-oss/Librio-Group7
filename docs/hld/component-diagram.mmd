@@ -3,7 +3,6 @@ Guest["Guest"]
 Reader["Reader"]
 Librarian["Librarian"]
 
-```
 subgraph Client["React SPA"]
     DiscoveryUI["Discovery UI"]
     AuthUI["Authentication UI"]
@@ -54,7 +53,7 @@ Security -->|"Reader Access"| MyLibrary
 Security -->|"Reader Request / Cancel"| BorrowRequest
 Security -->|"Librarian Process / Fulfil"| Checkout
 
-Availability --> Resource
+Resource -->|"Build Detail Availability"| Availability
 Availability --> PhysicalItem
 Availability --> DigitalItem
 
@@ -70,4 +69,4 @@ MyLibrary --> Checkout
 AccountModule --> Database
 CatalogModule --> Database
 CirculationModule --> Database
-```
+
