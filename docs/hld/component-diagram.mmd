@@ -1,49 +1,73 @@
-graph TD
-    subgraph Frontend["React SPA (Client)"]
-        UI_Search["Discovery / Search UI"]
-        UI_Detail["Resource Detail UI"]
-        UI_Avail["Availability Section"]
-        UI_Borrow["Borrow / Access UI (S2)"]
+flowchart TB
+Guest["Guest"]
+Reader["Reader"]
+Librarian["Librarian"]
+
+```
+subgraph Client["React SPA"]
+    DiscoveryUI["Discovery UI"]
+    AuthUI["Authentication UI"]
+    MyLibraryUI["My Library UI"]
+    LibrarianUI["Librarian Circulation UI"]
+end
+
+subgraph Backend["Spring Boot Modular Monolith"]
+    Security["Spring Security Boundary<br/>Session · CSRF · Authorization"]
+
+    subgraph AccountModule["Account and Access Module"]
+        Account["Account Identity"]
+        CurrentAccount["Current Account Context"]
     end
 
-    subgraph Backend["Spring Boot (Modular Monolith)"]
-        subgraph CatalogModule["Catalog Module"]
-            Mod_Resource["Resource Domain"]
-            Mod_Physical["PhysicalItem Domain"]
-            Mod_Digital["DigitalItem Domain"]
-            Mod_AvailAgg["Availability Aggregator (Derived)"]
-        end
-
-        subgraph CirculationModule["Circulation Module (S2)"]
-            Mod_Borrowing["Borrowing Transaction Manager"]
-        end
-
-        subgraph UserAdminModule["User & Admin Module"]
-            Mod_User["User Management"]
-            Mod_Admin["Administration"]
-        end
+    subgraph CatalogModule["Catalog Module"]
+        Resource["Resource"]
+        PhysicalItem["PhysicalItem"]
+        DigitalItem["DigitalItem"]
+        Availability["Derived Availability"]
     end
 
-    subgraph Storage["Database Layer"]
-        DB[(Relational DB)]
+    subgraph CirculationModule["Circulation Module"]
+        BorrowRequest["BorrowRequest Lifecycle"]
+        Checkout["Checkout and Borrowing"]
+        MyLibrary["My Requests / My Borrowings"]
     end
+end
 
-    %% Client to Backend Interaction
-    UI_Search -->|HTTP REST| Mod_Resource
-    UI_Detail -->|HTTP REST| Mod_Resource
-    UI_Avail -->|HTTP REST| Mod_AvailAgg
-    UI_Borrow -->|HTTP REST| Mod_Borrowing
+Database[("PostgreSQL")]
 
-    %% Catalog internal aggregation
-    Mod_AvailAgg --> Mod_Resource
-    Mod_AvailAgg --> Mod_Physical
-    Mod_AvailAgg --> Mod_Digital
+Guest --> DiscoveryUI
+Reader --> DiscoveryUI
+Reader --> AuthUI
+Reader --> MyLibraryUI
+Librarian --> AuthUI
+Librarian --> LibrarianUI
 
-    %% Cross Module Boundary
-    Mod_Borrowing -->|Read/Update State| Mod_Physical
-    Mod_Borrowing -->|Verify Borrower| Mod_User
+DiscoveryUI -->|"Public HTTP/JSON"| Security
+AuthUI -->|"Login · Logout · Current Account"| Security
+MyLibraryUI -->|"Protected Reader Operations"| Security
+LibrarianUI -->|"Protected Librarian Operations"| Security
 
-    %% Persistence
-    CatalogModule --> DB
-    CirculationModule --> DB
-    UserAdminModule --> DB
+Security -->|"Public Discovery"| Resource
+Security -->|"Authentication"| Account
+Security -->|"Authenticated Principal"| CurrentAccount
+Security -->|"Reader Access"| MyLibrary
+Security -->|"Reader Request / Cancel"| BorrowRequest
+Security -->|"Librarian Process / Fulfil"| Checkout
+
+Availability --> Resource
+Availability --> PhysicalItem
+Availability --> DigitalItem
+
+BorrowRequest -->|"Current Reader Identity"| CurrentAccount
+Checkout -->|"Current Librarian Identity"| CurrentAccount
+MyLibrary -->|"Ownership Scope"| CurrentAccount
+
+BorrowRequest -->|"Allocate / Release Exact Item"| PhysicalItem
+Checkout -->|"Reserve to Borrowed"| PhysicalItem
+MyLibrary --> BorrowRequest
+MyLibrary --> Checkout
+
+AccountModule --> Database
+CatalogModule --> Database
+CirculationModule --> Database
+```
