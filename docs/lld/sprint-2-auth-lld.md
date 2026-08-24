@@ -6,7 +6,6 @@
 ---
 
 ## 1. Domain Model & Identity
-
 ### 1.1 Account Entity & Reader Identity
 Application sử dụng entity `Account` (bảng `accounts`). Trong Sprint 2, `Account` có role `READER` chính là Reader Identity (chưa tách `ReaderProfile`). Các bảng Circulation liên kết trực tiếp qua `readerId -> Account.id`.
 
@@ -30,7 +29,6 @@ Trước khi lưu hoặc truy vấn account, email phải được normalize: **
 ---
 
 ## 2. Access Matrix & API Contracts
-
 ### 2.1 Access Control Matrix
 
 | Endpoint Group | Method | Required Access | CSRF Protection |
@@ -95,7 +93,6 @@ Toàn bộ Auth/Security exception trả về dạng JSON chuẩn (`ApiErrorResp
 ---
 
 ## 3. Spring Security & Custom JSON Login Architecture
-
 ### 3.1 Authentication & Security Context Flow
 Vì Spring Security mặc định hỗ trợ form-login/HTTP Basic, việc đăng nhập JSON yêu cầu `AuthController` điều phối quy trình xác thực và chủ động lưu trữ SecurityContext.
 
@@ -131,7 +128,6 @@ securityContextRepository.saveContext(context, request, response);
 ---
 
 ## 4. Sequence Diagrams
-
 ### 4.1 Application Bootstrap & Login Flow
 ```mermaid
 sequenceDiagram
@@ -213,7 +209,6 @@ sequenceDiagram
 ---
 
 ## 5. Deployment & Routing Configuration
-
 * **Frontend Fetching:** Gọi API bằng Relative URL (`fetch('/auth/me', { credentials: 'include' })`).
 * **Vite Dev Proxy (`vite.config.js`):** Route `/auth`, `/resources`, `/me` sang `http://localhost:8080`.
 * **Production Deployment:** Single-site deployment (`https://librio.example.com/`). Reverse proxy (Nginx/Cloudflare) sẽ route các path backend trước khi fallback về `index.html` của React SPA.
