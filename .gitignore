@@ -1,12 +1,29 @@
+# Project-specific
+Mock
+.commandcode
+
+# Build outputs & dependencies
 backend/target/
 frontend/node_modules/
 frontend/dist/
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
 
-.env
-.env.local
-*.log
-
+# IDE & Editor files
 .idea/
 .vscode/
+*.iml
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.log
+
+# OS files
 .DS_Store
 Thumbs.db

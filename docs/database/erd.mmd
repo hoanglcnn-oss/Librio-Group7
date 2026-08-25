@@ -1,0 +1,37 @@
+erDiagram
+    RESOURCE ||--o{ PHYSICAL_ITEM : "has"
+    RESOURCE ||--o| DIGITAL_ITEM : "has"
+    PHYSICAL_ITEM ||--o{ BORROWING : "has history"
+    USER ||--o{ BORROWING : "makes"
+
+    RESOURCE {
+        string id PK
+        string title
+        string authors
+        text description
+    }
+
+    PHYSICAL_ITEM {
+        string id PK
+        string resource_id FK
+        string status "AVAILABLE | BORROWED | OVERDUE"
+    }
+
+    DIGITAL_ITEM {
+        string id PK
+        string resource_id FK
+    }
+
+    BORROWING {
+        string id PK
+        string physical_item_id FK
+        string user_id FK
+        datetime borrowed_at
+        datetime due_at
+        datetime returned_at "NULL = active"
+    }
+
+    USER {
+        string id PK
+        string username
+    }

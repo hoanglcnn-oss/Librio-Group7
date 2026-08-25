@@ -1,0 +1,72 @@
+flowchart TB
+Guest["Guest"]
+Reader["Reader"]
+Librarian["Librarian"]
+
+subgraph Client["React SPA"]
+    DiscoveryUI["Discovery UI"]
+    AuthUI["Authentication UI"]
+    MyLibraryUI["My Library UI"]
+    LibrarianUI["Librarian Circulation UI"]
+end
+
+subgraph Backend["Spring Boot Modular Monolith"]
+    Security["Spring Security Boundary<br/>Session · CSRF · Authorization"]
+
+    subgraph AccountModule["Account and Access Module"]
+        Account["Account Identity"]
+        CurrentAccount["Current Account Context"]
+    end
+
+    subgraph CatalogModule["Catalog Module"]
+        Resource["Resource"]
+        PhysicalItem["PhysicalItem"]
+        DigitalItem["DigitalItem"]
+        Availability["Derived Availability"]
+    end
+
+    subgraph CirculationModule["Circulation Module"]
+        BorrowRequest["BorrowRequest Lifecycle"]
+        Checkout["Checkout and Borrowing"]
+        MyLibrary["My Requests / My Borrowings"]
+    end
+end
+
+Database[("PostgreSQL")]
+
+Guest --> DiscoveryUI
+Reader --> DiscoveryUI
+Reader --> AuthUI
+Reader --> MyLibraryUI
+Librarian --> AuthUI
+Librarian --> LibrarianUI
+
+DiscoveryUI -->|"Public HTTP/JSON"| Security
+AuthUI -->|"Login · Logout · Current Account"| Security
+MyLibraryUI -->|"Protected Reader Operations"| Security
+LibrarianUI -->|"Protected Librarian Operations"| Security
+
+Security -->|"Public Discovery"| Resource
+Security -->|"Authentication"| Account
+Security -->|"Authenticated Principal"| CurrentAccount
+Security -->|"Reader Access"| MyLibrary
+Security -->|"Reader Request / Cancel"| BorrowRequest
+Security -->|"Librarian Process / Fulfil"| Checkout
+
+Resource -->|"Build Detail Availability"| Availability
+Availability --> PhysicalItem
+Availability --> DigitalItem
+
+BorrowRequest -->|"Current Reader Identity"| CurrentAccount
+Checkout -->|"Current Librarian Identity"| CurrentAccount
+MyLibrary -->|"Ownership Scope"| CurrentAccount
+
+BorrowRequest -->|"Allocate / Release Exact Item"| PhysicalItem
+Checkout -->|"Reserve to Borrowed"| PhysicalItem
+MyLibrary --> BorrowRequest
+MyLibrary --> Checkout
+
+AccountModule --> Database
+CatalogModule --> Database
+CirculationModule --> Database
+
