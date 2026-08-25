@@ -126,3 +126,17 @@ Once backend is running on `http://localhost:8080`:
 | **2** | Refactoring | Martin Fowler | `PHYSICAL` | 0 / 3 copies available (Out of stock) |
 | **3** | Designing Data-Intensive Applications | Martin Kleppmann | `DIGITAL` | Digital Available |
 | **4** | Structure and Interpretation of Computer Programs | Harold Abelson, Gerald Jay Sussman | `PHYSICAL`, `DIGITAL` | 1 / 2 copies available, Digital Available |
+
+---
+
+## 📚 Project Documentation & Architecture Specs
+
+Full requirements, database specifications, system architecture, and low-level designs are located in the [`docs/`](docs/README.md) directory:
+
+- 📄 **[Documentation Index & Hub (`docs/README.md`)](docs/README.md)**
+- 📋 **[Software Requirements Specification (SRS)](docs/srs/sprint-2-srs.md)**
+- 🏛️ **[High-Level Architecture (HLD)](docs/hld/architecture.md)**
+- 🔒 **[Auth & Access Low-Level Design (LLD)](docs/lld/sprint-2-auth-lld.md)**
+- 📚 **[Physical Circulation Low-Level Design (LLD)](docs/lld/sprint-2-borrow-lld.md)**
+
+
