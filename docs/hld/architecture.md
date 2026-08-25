@@ -1,252 +1,100 @@
-# D03 — High-Level Design (HLD) & System Architecture — Librio
+# Librio — High-Level Design & System Architecture
 
-**Project:** Librio  
-**Document:** High-Level Design (HLD) Baseline v0.1  
-**Status:** Baseline sau Analysis & Architecture Alignment  
-**Owners:** HH — Technical/Backend, PL — Frontend/Design, KL — Requirement/QA  
-**Related:** D03 SRS Baseline | D03 LLD Baseline  
+**Project:** Librio | **Version:** Sprint 2 (HLD v0.2)  
+**SRS:** [Sprint 2 SRS](../srs/sprint-2-srs.md) | **Component Diagram:** [component-diagram.mmd](component-diagram.mmd)
 
 ---
 
-## 1. Architectural Style & Technology Stack
+## 1. System Architecture & Tech Stack
 
-Hệ thống **Librio** được thiết kế theo phong cách kiến trúc **Modular Monolith** nhằm tối ưu tốc độ phát triển cho MVP, đảm bảo tính đơn giản trong vận hành nhưng vẫn duy trì sự phân tách rõ ràng về ranh giới domain (domain boundary).
-
-```text
-┌────────────────────────────────────────────────────────┐
-│                      React SPA                         │
-│   (Single Page Application - Client-side Rendering)    │
-└───────────────────────────┬────────────────────────────┘
-                            │ REST / HTTP JSON
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               Spring Boot Application                  │
-│                 (Modular Monolith)                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌─────────────┐ │
-│  │   Catalog    │   │ Circulation  │   │ User/Admin  │ │
-│  └──────────────┘   └──────────────┘   └─────────────┘ │
-└───────────────────────────┬────────────────────────────┘
-                            │ JPA / JDBC Persistence
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                  Relational Database                   │
-│             (PostgreSQL / Relational DB)               │
-└────────────────────────────────────────────────────────┘
-```
-
-- **Frontend:** React SPA (Vite, React Router).
-- **Backend:** Java + Spring Boot (Modular Monolith).
-- **Database:** Relational Database (PostgreSQL).
-- **Protocol:** HTTP/RESTful APIs (JSON Payload).
-
----
-
-## 2. Domain & Backend Module Boundaries
-
-Hệ thống Backend được phân chia ranh giới theo 3 Modules chính:
+Librio áp dụng kiến trúc **Modular Monolith** nhằm tối ưu hóa tốc độ phát triển cho MVP, đơn giản hóa vận hành và đảm bảo tính nhất quán của giao dịch (transaction) mà không gặp phức tạp của distributed systems.
 
 ```text
-Spring Boot Application
-├── Catalog Module         (Sở hữu dữ liệu tài liệu & khả dụng)
-│   ├── Resource
-│   ├── PhysicalItem
-│   ├── DigitalItem
-│   └── Availability       (Derived Capability — Không phải Table riêng)
-│
-├── Circulation Module     (Sở hữu nghiệp vụ mượn/trả tài liệu)
-│   └── Borrowing
-│
-└── User / Admin Module    (Sở hữu tài khoản & quản trị hệ thống)
-    ├── User
-    └── Administration
+Browser ──► React SPA (Client) ──[ HTTP/JSON + Session Cookie ]──► Spring Security Boundary
+                                                                        │
+┌───────────────────────────────────────────────────────────────────────┘
+▼
+Spring Boot Modular Monolith
+├── Account & Access Module (Identity, Authentication, Role Management)
+├── Catalog Module          (Resources, Physical/Digital Items, Derived Availability)
+└── Circulation Module      (Borrow Requests, Reservations, Checkouts, My Library)
+        │
+        ▼
+PostgreSQL Database (Shared Relational Database)
 ```
 
-### 2.1 Catalog Module
-- **Trách nhiệm:** Quản lý toàn bộ dữ liệu *"Những gì thư viện sở hữu"*.
-- **Entities chính:** `Resource` (thông tin tài liệu), `PhysicalItem` (bản sao vật lý), `DigitalItem` (bản số hóa).
-- **Availability Capability:** Trạng thái khả dụng được tính toán động (derived) từ `PhysicalItem.status` và sự tồn tại của `DigitalItem`, **không lưu cứng thành Table trong DB**.
-
-### 2.2 Circulation Module
-- **Trách nhiệm:** Quản lý toàn bộ lịch sử và giao dịch mượn/trả sách.
-- **Entities chính:** `Borrowing` (lịch sử mượn trả liên kết `User` và `PhysicalItem`).
-- **Ranh giới:** Circulation phụ thuộc vào `PhysicalItem` của Catalog Module để kiểm tra và cập nhật trạng thái mượn (`status`).
-
-### 2.3 User / Administration Module
-- **Trách nhiệm:** Quản lý tài khoản đọc giả, thủ thư và cấu hình hệ thống (MVP Support Module).
-
----
-
-## 3. High-Level Request Flows
-
-### 3.1 Flow 1: Search / Browse Resources (S1 Scope)
-```text
-React UI ──► Catalog API ──► Catalog Module ──► ResourceRepository ──► Database
-```
-
-### 3.2 Flow 2: Resource Detail & Availability (S1 Scope)
-```text
-React UI ──► Catalog API ──► Catalog Module ──► Aggregate (Resource + PhysicalItems + DigitalItem) ──► JSON Response
-```
-*Lưu ý HLD:* Availability được gộp trực tiếp vào Response payload của `GET /resources/{id}`, không tách thành micro-service hay API riêng lẻ.
-
-### 3.3 Flow 3: Borrow Resource (Future Scope - S2 Boundary Note)
-```text
-React UI ──► Circulation API ──► Circulation Module ──► [ Transaction Boundary ] ──► Update PhysicalItem Status & Create Borrowing ──► Database
-```
-
----
-
-## 4. Architecture Diagrams
-
-### 4.1 Sơ đồ Mermaid Component Architecture (Code-First)
-
-```mermaid
-graph TD
-    subgraph Frontend["React SPA (Client)"]
-        UI_Search["Discovery / Search UI"]
-        UI_Detail["Resource Detail UI"]
-        UI_Avail["Availability Section"]
-        UI_Borrow["Borrow / Access UI (S2)"]
-    end
-
-    subgraph Backend["Spring Boot (Modular Monolith)"]
-        subgraph CatalogModule["Catalog Module"]
-            Mod_Resource["Resource Domain"]
-            Mod_Physical["PhysicalItem Domain"]
-            Mod_Digital["DigitalItem Domain"]
-            Mod_AvailAgg["Availability Aggregator (Derived)"]
-        end
-
-        subgraph CirculationModule["Circulation Module (S2)"]
-            Mod_Borrowing["Borrowing Transaction Manager"]
-        end
-
-        subgraph UserAdminModule["User & Admin Module"]
-            Mod_User["User Management"]
-            Mod_Admin["Administration"]
-        end
-    end
-
-    subgraph Storage["Database Layer"]
-        DB[(Relational DB)]
-    end
-
-    %% Client to Backend Interaction
-    UI_Search -->|HTTP REST| Mod_Resource
-    UI_Detail -->|HTTP REST| Mod_Resource
-    UI_Avail -->|HTTP REST| Mod_AvailAgg
-    UI_Borrow -->|HTTP REST| Mod_Borrowing
-
-    %% Catalog internal aggregation
-    Mod_AvailAgg --> Mod_Resource
-    Mod_AvailAgg --> Mod_Physical
-    Mod_AvailAgg --> Mod_Digital
-
-    %% Cross Module Boundary
-    Mod_Borrowing -->|Read/Update State| Mod_Physical
-    Mod_Borrowing -->|Verify Borrower| Mod_User
-
-    %% Persistence
-    CatalogModule --> DB
-    CirculationModule --> DB
-    UserAdminModule --> DB
-```
-
-### 4.2 Sơ đồ PlantUML Architecture v0.1
-
-```plantuml
-@startuml
-title Librio - High-Level Architecture v0.1
-
-actor "Reader / User" as User
-
-rectangle "React SPA" as Frontend {
-    component "Discovery / Search" as DiscoveryUI
-    component "Resource Detail" as DetailUI
-    component "Availability" as AvailabilityUI
-    component "Borrow / Access" as AccessUI
-}
-
-rectangle "Spring Boot Application\n(Modular Monolith)" as Backend {
-
-    package "Catalog" as Catalog {
-        component "Resource" as Resource
-        component "PhysicalItem" as PhysicalItem
-        component "DigitalItem" as DigitalItem
-        component "Availability\n(derived)" as Availability
-    }
-
-    package "Circulation" as Circulation {
-        component "Borrowing" as Borrowing
-    }
-
-    package "User / Administration" as UserAdmin {
-        component "User" as UserModule
-        component "Administration" as Administration
-    }
-}
-
-database "Relational Database\n(PostgreSQL)" as DB
-
-User --> DiscoveryUI
-User --> DetailUI
-User --> AvailabilityUI
-User --> AccessUI
-
-DiscoveryUI --> Resource : HTTP/JSON
-DetailUI --> Resource : HTTP/JSON
-AvailabilityUI --> Availability : HTTP/JSON
-
-AccessUI --> Borrowing : HTTP/JSON
-
-Availability --> Resource
-Availability --> PhysicalItem
-Availability --> DigitalItem
-
-Borrowing --> PhysicalItem : read/update\ncirculation state
-Borrowing --> UserModule : identify borrower
-
-Resource --> DB
-PhysicalItem --> DB
-DigitalItem --> DB
-Borrowing --> DB
-UserModule --> DB
-Administration --> DB
-
-@enduml
-```
-
----
-
-## 5. Architectural Boundary & Design Notes
-
-### 5.1 Layering Boundary (Controller ➔ Service ➔ Repository ➔ DB)
-Mặc dù sơ đồ HLD thể hiện các Component kết nối xuống DB, cấu trúc thực tế trong từng Module Backend phải tuân thủ nghiêm ngặt mô hình 3 lớp:
-```text
-Controller (HTTP Boundary) ➔ Service (Business Boundary) ➔ Repository (Persistence Boundary) ➔ DB
-```
-
-### 5.2 Circulation ➔ Catalog Dependency & Transaction Boundary
-- `Circulation Module` phụ thuộc vào `PhysicalItem` của `Catalog Module`.
-- **Yêu cầu Transactional Boundary:** Thao tác mượn sách (`Borrow`) bắt buộc phải bọc trong một **Server-Side Atomic Transaction** bao gồm cả 2 hành động:
-  1. Tạo bản ghi `Borrowing` mới.
-  2. Cập nhật `PhysicalItem.status = 'BORROWED'`.
-- Nếu 1 trong 2 hành động thất bại, toàn bộ giao dịch phải `ROLLBACK` để tránh hiện tượng vỡ dữ liệu (*Borrowing active nhưng PhysicalItem vẫn AVAILABLE*).
-- *Chi tiết locking strategy (Optimistic vs Pessimistic) được hoãn lại đến LLD Sprint 2.*
-
----
-
-## 6. Architectural Decisions Log (HLD Baseline Freeze)
-
-| Hạng mục Decision | Quyết định Architecture | Trạng thái |
+| Layer | Technology | Key Details |
 | :--- | :--- | :--- |
-| **Architecture Pattern** | **Modular Monolith** (Single Spring Boot Artifact) | **Confirmed** |
-| **Frontend Framework** | **React SPA** | **Confirmed** |
-| **Communication Protocol**| **REST / HTTP JSON** | **Confirmed** |
-| **Catalog Boundary** | Sở hữu Resource, PhysicalItem, DigitalItem | **Confirmed** |
-| **Circulation Boundary** | Sở hữu Borrowing History & Circulation logic | **Confirmed** |
-| **Availability Entity** | **Derived Capability**, không tạo DB table riêng | **Confirmed** |
-| **Borrow Transaction** | Bắt buộc có **Atomic Transactional Boundary** | **Required** |
-| **Database Engine** | **Relational Database (PostgreSQL)** | **Confirmed** |
-| **Authentication / AuthZ**| Spring Security / JWT Baseline | **Deferred (TBD)** |
-| **Deployment Strategy** | Single Instance / Docker Container | **Deferred (TBD)** |
+| **Frontend** | React SPA, Vite, React Router | CSR Architecture, Relative URL API calls (`credentials: 'include'`). |
+| **Backend** | Java, Spring Boot, Spring Security | Single Deployment Artifact, Modular Layering (Controller ➔ Service ➔ Repository). |
+| **Persistence**| Spring Data JPA, PostgreSQL | Single Relational DB với logical domain isolation. |
+| **Security** | Session Cookie + CSRF Protection | `HttpOnly` cookies, Server-side HTTP session (no JWT). |
+
+---
+
+## 2. Module Boundaries & Responsibilities
+
+### 2.1 Core Modules
+
+* **React SPA (Client UI):** Gồm 4 phân vùng chính (`Discovery UI`, `Authentication UI`, `My Library UI`, `Librarian Circulation UI`). Client không phải là Source of Truth cho bất kỳ business rule, availability hay security authorization nào.
+* **Spring Security Boundary:** Intercept toàn bộ HTTP request; chịu trách nhiệm Authentication, Session Restoration, Role-based Authorization, CSRF validation và Error Handling (Trả JSON 401/403).
+* **Account & Access Module:** Sở hữu entity `Account`, Canonical Email, Password Hash (`BCrypt`) và Role (`READER`/`LIBRARIAN`). Trong Sprint 2, `Account` với role `READER` đóng vai trò trực tiếp là Reader Identity (chưa tách `ReaderProfile`).
+* **Catalog Module:** Sở hữu `Resource`, `PhysicalItem` và `DigitalItem`. Physical availability được derive bằng cách đếm các physical item có trạng thái `AVAILABLE`; item `RESERVED` hoặc `BORROWED` không được tính là khả dụng. Không tạo bảng `Availability` riêng.
+* **Circulation Module:** Quản lý vòng đời `BorrowRequest` và `Borrowing`. Thực hiện allocation, prepare, reject, expire, checkout và reader cancellation.
+
+### 2.2 Cross-Module Interactions & Layers
+
+Mỗi module tuân thủ cấu trúc 3 lớp: `Controller (HTTP)` ➔ `Service (Business/Orchestration)` ➔ `Repository (Persistence)`.
+
+| Source | Target | Interaction Purpose |
+| :--- | :--- | :--- |
+| Security Boundary | Account & Access | Authenticate credential & Load user SecurityContext. |
+| Circulation Module | Account Context | Lấy `Account.id` immutable từ SecurityContext (Không tin `readerId` do Client gửi). |
+| Circulation Module | Catalog Module | Phân bổ (allocate), khóa (reserve), và cập nhật trạng thái `PhysicalItem`. |
+| All Backend Modules | PostgreSQL DB | Lưu trữ và truy vấn dữ liệu theo domain boundary. |
+
+---
+
+## 3. High-Level Workflows & Boundaries
+
+### 3.1 Core Workflows
+1. **Public Discovery:** Guest/Reader browse & search tài liệu ➔ Security cho phép public ➔ Catalog Module trả dữ liệu Resource & Derived Availability.
+2. **Login & Session Restoration:** SPA gửi credentials + CSRF token ➔ Security xác thực ➔ Tạo Server Session & Set `HttpOnly` Cookie ➔ Trả `AccountSummaryResponse`. SPA gọi `/auth/me` để khôi phục state khi reload.
+3. **Submit Borrow Request:** Reader tạo Yêu cầu ➔ Circulation xác thực identity ➔ Yêu cầu Catalog phân bổ 1 `AVAILABLE` physical item ➔ Tạo `BorrowRequest` & đổi item sang `RESERVED` trong 1 atomic transaction.
+4. **Prepare / Reject Request:** Librarian xử lý request ➔ Đổi trạng thái sang `READY_FOR_PICKUP` (nếu có sách) hoặc `REJECTED` (giải phóng reserved item về `AVAILABLE`).
+5. **Checkout & Fulfil:** Librarian xác nhận mượn ➔ Tạo `Borrowing` + Due Date ➔ Chuyển request sang `FULFILLED` & item sang `BORROWED` trong 1 atomic transaction.
+6. **Reader Cancellation:** Reader hủy request active ➔ Request chuyển sang `CANCELLED` & giải phóng reserved item về `AVAILABLE`. Cạnh tranh giữa Cancel và Fulfil tuân theo one-winner behavior.
+7. **My Library:** Reader mở `/my-library` ➔ My Requests và My Borrowings
+được query độc lập ➔ Backend enforce ownership và urgency-first ordering.
+Một section lỗi không làm mất dữ liệu của section còn lại.
+
+### 3.2 Security, Transaction & Concurrency Boundaries
+* **Session & Privacy Boundary:** Principal từ Session là nguồn duy nhất xác định User Identity. Reader chỉ được truy cập dữ liệu do chính mình sở hữu. Dữ liệu của Reader khác nếu không thuộc quyền hạn sẽ trả về lỗi `404 Not Found` tương tự như record không tồn tại.
+* **Transaction Boundary:** Thao tác tạo Request/Reserve, Checkout/Fulfil, Reject/Cancel bắt buộc phải bọc trong **Server-Side Atomic Transaction**. Nếu có lỗi, toàn bộ transaction rollback để tránh sai lệch state giữa Request, Borrowing và PhysicalItem.
+* **Concurrency Boundary:** Hệ thống áp dụng locking/versioning strategy để giữ tính năng one-winner khi nhiều Reader cùng yêu cầu 1 bản sao vật lý cuối cùng hoặc khi Cancel cạnh tranh với Fulfil.
+
+---
+
+## 4. Architectural Decisions & Traceability
+
+### 4.1 Architecture Decisions Log
+
+| ID | Decision | Rationale / Status |
+| :--- | :--- | :--- |
+| `HLD-01` | React SPA + Spring Boot Modular Monolith + PostgreSQL | Tối ưu vận hành & tốc độ phát triển cho MVP. (Accepted) |
+| `HLD-02` | REST / HTTP JSON (Không dùng `/api` prefix) | Thống nhất API conventions với Sprint 1. (Accepted) |
+| `HLD-03` | Server-Side Session + `HttpOnly` Cookie (Không dùng JWT) | Bảo mật tốt chống XSS, đơn giản hóa revocation. (Accepted) |
+| `HLD-04` | Spring Security Boundary | Tập trung hóa Security logic, CSRF & JSON Error Handling. (Accepted) |
+| `HLD-05` | Account có role `READER` = Reader Identity |
+| `HLD-06` | Derived Availability (No DB Table) | Availability được tính toán động từ Item status, tránh vỡ dữ liệu. (Accepted) |
+| `HLD-07` | Atomic Transaction Boundaries | Bắt buộc cho request allocation, checkout, reject và cancel. (Accepted) |
+| `HLD-08` | Single-Site Production / Vite Dev Proxy | Đơn giản hóa CORS và Cookie sharing. (Accepted) |
+
+### 4.2 Traceability Matrix
+
+| Architecture Area | Requirement Source | Detailed Design Document |
+| :--- | :--- | :--- |
+| Account & Authentication | T-071, Sprint 2 SRS | [sprint-2-auth-lld.md](../lld/sprint-2-auth-lld.md) |
+| Borrow Request & Checkout | T-081, Sprint 2 SRS | `sprint-2-borrow-lld.md` (T-082) |
+| My Library (Requests/Borrowings) | T-091, Sprint 2 SRS | T-091 lightweight design; T-092/T-093 implementation |
+| Database Schema & Constraints | Sprint 2 SRS & Domain Boundaries | Database Design Specification (T-083) |

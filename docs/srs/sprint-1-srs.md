@@ -46,10 +46,10 @@ Mục tiêu của Sprint 1 cho phép người đọc:
 ---
 
 ## 3. Detailed Functional Requirements
-
++ non-functional
 ### 3.1 LIB-01 — Browse Resources
 - **Requirement:** Hệ thống phải cho phép người đọc duyệt danh sách các tài liệu trong thư viện.
-- **User Value:** Khám phá tài liệu mà không cần biết chính xác tên tài liệu trước.
+- **Objective:** Khám phá tài liệu mà không cần biết chính xác tên tài liệu trước.
 - **Acceptance Criteria:**
   - [x] Hiển thị danh sách các Resources.
   - [x] Hiển thị thông tin tóm tắt (title, authors) trên từng Resource Card.
@@ -58,7 +58,7 @@ Mục tiêu của Sprint 1 cho phép người đọc:
 
 ### 3.2 LIB-02 — Search Resources
 - **Requirement:** Hệ thống phải cho phép người đọc tìm kiếm tài liệu bằng từ khóa.
-- **User Value:** Tìm nhanh tài liệu đúng nhu cầu mà không cần lướt toàn bộ danh sách.
+- **Objective:** Tìm nhanh tài liệu đúng nhu cầu mà không cần lướt toàn bộ danh sách.
 - **Acceptance Criteria:**
   - [x] Có ô nhập từ khóa tìm kiếm (`SearchInput`).
   - [x] Khi submit, tự động trim khoảng trắng thừa và gửi request tìm kiếm.
@@ -83,7 +83,7 @@ Mục tiêu của Sprint 1 cho phép người đọc:
 
 ---
 
-## 4. Technical Enabling Requirements
+## 4. Technical Enabling Requirements (sai)
 
 ### 4.1 LIB-05 — Resource/Item Data Model
 - Thiết lập quan hệ `1 Resource ── 0..N PhysicalItem` và `1 Resource ── 0..1 DigitalItem`.
