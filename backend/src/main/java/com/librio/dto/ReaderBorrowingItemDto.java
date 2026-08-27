@@ -9,7 +9,6 @@ import java.time.OffsetDateTime;
 @Builder
 public class ReaderBorrowingItemDto {
     private Long id;
-    private Long borrowRequestId;
     private ResourceSummaryDto resource;
     private OffsetDateTime borrowedAt;
     private OffsetDateTime dueDate;

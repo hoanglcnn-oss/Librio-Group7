@@ -1,37 +1,73 @@
 erDiagram
-    RESOURCE ||--o{ PHYSICAL_ITEM : "has"
-    RESOURCE ||--o| DIGITAL_ITEM : "has"
-    PHYSICAL_ITEM ||--o{ BORROWING : "has history"
-    USER ||--o{ BORROWING : "makes"
+    RESOURCE ||--o{ PHYSICAL_ITEM : "has copies"
+    RESOURCE ||--o| DIGITAL_ITEM : "has digital item"
+    RESOURCE ||--o{ BORROW_REQUEST : "requested for"
+
+    ACCOUNTS ||--o{ BORROW_REQUEST : "reader submits"
+    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian prepares"
+    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian rejects"
+    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian fulfils"
+
+    PHYSICAL_ITEM ||--o{ BORROW_REQUEST : "allocated to"
+
+    BORROW_REQUEST ||--o| BORROWING : "creates"
+    ACCOUNTS ||--o{ BORROWING : "reader borrows"
+    PHYSICAL_ITEM ||--o{ BORROWING : "loan history"
 
     RESOURCE {
-        string id PK
-        string title
-        string authors
-        text description
+        BIGINT id PK
+        VARCHAR title
+        VARCHAR authors
+        TEXT description
     }
 
     PHYSICAL_ITEM {
-        string id PK
-        string resource_id FK
-        string status "AVAILABLE | BORROWED | OVERDUE"
+        BIGINT id PK
+        BIGINT resource_id FK
+        VARCHAR status
     }
 
     DIGITAL_ITEM {
-        string id PK
-        string resource_id FK
+        BIGINT id PK
+        BIGINT resource_id FK, UK
+    }
+
+    ACCOUNTS {
+        BIGINT id PK
+        VARCHAR email UK
+        VARCHAR password_hash
+        VARCHAR display_name
+        VARCHAR role
+        VARCHAR account_status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    BORROW_REQUEST {
+        BIGINT id PK
+        BIGINT reader_id FK
+        BIGINT resource_id FK
+        BIGINT physical_item_id FK
+        VARCHAR status
+        TIMESTAMP requested_at
+        TIMESTAMP status_updated_at
+        TIMESTAMP expires_at
+        TIMESTAMP prepared_at
+        BIGINT prepared_by FK
+        TIMESTAMP rejected_at
+        BIGINT rejected_by FK
+        TIMESTAMP fulfilled_at
+        BIGINT fulfilled_by FK
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
     BORROWING {
-        string id PK
-        string physical_item_id FK
-        string user_id FK
-        datetime borrowed_at
-        datetime due_at
-        datetime returned_at "NULL = active"
-    }
-
-    USER {
-        string id PK
-        string username
+        BIGINT id PK
+        BIGINT physical_item_id FK
+        BIGINT reader_id FK
+        BIGINT borrow_request_id FK, UK
+        TIMESTAMP borrowed_at
+        TIMESTAMP due_at
+        TIMESTAMP returned_at
     }

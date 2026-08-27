@@ -1,12 +1,24 @@
-# Database Design & ERD Specification — Overview
+# Database Design — Librio
 
-> Thư mục này chứa toàn bộ thiết kế cơ sở dữ liệu (Logical Schema & ERD) của dự án **Librio**.
+Thư mục này chứa logical database design cho resource discovery, authentication và physical borrowing flow.
 
----
+## Documents
 
-## 📂 Danh mục File Thiết kế CSDL
+- [Entity Relationship Diagram](./erd.mmd)
+- [Schema Specification and Constraints](./schema-spec.md)
+- [Executable Runtime Schema](../../backend/src/main/resources/schema.sql)
 
-- 📊 **[Source ERD Mermaid (`erd.mmd`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/erd.mmd)**  
-  *(Sơ đồ Entity-Relationship Diagram dạng code-first Mermaid editable)*
-- 📑 **[Schema Specification & Constraints (`schema-spec.md`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/database/schema-spec.md)**  
-  *(Mô tả chi tiết các Bảng, Cột, Kiểu dữ liệu, Primary/Foreign Keys và các Business Constraints BC-01 đến BC-04)*
+## Source Alignment
+
+Database artifacts phải được giữ đồng bộ:
+
+`JPA entities`
+`↔ schema.sql`
+`↔ schema-spec.md`
+`↔ erd.mmd`
+
+- `schema-spec.md` mô tả logical schema và business constraints.
+- `erd.mmd` mô tả entity relationships.
+- `schema.sql` là executable PostgreSQL schema và phải được kiểm tra riêng trên database test.
+
+Availability là derived data; hệ thống không tạo bảng availability.

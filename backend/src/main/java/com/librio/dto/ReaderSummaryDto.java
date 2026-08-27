@@ -7,6 +7,5 @@ import lombok.Data;
 @Builder
 public class ReaderSummaryDto {
     private Long id;
-    private String email;
     private String displayName;
 }

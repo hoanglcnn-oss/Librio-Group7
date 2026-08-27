@@ -5,6 +5,7 @@ import com.librio.domain.*;
 import com.librio.dto.*;
 import com.librio.exception.BorrowErrorCode;
 import com.librio.exception.BorrowFlowException;
+import com.librio.exception.RequestExpiredTransitionException;
 import com.librio.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -45,7 +46,7 @@ public class BorrowService {
     private final BorrowingRepository borrowingRepository;
     private final CirculationPolicyProperties circulationPolicy;
 
-    @Transactional
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public ReaderBorrowRequestItemDto createRequest(Long readerId, Long resourceId) {
         if (resourceId == null) {
             throw validation("resourceId is required");
@@ -104,7 +105,7 @@ public class BorrowService {
         return toReaderRequestDto(borrowRequestRepository.save(request));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public LibrarianBorrowRequestItemDto prepare(Long librarianId, Long requestId, Long physicalItemId) {
         requirePhysicalItemId(physicalItemId);
         BorrowRequest request = getRequestForUpdate(requestId);
@@ -123,7 +124,7 @@ public class BorrowService {
         return toLibrarianRequestDto(request);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public LibrarianBorrowingDto fulfil(Long librarianId, Long requestId, Long physicalItemId) {
         requirePhysicalItemId(physicalItemId);
         BorrowRequest request = getRequestForUpdate(requestId);
@@ -194,7 +195,7 @@ public class BorrowService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public ReaderBorrowRequestItemDto cancel(Long readerId, Long requestId) {
         BorrowRequest request = borrowRequestRepository.findByIdAndReaderIdForUpdate(requestId, readerId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.REQUEST_NOT_FOUND, "Borrow request not found"));
@@ -209,7 +210,7 @@ public class BorrowService {
         return toReaderRequestDto(request);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId) {
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
@@ -292,8 +293,14 @@ public class BorrowService {
     private void requireNotExpired(BorrowRequest request) {
         LocalDateTime now = LocalDateTime.now();
         if (request.getExpiresAt() != null && !now.isBefore(request.getExpiresAt())) {
-            throw conflict(BorrowErrorCode.REQUEST_EXPIRED, "Borrow request has expired");
+            expireRequest(request, now);
+            throw new RequestExpiredTransitionException("Borrow request has expired");
         }
+    }
+
+    private void expireRequest(BorrowRequest request, LocalDateTime now) {
+        transition(request, BorrowRequestStatus.EXPIRED, now);
+        releaseReservedItem(request);
     }
 
     private void requireReservedItem(BorrowRequest request) {
@@ -326,10 +333,7 @@ public class BorrowService {
                 .resource(toResourceSummary(request.getResource()))
                 .status(request.getStatus())
                 .requestedAt(toOffset(request.getRequestedAt()))
-                .readyAt(toOffset(request.getPreparedAt()))
                 .expiresAt(toOffset(request.getExpiresAt()))
-                .fulfilledAt(toOffset(request.getFulfilledAt()))
-                .rejectedAt(toOffset(request.getRejectedAt()))
                 .statusUpdatedAt(toOffset(request.getStatusUpdatedAt()))
                 .build();
     }
@@ -353,7 +357,6 @@ public class BorrowService {
     private ReaderBorrowingItemDto toReaderBorrowingDto(Borrowing borrowing) {
         return ReaderBorrowingItemDto.builder()
                 .id(borrowing.getId())
-                .borrowRequestId(borrowing.getBorrowRequest().getId())
                 .resource(toResourceSummary(borrowing.getPhysicalItem().getResource()))
                 .borrowedAt(toOffset(borrowing.getBorrowedAt()))
                 .dueDate(toOffset(borrowing.getDueAt()))
@@ -375,7 +378,6 @@ public class BorrowService {
     private ReaderSummaryDto toReaderSummary(Account reader) {
         return ReaderSummaryDto.builder()
                 .id(reader.getId())
-                .email(reader.getEmail())
                 .displayName(reader.getDisplayName())
                 .build();
     }

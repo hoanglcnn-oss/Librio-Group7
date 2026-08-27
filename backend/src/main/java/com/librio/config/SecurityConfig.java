@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -69,9 +70,15 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
-                        .logoutSuccessHandler((request, response, authentication) ->
-                                response.setStatus(HttpServletResponse.SC_NO_CONTENT)
-                        )
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
+                                writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                                        BorrowErrorCode.AUTHENTICATION_REQUIRED.name(),
+                                        "Authentication required");
+                                return;
+                            }
+                            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                        })
                 )
 
                 .exceptionHandling(exception -> exception

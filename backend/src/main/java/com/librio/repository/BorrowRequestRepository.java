@@ -76,7 +76,7 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
             join fetch br.physicalItem pi
             where br.reader.id = :readerId
               and br.status in :statuses
-            order by br.statusUpdatedAt desc, br.id desc
+            order by br.statusUpdatedAt desc, br.id asc
             """)
     List<BorrowRequest> findRecentOutcomesForReader(@Param("readerId") Long readerId,
                                                     @Param("statuses") Collection<BorrowRequestStatus> statuses,

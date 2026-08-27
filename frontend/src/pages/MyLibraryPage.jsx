@@ -169,7 +169,6 @@ function LibraryCard({ item, action }) {
         <h3>{item.resource?.title || `Resource #${item.resource?.id || 'unknown'}`}</h3>
         <small>Requested: {formatDate(item.requestedAt)}</small>
         {item.expiresAt && <small>Expires: {formatDate(item.expiresAt)}</small>}
-        {item.readyAt && <small>Ready: {formatDate(item.readyAt)}</small>}
         {action && <div className="card-action">{action}</div>}
       </div>
     </article>

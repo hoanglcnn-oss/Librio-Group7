@@ -13,9 +13,6 @@ public class ReaderBorrowRequestItemDto {
     private ResourceSummaryDto resource;
     private BorrowRequestStatus status;
     private OffsetDateTime requestedAt;
-    private OffsetDateTime readyAt;
     private OffsetDateTime expiresAt;
-    private OffsetDateTime fulfilledAt;
-    private OffsetDateTime rejectedAt;
     private OffsetDateTime statusUpdatedAt;
 }
