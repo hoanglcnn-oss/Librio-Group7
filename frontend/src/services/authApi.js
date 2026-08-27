@@ -8,7 +8,7 @@ async function parseError(response) {
   let message = 'Yêu cầu không thành công.'
   try {
     const body = await response.json()
-    message = body.message || body.error || message
+    message = body.message || body.error || body.code || message
   } catch {
     // Spring Security may return an empty response body.
   }
@@ -75,7 +75,7 @@ export async function logout() {
 
 export async function createBorrowRequest(resourceId) {
   const token = csrf || await getCsrf()
-  const response = await fetch(`${API_BASE_URL}/me/borrow-requests`, {
+  const response = await fetch(`${API_BASE_URL}/borrow-requests`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -89,12 +89,16 @@ export async function createBorrowRequest(resourceId) {
   return response.json()
 }
 
-async function librarianAction(requestId, action) {
+async function librarianAction(requestId, action, body) {
   const token = csrf || await getCsrf()
   const response = await fetch(`${API_BASE_URL}/librarian/borrow-requests/${encodeURIComponent(requestId)}/${action}`, {
     method: 'POST',
     credentials: 'include',
-    headers: { [token.headerName]: token.token },
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      [token.headerName]: token.token,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   })
   if (!response.ok) return parseError(response)
   csrf = null
@@ -135,12 +139,12 @@ export function getLibrarianBorrowRequests() {
   return authenticatedGet('/librarian/borrow-requests')
 }
 
-export function prepareBorrowRequest(requestId) {
-  return librarianAction(requestId, 'prepare')
+export function prepareBorrowRequest(requestId, physicalItemId) {
+  return librarianAction(requestId, 'prepare', physicalItemId ? { physicalItemId } : undefined)
 }
 
-export function fulfilBorrowRequest(requestId) {
-  return librarianAction(requestId, 'fulfil')
+export function fulfilBorrowRequest(requestId, physicalItemId) {
+  return librarianAction(requestId, 'fulfil', physicalItemId ? { physicalItemId } : undefined)
 }
 
 export function rejectBorrowRequest(requestId, reason) {

@@ -21,6 +21,11 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
             Collection<BorrowRequestStatus> statuses
     );
 
+    long countByReaderIdAndStatusIn(
+            Long readerId,
+            Collection<BorrowRequestStatus> statuses
+    );
+
     Optional<BorrowRequest> findByIdAndReaderId(Long id, Long readerId);
 
     List<BorrowRequest> findByReaderIdOrderByRequestedAtDesc(Long readerId);

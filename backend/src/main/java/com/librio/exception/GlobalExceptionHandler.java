@@ -12,12 +12,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BorrowFlowException.class)
     public ResponseEntity<ErrorResponseDto> handleBorrowFlow(BorrowFlowException ex) {
         return ResponseEntity.status(ex.getStatus())
-                .body(new ErrorResponseDto(ex.getMessage()));
+                .body(new ErrorResponseDto(ex.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleResourceNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponseDto(ex.getMessage()));
+                .body(new ErrorResponseDto("RESOURCE_NOT_FOUND", ex.getMessage()));
     }
 }

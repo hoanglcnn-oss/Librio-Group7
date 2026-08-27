@@ -33,8 +33,8 @@ function LibrarianRequestsPage() {
     setError('')
     try {
       const data = await ({
-        prepare: () => prepareBorrowRequest(request.id),
-        fulfil: () => fulfilBorrowRequest(request.id),
+        prepare: () => prepareBorrowRequest(request.id, request.physicalItemId),
+        fulfil: () => fulfilBorrowRequest(request.id, request.physicalItemId),
         reject: () => rejectBorrowRequest(request.id, reason),
         expire: () => expireBorrowRequest(request.id),
       }[action]())

@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
@@ -41,11 +42,11 @@ class BorrowServiceTest {
         assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.RESERVED);
 
-        BorrowRequestDto ready = borrowService.prepare(librarian.getId(), requested.getId());
+        BorrowRequestDto ready = borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
         assertThat(ready.getStatus()).isEqualTo(BorrowRequestStatus.READY_FOR_PICKUP);
         assertThat(ready.getExpiresAt()).isAfter(ready.getReadyAt());
 
-        BorrowingDto borrowing = borrowService.fulfil(librarian.getId(), requested.getId());
+        BorrowingDto borrowing = borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
         assertThat(borrowing.getBorrowRequestId()).isEqualTo(requested.getId());
         assertThat(borrowing.getDueAt()).isAfter(borrowing.getBorrowedAt());
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
@@ -107,7 +108,7 @@ class BorrowServiceTest {
         Account reader = createAccount("expire-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("expire-librarian@test.local", AccountRole.LIBRARIAN);
         BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
-        borrowService.prepare(librarian.getId(), requested.getId());
+        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
         BorrowRequest request = borrowRequestRepository.findById(requested.getId()).orElseThrow();
         request.setExpiresAt(LocalDateTime.now().minusMinutes(1));
         borrowRequestRepository.saveAndFlush(request);
@@ -124,14 +125,38 @@ class BorrowServiceTest {
         Account reader = createAccount("terminal-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("terminal-librarian@test.local", AccountRole.LIBRARIAN);
         BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
-        borrowService.prepare(librarian.getId(), requested.getId());
-        borrowService.fulfil(librarian.getId(), requested.getId());
+        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
 
-        assertThatThrownBy(() -> borrowService.prepare(librarian.getId(), requested.getId()))
+        assertThatThrownBy(() -> borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId()))
                 .isInstanceOf(BorrowFlowException.class)
                 .hasMessage("Physical item must be RESERVED");
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
                 .isEqualTo(BorrowRequestStatus.FULFILLED);
+    }
+
+    @Test
+    void rejectsCreateRequestWhenActiveBorrowingExistsForSameResource() {
+        Account reader = createAccount("active-borrow-reader@test.local", AccountRole.READER);
+        Account librarian = createAccount("active-borrow-librarian@test.local", AccountRole.LIBRARIAN);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 1L);
+        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+
+        Throwable thrown = catchThrowable(() -> borrowService.createRequest(reader.getId(), 1L));
+        assertThat(thrown).isInstanceOf(BorrowFlowException.class);
+        assertThat(((BorrowFlowException) thrown).getCode()).isEqualTo("ACTIVE_BORROWING_EXISTS");
+    }
+
+    @Test
+    void librarianActionRejectsMismatchedItemWhenBodyDoesNotMatchAllocation() {
+        Account reader = createAccount("mismatch-reader@test.local", AccountRole.READER);
+        Account librarian = createAccount("mismatch-librarian@test.local", AccountRole.LIBRARIAN);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+
+        Throwable thrown = catchThrowable(() -> borrowService.prepare(librarian.getId(), requested.getId(), 9999L));
+        assertThat(thrown).isInstanceOf(BorrowFlowException.class);
+        assertThat(((BorrowFlowException) thrown).getCode()).isEqualTo("ITEM_MISMATCH");
     }
 
     private Account createAccount(String email, AccountRole role) {

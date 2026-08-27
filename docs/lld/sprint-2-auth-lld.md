@@ -39,7 +39,7 @@ Trước khi lưu hoặc truy vấn account, email phải được normalize: **
 | Current Account (`/auth/me`) | GET | Authenticated | Không |
 | Logout (`/auth/logout`) | POST | Authenticated | **Bắt buộc** |
 | Reader Operations (`/me/**`, request mượn) | ANY | Authenticated (`ROLE_READER`) | **Bắt buộc** cho State-changing |
-| Librarian Operations (`/circulation/**`) | ANY | Authenticated (`ROLE_LIBRARIAN`) | **Bắt buộc** cho State-changing |
+| Librarian Operations (`/librarian/**`) | ANY | Authenticated (`ROLE_LIBRARIAN`) | **Bắt buộc** cho State-changing |
 
 *Lưu ý:* Chuẩn API không có prefix `/api`. Default access policy dùng **Deny-by-default**.
 
@@ -210,5 +210,5 @@ sequenceDiagram
 
 ## 5. Deployment & Routing Configuration
 * **Frontend Fetching:** Gọi API bằng Relative URL (`fetch('/auth/me', { credentials: 'include' })`).
-* **Vite Dev Proxy (`vite.config.js`):** Route `/auth`, `/resources`, `/me` sang `http://localhost:8080`.
+* **Vite Dev Proxy (`vite.config.js`):** Route `/auth`, `/resources`, `/me`, `/borrow-requests`, `/librarian` sang `http://localhost:8080`.
 * **Production Deployment:** Single-site deployment (`https://librio.example.com/`). Reverse proxy (Nginx/Cloudflare) sẽ route các path backend trước khi fallback về `index.html` của React SPA.

@@ -1,6 +1,7 @@
 package com.librio.controller;
 
 import com.librio.domain.Account;
+import com.librio.dto.BorrowItemReferenceDto;
 import com.librio.dto.BorrowRequestDto;
 import com.librio.dto.BorrowingDto;
 import com.librio.dto.RejectBorrowRequestDto;
@@ -27,15 +28,22 @@ public class LibrarianBorrowController {
     }
 
     @PostMapping("/{id}/prepare")
-    public ResponseEntity<BorrowRequestDto> prepare(@PathVariable Long id) {
+    public ResponseEntity<BorrowRequestDto> prepare(
+            @PathVariable Long id,
+            @RequestBody(required = false) BorrowItemReferenceDto body) {
         Account librarian = currentAccountService.getCurrentAccount();
-        return ResponseEntity.ok(borrowService.prepare(librarian.getId(), id));
+        Long physicalItemId = body == null ? null : body.getPhysicalItemId();
+        return ResponseEntity.ok(borrowService.prepare(librarian.getId(), id, physicalItemId));
     }
 
     @PostMapping("/{id}/fulfil")
-    public ResponseEntity<BorrowingDto> fulfil(@PathVariable Long id) {
+    public ResponseEntity<BorrowingDto> fulfil(
+            @PathVariable Long id,
+            @RequestBody(required = false) BorrowItemReferenceDto body) {
         Account librarian = currentAccountService.getCurrentAccount();
-        return ResponseEntity.ok(borrowService.fulfil(librarian.getId(), id));
+        Long physicalItemId = body == null ? null : body.getPhysicalItemId();
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(borrowService.fulfil(librarian.getId(), id, physicalItemId));
     }
 
     @PostMapping("/{id}/reject")
