@@ -19,3 +19,8 @@ dist/
 .env.local
 .env.*.local
 *.log
+
+# Playwright outputs
+e2e_screenshots/
+results.json
+state.json
