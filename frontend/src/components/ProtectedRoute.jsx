@@ -7,8 +7,8 @@ function ProtectedRoute({ role, children }) {
 
   if (auth.loading) return <main className="simple-page"><p>Đang kiểm tra phiên đăng nhập…</p></main>
   if (!auth.account) return <Navigate to="/login" replace state={{ from: location.pathname }} />
-  if (role === 'LIBRARIAN' && !auth.isLibrarian) return <Navigate to="/resources" replace />
-  if (role === 'READER' && !auth.isReader) return <Navigate to="/resources" replace />
+  if (role === 'LIBRARIAN' && !auth.isLibrarian) return <Navigate to="/403" replace state={{ from: location.pathname }} />
+  if (role === 'READER' && !auth.isReader) return <Navigate to="/403" replace state={{ from: location.pathname }} />
   return children
 }
 

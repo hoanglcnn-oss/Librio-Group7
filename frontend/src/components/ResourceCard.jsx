@@ -5,7 +5,7 @@ function ResourceCard({ resource }) {
     <Link className="resource-card" to={`/resources/${resource.id}`} aria-label={`Xem chi tiết ${resource.title}`}>
       <div className="book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
         <span className="cover-code">{resource.cover || 'LIB'}</span>
-        <small>LIBRIO COLLECTION</small>
+        <small>BỘ SƯU TẬP LIBRIO</small>
       </div>
       <div className="card-content">
         {resource.category && <span className="category-tag">{resource.category}</span>}

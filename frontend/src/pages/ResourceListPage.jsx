@@ -29,7 +29,7 @@ function ResourceListPage() {
             </div>
           </div>
           <div className="hero-art" aria-hidden="true">
-            <div className="sun"></div><div className="book book-one"><span>THE<br />GREAT<br />GATSBY</span></div><div className="book book-two"><span>TO KILL A<br />MOCKINGBIRD</span></div><div className="book book-three"><span>1984</span></div><div className="plant">⌇</div><div className="table"></div>
+            <div className="sun"></div><div className="book book-one"><span>ĐẠI GIA<br />GATSBY</span></div><div className="book book-two"><span>GIẾT CON<br />CHIM NHẠI</span></div><div className="book book-three"><span>1984</span></div><div className="plant">⌇</div><div className="table"></div>
           </div>
         </section>
 

@@ -60,14 +60,14 @@ function MyLibraryPage() {
   }, [loadBorrowings, loadRequests])
 
   async function cancel(request) {
-    if (!window.confirm(`Cancel request #${request.id}?`)) return
+    if (!window.confirm(`Bạn có chắc muốn hủy yêu cầu #${request.id} không?`)) return
     setSubmitting(request.id)
     setRequestsError('')
     try {
       await cancelBorrowRequest(request.id)
       await loadRequests()
     } catch (error) {
-      setRequestsError(`Cannot cancel request #${request.id}: ${error.message}`)
+      setRequestsError(`Không thể hủy yêu cầu #${request.id}: ${error.message}`)
       if (error.status === 409) refreshAll()
     } finally {
       setSubmitting(null)
@@ -79,15 +79,15 @@ function MyLibraryPage() {
       <Header />
       <main className="my-library-page">
         <section className="my-library-hero">
-          <p className="eyebrow">MY ACCOUNT</p>
-          <h1>My Library</h1>
-          <p>Track live borrow requests and active borrowings directly from the server.</p>
+          <p className="eyebrow">TÀI KHOẢN BẠN ĐỌC</p>
+          <h1>Thư viện của tôi</h1>
+          <p>Theo dõi yêu cầu mượn và những cuốn sách bạn đang mượn.</p>
         </section>
 
         <LibrarySection
-          title="Active Requests"
+          title="Yêu cầu đang xử lý"
           count={requests.activeRequests.length}
-          empty="You have no active borrow requests."
+          empty="Bạn chưa có yêu cầu mượn nào đang được xử lý."
           error={requestsError}
           loading={requestsStatus === 'loading'}
           revalidating={requestsStatus === 'revalidating'}
@@ -104,7 +104,7 @@ function MyLibraryPage() {
                   disabled={submitting === request.id}
                   onClick={() => cancel(request)}
                 >
-                  {submitting === request.id ? 'Cancelling...' : 'Cancel request'}
+                  {submitting === request.id ? 'Đang hủy…' : 'Hủy yêu cầu'}
                 </button>
               )}
             />
@@ -112,9 +112,9 @@ function MyLibraryPage() {
         </LibrarySection>
 
         <LibrarySection
-          title="Active Borrowings"
+          title="Sách đang mượn"
           count={borrowings.activeBorrowings.length}
-          empty="You have no active borrowings."
+          empty="Bạn chưa mượn cuốn sách nào."
           error={borrowingsError}
           loading={borrowingsStatus === 'loading'}
           revalidating={borrowingsStatus === 'revalidating'}
@@ -126,9 +126,9 @@ function MyLibraryPage() {
         </LibrarySection>
 
         <LibrarySection
-          title="Recent Outcomes"
+          title="Lịch sử yêu cầu"
           count={requests.recentOutcomes.length}
-          empty="Recent request history is empty."
+          empty="Lịch sử yêu cầu của bạn đang trống."
           error=""
           loading={false}
           revalidating={requestsStatus === 'revalidating'}
@@ -147,11 +147,11 @@ function LibrarySection({ title, count, empty, error, loading, revalidating, onR
     <section className="library-shelf">
       <div className="shelf-heading">
         <h2>{title}</h2>
-        <span>{revalidating ? 'Refreshing...' : count}</span>
+        <span>{revalidating ? 'Đang cập nhật…' : count}</span>
       </div>
       {error && <div className="demo-error" role="alert">{error}</div>}
-      {loading && <div className="shelf-empty library-loading">Loading...</div>}
-      {!loading && error && <button className="secondary-action retry-library" type="button" onClick={onRetry}>Retry</button>}
+      {loading && <div className="shelf-empty library-loading">Đang tải…</div>}
+      {!loading && error && <button className="secondary-action retry-library" type="button" onClick={onRetry}>Thử lại</button>}
       {!loading && !error && (count ? <div className="library-card-grid">{children}</div> : <div className="shelf-empty">{empty}</div>)}
     </section>
   )
@@ -166,9 +166,9 @@ function LibraryCard({ item, action }) {
           <span className={`request-status status-${item.status?.toLowerCase()}`}>{formatRequestStatus(item.status)}</span>
           <span className="item-status">{requestPhysicalStatus(item.status)}</span>
         </div>
-        <h3>{item.resource?.title || `Resource #${item.resource?.id || 'unknown'}`}</h3>
-        <small>Requested: {formatDate(item.requestedAt)}</small>
-        {item.expiresAt && <small>Expires: {formatDate(item.expiresAt)}</small>}
+        <h3>{item.resource?.title || `Tài liệu #${item.resource?.id || 'không xác định'}`}</h3>
+        <small>Ngày yêu cầu: {formatDate(item.requestedAt)}</small>
+        {item.expiresAt && <small>Hạn nhận: {formatDate(item.expiresAt)}</small>}
         {action && <div className="card-action">{action}</div>}
       </div>
     </article>
@@ -181,12 +181,12 @@ function BorrowingCard({ borrowing }) {
       <MiniCover title={borrowing.resource?.title} />
       <div>
         <div className="status-pair">
-          <span className="request-status status-fulfilled">Borrowed</span>
-          <span className="item-status">BORROWED</span>
+          <span className="request-status status-fulfilled">Đang mượn</span>
+          <span className="item-status">ĐANG MƯỢN</span>
         </div>
-        <h3>{borrowing.resource?.title || `Resource #${borrowing.resource?.id || 'unknown'}`}</h3>
-        <small>Borrowed: {formatDate(borrowing.borrowedAt)}</small>
-        <small>Due date: {formatDate(borrowing.dueDate)}</small>
+        <h3>{borrowing.resource?.title || `Tài liệu #${borrowing.resource?.id || 'không xác định'}`}</h3>
+        <small>Ngày mượn: {formatDate(borrowing.borrowedAt)}</small>
+        <small>Hạn trả: {formatDate(borrowing.dueDate)}</small>
       </div>
     </article>
   )
@@ -198,19 +198,19 @@ function MiniCover({ title }) {
 
 function formatRequestStatus(status) {
   return {
-    REQUESTED: 'Requested',
-    READY_FOR_PICKUP: 'Ready for pickup',
-    FULFILLED: 'Fulfilled',
-    CANCELLED: 'Cancelled',
-    REJECTED: 'Rejected',
-    EXPIRED: 'Expired',
+    REQUESTED: 'Chờ xử lý',
+    READY_FOR_PICKUP: 'Sẵn sàng nhận',
+    FULFILLED: 'Đã giao sách',
+    CANCELLED: 'Đã hủy',
+    REJECTED: 'Bị từ chối',
+    EXPIRED: 'Đã hết hạn',
   }[status] || status
 }
 
 function requestPhysicalStatus(status) {
-  if (['REQUESTED', 'READY_FOR_PICKUP'].includes(status)) return 'RESERVED'
-  if (status === 'FULFILLED') return 'BORROWED'
-  return 'AVAILABLE'
+  if (['REQUESTED', 'READY_FOR_PICKUP'].includes(status)) return 'ĐÃ GIỮ CHỖ'
+  if (status === 'FULFILLED') return 'ĐANG MƯỢN'
+  return 'CÓ SẴN'
 }
 
 function formatDate(value) {

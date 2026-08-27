@@ -1,16 +1,37 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
 
 let csrf = null
 let currentAccountPromise = null
 const SESSION_MARKER = 'librio.hasSession'
 
+const ERROR_MESSAGES = {
+  RESOURCE_NOT_FOUND: 'Không tìm thấy tài liệu.',
+  REQUEST_NOT_FOUND: 'Không tìm thấy yêu cầu mượn.',
+  NO_PHYSICAL_COPY: 'Tài liệu này không có bản vật lý.',
+  NO_AVAILABLE_COPY: 'Hiện không còn bản sách nào có thể mượn.',
+  DUPLICATE_ACTIVE_REQUEST: 'Bạn đã có một yêu cầu đang xử lý cho tài liệu này.',
+  ACTIVE_BORROWING_EXISTS: 'Bạn đang mượn tài liệu này.',
+  BORROWING_LIMIT_REACHED: 'Bạn đã đạt giới hạn số sách được mượn.',
+  INVALID_REQUEST_STATE: 'Không thể thực hiện thao tác ở trạng thái hiện tại.',
+  REQUEST_NOT_CANCELLABLE: 'Yêu cầu này không thể hủy.',
+  REQUEST_EXPIRED: 'Yêu cầu mượn đã hết hạn.',
+  READER_INELIGIBLE: 'Tài khoản bạn đọc hiện không đủ điều kiện mượn sách.',
+  ITEM_MISMATCH: 'Bản sách không phù hợp với yêu cầu.',
+  RESERVATION_CONFLICT: 'Bản sách đã được giữ cho yêu cầu khác.',
+  VALIDATION_ERROR: 'Dữ liệu gửi lên không hợp lệ.',
+  AUTHENTICATION_REQUIRED: 'Vui lòng đăng nhập để tiếp tục.',
+  OPERATION_FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
+  INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
+  CSRF_TOKEN_INVALID: 'Phiên làm việc không hợp lệ. Vui lòng thử lại.',
+}
+
 async function parseError(response) {
-  let message = 'Request failed.'
+  let message = 'Yêu cầu không thành công.'
   let code = ''
   try {
     const body = await response.json()
-    message = body.message || body.error || body.code || message
     code = body.code || ''
+    message = ERROR_MESSAGES[code] || body.message || body.error || message
   } catch {
     // Security filters may legitimately return an empty response body.
   }

@@ -57,10 +57,10 @@ function ResourceDetail({ resource }) {
   return (
     <section className="detail-card">
       <div className="detail-cover book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
-        <span className="cover-code">{resource.cover || 'LIB'}</span><small>LIBRIO COLLECTION</small>
+        <span className="cover-code">{resource.cover || 'LIB'}</span><small>BỘ SƯU TẬP LIBRIO</small>
       </div>
       <div className="detail-content">
-        <div className="access-types">{resource.accessTypes.map((type) => <span className="category-tag" key={type}>{type}</span>)}</div>
+        <div className="access-types">{resource.accessTypes.map((type) => <span className="category-tag" key={type}>{formatAccessType(type)}</span>)}</div>
         <h1>{resource.title}</h1>
         <p className="detail-author">Tác giả: {resource.authors.join(', ')}</p>
         <p className="detail-description">{resource.description}</p>
@@ -88,3 +88,7 @@ function NotFoundResource() {
 }
 
 export default ResourceDetailPage
+
+function formatAccessType(type) {
+  return { PHYSICAL: 'BẢN VẬT LÝ', DIGITAL: 'TÀI LIỆU SỐ' }[type] || type
+}

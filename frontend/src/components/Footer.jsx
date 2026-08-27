@@ -5,7 +5,7 @@ function Footer() {
     <footer id="about">
       <Link className="brand" to="/resources"><span className="brand-mark">L</span><span>Librio</span></Link>
       <p>Thư viện trường học — đồng hành cùng học tập và nghiên cứu.</p>
-      <span>© 2026 Librio School Library</span>
+      <span>© 2026 Thư viện trường học Librio</span>
     </footer>
   )
 }

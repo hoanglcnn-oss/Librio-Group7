@@ -38,12 +38,12 @@ function LoginPage() {
         <form className="auth-card" onSubmit={submit}>
           <span className="eyebrow">TÀI KHOẢN LIBRIO</span>
           <h1>Đăng nhập</h1>
-          <p>Dùng tài khoản Reader để mượn sách hoặc Librarian để xử lý yêu cầu.</p>
+          <p>Dùng tài khoản bạn đọc để mượn sách hoặc tài khoản thủ thư để xử lý yêu cầu.</p>
           <label>Email<input name="email" type="email" required defaultValue="reader@librio.local" autoComplete="username" /></label>
           <label>Mật khẩu<input name="password" type="password" required autoComplete="current-password" /></label>
           {error && <div className="demo-error" role="alert">{error}</div>}
           <button className="primary-action wide" type="submit" disabled={submitting}>{submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
-          <small>Reader: reader@librio.local · Librarian: librarian@librio.local</small>
+          <small>Bạn đọc: reader@librio.local · Thủ thư: librarian@librio.local</small>
         </form>
       </main>
       <Footer />

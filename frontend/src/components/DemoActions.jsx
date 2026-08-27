@@ -24,7 +24,7 @@ function DemoActions({ resource }) {
       return
     }
     if (!auth.isReader) {
-      setError('Chỉ tài khoản Reader được gửi yêu cầu mượn.')
+      setError('Chỉ tài khoản bạn đọc mới được gửi yêu cầu mượn.')
       return
     }
     setDialog('borrow')
@@ -69,7 +69,7 @@ function DemoActions({ resource }) {
       {borrowRequest && (
         <div className="demo-success" role="status">
           <strong>Yêu cầu mượn đã được tiếp nhận.</strong>
-          <span>Mã yêu cầu #{borrowRequest.id} · Trạng thái {borrowRequest.status}.</span>
+          <span>Mã yêu cầu #{borrowRequest.id} · Trạng thái: {formatRequestStatus(borrowRequest.status)}.</span>
         </div>
       )}
 
@@ -111,3 +111,14 @@ function DemoActions({ resource }) {
 }
 
 export default DemoActions
+
+function formatRequestStatus(status) {
+  return {
+    REQUESTED: 'Chờ xử lý',
+    READY_FOR_PICKUP: 'Sẵn sàng nhận',
+    FULFILLED: 'Đã giao sách',
+    CANCELLED: 'Đã hủy',
+    REJECTED: 'Bị từ chối',
+    EXPIRED: 'Đã hết hạn',
+  }[status] || status
+}
