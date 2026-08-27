@@ -1,0 +1,5 @@
+.idea/
+.m2/
+target/
+hs_err_pid*.log
+replay_pid*.log
