@@ -74,6 +74,66 @@ class BorrowServiceTest {
                 .hasMessage("Reader already has an active request for this resource");
     }
 
+    @Test
+    void readerCanCancelRequestedRequestAndItemBecomesAvailable() {
+        Account reader = createAccount("cancel-reader@test.local", AccountRole.READER);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+
+        BorrowRequestDto cancelled = borrowService.cancel(reader.getId(), requested.getId());
+
+        assertThat(cancelled.getStatus()).isEqualTo(BorrowRequestStatus.CANCELLED);
+        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+    }
+
+    @Test
+    void librarianCanRejectRequestedRequestAndReasonIsRecorded() {
+        Account reader = createAccount("reject-reader@test.local", AccountRole.READER);
+        Account librarian = createAccount("reject-librarian@test.local", AccountRole.LIBRARIAN);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+
+        BorrowRequestDto rejected = borrowService.reject(
+                librarian.getId(), requested.getId(), "Reader account requires review");
+
+        assertThat(rejected.getStatus()).isEqualTo(BorrowRequestStatus.REJECTED);
+        assertThat(rejected.getRejectedAt()).isNotNull();
+        assertThat(rejected.getRejectionReason()).isEqualTo("Reader account requires review");
+        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+    }
+
+    @Test
+    void librarianCanExpireReadyRequestAfterPickupDeadline() {
+        Account reader = createAccount("expire-reader@test.local", AccountRole.READER);
+        Account librarian = createAccount("expire-librarian@test.local", AccountRole.LIBRARIAN);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+        borrowService.prepare(librarian.getId(), requested.getId());
+        BorrowRequest request = borrowRequestRepository.findById(requested.getId()).orElseThrow();
+        request.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        borrowRequestRepository.saveAndFlush(request);
+
+        BorrowRequestDto expired = borrowService.expire(librarian.getId(), requested.getId());
+
+        assertThat(expired.getStatus()).isEqualTo(BorrowRequestStatus.EXPIRED);
+        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+    }
+
+    @Test
+    void terminalStatusCannotTransitionBackToRequestedOrReady() {
+        Account reader = createAccount("terminal-reader@test.local", AccountRole.READER);
+        Account librarian = createAccount("terminal-librarian@test.local", AccountRole.LIBRARIAN);
+        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+        borrowService.prepare(librarian.getId(), requested.getId());
+        borrowService.fulfil(librarian.getId(), requested.getId());
+
+        assertThatThrownBy(() -> borrowService.prepare(librarian.getId(), requested.getId()))
+                .isInstanceOf(BorrowFlowException.class)
+                .hasMessage("Physical item must be RESERVED");
+        assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
+                .isEqualTo(BorrowRequestStatus.FULFILLED);
+    }
+
     private Account createAccount(String email, AccountRole role) {
         LocalDateTime now = LocalDateTime.now();
         return accountRepository.save(Account.builder()

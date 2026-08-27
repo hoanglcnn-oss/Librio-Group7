@@ -18,4 +18,6 @@ public class BorrowRequestDto {
     private LocalDateTime readyAt;
     private LocalDateTime expiresAt;
     private LocalDateTime fulfilledAt;
+    private LocalDateTime rejectedAt;
+    private String rejectionReason;
 }
