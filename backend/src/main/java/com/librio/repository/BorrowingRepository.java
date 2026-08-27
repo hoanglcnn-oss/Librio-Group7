@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
     boolean existsByBorrowRequestId(Long borrowRequestId);
 
@@ -27,4 +29,15 @@ public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
               and b.returnedAt is null
             """)
     long countActiveBorrowingsByReaderId(@Param("readerId") Long readerId);
+
+    @Query("""
+            select b from Borrowing b
+            join fetch b.borrowRequest br
+            join fetch b.physicalItem pi
+            join fetch pi.resource
+            where b.reader.id = :readerId
+              and b.returnedAt is null
+            order by b.dueAt asc, b.borrowedAt asc, b.id asc
+            """)
+    List<Borrowing> findActiveByReaderId(@Param("readerId") Long readerId);
 }

@@ -1,24 +1,25 @@
 package com.librio.service;
 
+import com.librio.config.CirculationPolicyProperties;
 import com.librio.domain.*;
-import com.librio.dto.BorrowRequestDto;
-import com.librio.dto.BorrowingDto;
+import com.librio.dto.*;
 import com.librio.exception.BorrowErrorCode;
 import com.librio.exception.BorrowFlowException;
 import com.librio.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +29,12 @@ public class BorrowService {
             BorrowRequestStatus.REQUESTED,
             BorrowRequestStatus.READY_FOR_PICKUP
     );
-    private static final int PICKUP_WINDOW_DAYS = 3;
-    private static final int LOAN_PERIOD_DAYS = 14;
+    private static final List<BorrowRequestStatus> TERMINAL_STATUSES = List.of(
+            BorrowRequestStatus.FULFILLED,
+            BorrowRequestStatus.CANCELLED,
+            BorrowRequestStatus.REJECTED,
+            BorrowRequestStatus.EXPIRED
+    );
     private static final Map<BorrowRequestStatus, Set<BorrowRequestStatus>> ALLOWED_TRANSITIONS =
             buildAllowedTransitions();
 
@@ -38,46 +43,47 @@ public class BorrowService {
     private final AccountRepository accountRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final BorrowingRepository borrowingRepository;
-
-    @Value("${librio.circulation.commitment-limit:${LIBRIO_COMMITMENT_LIMIT:3}}")
-    private int commitmentLimit;
+    private final CirculationPolicyProperties circulationPolicy;
 
     @Transactional
-    public BorrowRequestDto createRequest(Long readerId, Long resourceId) {
+    public ReaderBorrowRequestItemDto createRequest(Long readerId, Long resourceId) {
         if (resourceId == null) {
-            throw new BorrowFlowException(BorrowErrorCode.VALIDATION_ERROR.name(), HttpStatus.BAD_REQUEST,
-                    "resourceId is required");
+            throw validation("resourceId is required");
         }
 
         Account reader = accountRepository.findByIdForUpdate(readerId)
-                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.RESOURCE_NOT_FOUND.name(), HttpStatus.NOT_FOUND, "Reader not found"));
-        requireRole(reader, AccountRole.READER);
+                .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Reader not found"));
+        requireReaderEligible(reader);
         Resource resource = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.RESOURCE_NOT_FOUND.name(), HttpStatus.NOT_FOUND, "Resource not found"));
+                .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Resource not found"));
 
         if (borrowRequestRepository.existsByReaderIdAndResourceIdAndStatusIn(
                 readerId, resourceId, ACTIVE_STATUSES)) {
-            throw new BorrowFlowException(BorrowErrorCode.DUPLICATE_ACTIVE_REQUEST.name(), HttpStatus.CONFLICT,
+            throw conflict(BorrowErrorCode.DUPLICATE_ACTIVE_REQUEST,
                     "Reader already has an active request for this resource");
         }
 
         if (borrowingRepository.existsActiveBorrowingByReaderIdAndResourceId(readerId, resourceId)) {
-            throw new BorrowFlowException(BorrowErrorCode.ACTIVE_BORROWING_EXISTS.name(), HttpStatus.CONFLICT,
+            throw conflict(BorrowErrorCode.ACTIVE_BORROWING_EXISTS,
                     "Reader already has an active borrowing for this resource");
         }
 
         long activeCommitments = borrowRequestRepository.countByReaderIdAndStatusIn(readerId, ACTIVE_STATUSES)
                 + borrowingRepository.countActiveBorrowingsByReaderId(readerId);
-        if (activeCommitments >= commitmentLimit) {
-            throw new BorrowFlowException(BorrowErrorCode.BORROWING_LIMIT_REACHED.name(), HttpStatus.CONFLICT,
+        if (activeCommitments >= circulationPolicy.commitmentLimit()) {
+            throw conflict(BorrowErrorCode.BORROWING_LIMIT_REACHED,
                     "Reader has reached the commitment limit");
+        }
+
+        if (physicalItemRepository.countByResourceId(resourceId) == 0) {
+            throw conflict(BorrowErrorCode.NO_PHYSICAL_COPY, "Resource has no physical copy");
         }
 
         PhysicalItem item = physicalItemRepository.findForUpdate(
                         resourceId, PhysicalItemStatus.AVAILABLE, PageRequest.of(0, 1))
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.NO_AVAILABLE_COPY.name(), HttpStatus.CONFLICT,
+                .orElseThrow(() -> conflict(BorrowErrorCode.NO_AVAILABLE_COPY,
                         "No physical item is currently available"));
 
         LocalDateTime now = LocalDateTime.now();
@@ -90,45 +96,52 @@ public class BorrowService {
                 .status(BorrowRequestStatus.REQUESTED)
                 .requestedAt(now)
                 .statusUpdatedAt(now)
+                .expiresAt(now.plus(circulationPolicy.requestExpiration()))
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
 
-        return toRequestDto(borrowRequestRepository.save(request));
+        return toReaderRequestDto(borrowRequestRepository.save(request));
     }
 
     @Transactional
-    public BorrowRequestDto prepare(Long librarianId, Long requestId, Long physicalItemId) {
+    public LibrarianBorrowRequestItemDto prepare(Long librarianId, Long requestId, Long physicalItemId) {
+        requirePhysicalItemId(physicalItemId);
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
-        requireReservedItem(request);
+        requireState(request, BorrowRequestStatus.REQUESTED);
+        requireNotExpired(request);
         requireMatchingItem(request, physicalItemId);
+        requireReservedItem(request);
 
         LocalDateTime now = LocalDateTime.now();
         transition(request, BorrowRequestStatus.READY_FOR_PICKUP, now);
         request.setPreparedAt(now);
         request.setPreparedBy(librarian);
-        request.setExpiresAt(now.plusDays(PICKUP_WINDOW_DAYS));
+        request.setExpiresAt(now.plus(circulationPolicy.pickupExpiration()));
 
-        return toRequestDto(request);
+        return toLibrarianRequestDto(request);
     }
 
     @Transactional
-    public BorrowingDto fulfil(Long librarianId, Long requestId, Long physicalItemId) {
+    public LibrarianBorrowingDto fulfil(Long librarianId, Long requestId, Long physicalItemId) {
+        requirePhysicalItemId(physicalItemId);
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
-        requireReservedItem(request);
+        requireState(request, BorrowRequestStatus.READY_FOR_PICKUP);
+        requireNotExpired(request);
+
+        Account reader = accountRepository.findByIdForUpdate(request.getReader().getId())
+                .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Reader not found"));
+        requireReaderEligible(reader);
         requireMatchingItem(request, physicalItemId);
+        requireReservedItem(request);
+
+        if (borrowingRepository.existsByBorrowRequestId(requestId)) {
+            throw conflict(BorrowErrorCode.INVALID_REQUEST_STATE, "Borrowing already exists for this request");
+        }
 
         LocalDateTime now = LocalDateTime.now();
-        if (request.getExpiresAt() != null && !now.isBefore(request.getExpiresAt())) {
-            throw new BorrowFlowException(BorrowErrorCode.REQUEST_EXPIRED.name(), HttpStatus.CONFLICT, "Borrow request has expired");
-        }
-        if (borrowingRepository.existsByBorrowRequestId(requestId)) {
-            throw new BorrowFlowException(BorrowErrorCode.INVALID_REQUEST_STATE.name(), HttpStatus.CONFLICT,
-                    "Borrowing already exists for this request");
-        }
-
         transition(request, BorrowRequestStatus.FULFILLED, now);
         request.setFulfilledAt(now);
         request.setFulfilledBy(librarian);
@@ -136,89 +149,104 @@ public class BorrowService {
 
         Borrowing borrowing = Borrowing.builder()
                 .physicalItem(request.getPhysicalItem())
-                .reader(request.getReader())
+                .reader(reader)
                 .borrowRequest(request)
                 .borrowedAt(now)
-                .dueAt(now.plusDays(LOAN_PERIOD_DAYS))
+                .dueAt(now.plus(circulationPolicy.loanPeriod()))
                 .build();
 
-        return toBorrowingDto(borrowingRepository.save(borrowing));
+        return toLibrarianBorrowingDto(borrowingRepository.save(borrowing));
     }
 
     @Transactional(readOnly = true)
-    public List<BorrowRequestDto> getReaderRequests(Long readerId) {
-        return borrowRequestRepository.findByReaderIdOrderByRequestedAtDesc(readerId)
-                .stream()
-                .map(this::toRequestDto)
-                .collect(Collectors.toList());
+    public ReaderBorrowRequestsResponseDto getReaderRequests(Long readerId) {
+        return ReaderBorrowRequestsResponseDto.builder()
+                .activeRequests(borrowRequestRepository.findActiveForReader(readerId, ACTIVE_STATUSES)
+                        .stream()
+                        .map(this::toReaderRequestDto)
+                        .toList())
+                .recentOutcomes(borrowRequestRepository.findRecentOutcomesForReader(
+                                readerId, TERMINAL_STATUSES, PageRequest.of(0, 5))
+                        .stream()
+                        .map(this::toReaderRequestDto)
+                        .toList())
+                .build();
     }
 
     @Transactional(readOnly = true)
-    public List<BorrowRequestDto> getAllRequests(Long librarianId) {
+    public ReaderBorrowingsResponseDto getReaderBorrowings(Long readerId) {
+        return ReaderBorrowingsResponseDto.builder()
+                .activeBorrowings(borrowingRepository.findActiveByReaderId(readerId)
+                        .stream()
+                        .map(this::toReaderBorrowingDto)
+                        .toList())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public LibrarianBorrowRequestsResponseDto getAllRequests(Long librarianId) {
         getLibrarian(librarianId);
-        return borrowRequestRepository.findAllByOrderByRequestedAtDesc()
-                .stream()
-                .map(this::toRequestDto)
-                .collect(Collectors.toList());
+        return LibrarianBorrowRequestsResponseDto.builder()
+                .items(borrowRequestRepository.findActiveForLibrarian(ACTIVE_STATUSES)
+                        .stream()
+                        .map(this::toLibrarianRequestDto)
+                        .toList())
+                .build();
     }
 
     @Transactional
-    public BorrowRequestDto cancel(Long readerId, Long requestId) {
-        BorrowRequest request = getRequestForUpdate(requestId);
-        if (!request.getReader().getId().equals(readerId)) {
-            throw new BorrowFlowException(BorrowErrorCode.REQUEST_NOT_FOUND.name(), HttpStatus.NOT_FOUND, "Borrow request not found");
+    public ReaderBorrowRequestItemDto cancel(Long readerId, Long requestId) {
+        BorrowRequest request = borrowRequestRepository.findByIdAndReaderIdForUpdate(requestId, readerId)
+                .orElseThrow(() -> notFound(BorrowErrorCode.REQUEST_NOT_FOUND, "Borrow request not found"));
+        if (TERMINAL_STATUSES.contains(request.getStatus())) {
+            throw conflict(BorrowErrorCode.REQUEST_NOT_CANCELLABLE, "Borrow request cannot be cancelled");
         }
+        requireNotExpired(request);
 
         LocalDateTime now = LocalDateTime.now();
         transition(request, BorrowRequestStatus.CANCELLED, now);
         releaseReservedItem(request);
-        return toRequestDto(request);
+        return toReaderRequestDto(request);
     }
 
     @Transactional
-    public BorrowRequestDto reject(Long librarianId, Long requestId, String reason) {
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new BorrowFlowException(BorrowErrorCode.VALIDATION_ERROR.name(), HttpStatus.BAD_REQUEST, "Rejection reason is required");
-        }
-
+    public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId) {
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
+        if (!Set.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP).contains(request.getStatus())) {
+            throw conflict(BorrowErrorCode.INVALID_REQUEST_STATE, "Borrow request cannot be rejected");
+        }
+        requireNotExpired(request);
+
         LocalDateTime now = LocalDateTime.now();
         transition(request, BorrowRequestStatus.REJECTED, now);
         releaseReservedItem(request);
         request.setRejectedAt(now);
         request.setRejectedBy(librarian);
-        request.setRejectionReason(reason.trim());
-        return toRequestDto(request);
+        request.setRejectionReason(null);
+        return toLibrarianRequestDto(request);
     }
 
     @Transactional
-    public BorrowRequestDto expire(Long librarianId, Long requestId) {
-        getLibrarian(librarianId);
-        BorrowRequest request = getRequestForUpdate(requestId);
+    public int expireDueRequests() {
         LocalDateTime now = LocalDateTime.now();
-        if (request.getStatus() != BorrowRequestStatus.READY_FOR_PICKUP
-                || request.getExpiresAt() == null
-                || now.isBefore(request.getExpiresAt())) {
-            throw new BorrowFlowException(BorrowErrorCode.REQUEST_NOT_CANCELLABLE.name(), HttpStatus.CONFLICT,
-                    "Borrow request is not eligible for expiration");
-        }
-
-        transition(request, BorrowRequestStatus.EXPIRED, now);
-        releaseReservedItem(request);
-        return toRequestDto(request);
+        List<BorrowRequest> expiredRequests =
+                borrowRequestRepository.findExpiredActiveForUpdate(now, ACTIVE_STATUSES);
+        expiredRequests.forEach(request -> {
+            transition(request, BorrowRequestStatus.EXPIRED, now);
+            releaseReservedItem(request);
+        });
+        return expiredRequests.size();
     }
 
     private BorrowRequest getRequestForUpdate(Long requestId) {
         return borrowRequestRepository.findByIdForUpdate(requestId)
-                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.REQUEST_NOT_FOUND.name(), HttpStatus.NOT_FOUND,
-                        "Borrow request not found"));
+                .orElseThrow(() -> notFound(BorrowErrorCode.REQUEST_NOT_FOUND, "Borrow request not found"));
     }
 
     private Account getLibrarian(Long accountId) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.OPERATION_FORBIDDEN.name(), HttpStatus.NOT_FOUND,
-                        "Librarian not found"));
+                .orElseThrow(() -> notFound(BorrowErrorCode.REQUEST_NOT_FOUND, "Librarian not found"));
         requireRole(account, AccountRole.LIBRARIAN);
         return account;
     }
@@ -227,7 +255,7 @@ public class BorrowService {
         Set<BorrowRequestStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(
                 request.getStatus(), Set.of());
         if (!allowed.contains(target)) {
-            throw new BorrowFlowException(BorrowErrorCode.INVALID_REQUEST_STATE.name(), HttpStatus.CONFLICT,
+            throw conflict(BorrowErrorCode.INVALID_REQUEST_STATE,
                     "Cannot transition borrow request from " + request.getStatus() + " to " + target);
         }
         request.setStatus(target);
@@ -241,17 +269,43 @@ public class BorrowService {
         }
     }
 
+    private void requireReaderEligible(Account account) {
+        requireRole(account, AccountRole.READER);
+        if (account.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw conflict(BorrowErrorCode.READER_INELIGIBLE, "Reader is not eligible to borrow");
+        }
+    }
+
+    private void requirePhysicalItemId(Long physicalItemId) {
+        if (physicalItemId == null) {
+            throw validation("physicalItemId is required");
+        }
+    }
+
+    private void requireState(BorrowRequest request, BorrowRequestStatus expected) {
+        if (request.getStatus() != expected) {
+            throw conflict(BorrowErrorCode.INVALID_REQUEST_STATE,
+                    "Borrow request must be " + expected);
+        }
+    }
+
+    private void requireNotExpired(BorrowRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        if (request.getExpiresAt() != null && !now.isBefore(request.getExpiresAt())) {
+            throw conflict(BorrowErrorCode.REQUEST_EXPIRED, "Borrow request has expired");
+        }
+    }
+
     private void requireReservedItem(BorrowRequest request) {
         if (request.getPhysicalItem() == null
                 || request.getPhysicalItem().getStatus() != PhysicalItemStatus.RESERVED) {
-            throw new BorrowFlowException(BorrowErrorCode.RESERVATION_CONFLICT.name(), HttpStatus.CONFLICT,
-                    "Physical item must be RESERVED");
+            throw conflict(BorrowErrorCode.RESERVATION_CONFLICT, "Physical item must be RESERVED");
         }
     }
 
     private void requireMatchingItem(BorrowRequest request, Long physicalItemId) {
-        if (physicalItemId != null && !request.getPhysicalItem().getId().equals(physicalItemId)) {
-            throw new BorrowFlowException(BorrowErrorCode.ITEM_MISMATCH.name(), HttpStatus.CONFLICT,
+        if (request.getPhysicalItem() == null || !request.getPhysicalItem().getId().equals(physicalItemId)) {
+            throw conflict(BorrowErrorCode.ITEM_MISMATCH,
                     "Requested physical item does not match the allocated item");
         }
     }
@@ -266,31 +320,101 @@ public class BorrowService {
         request.setUpdatedAt(now);
     }
 
-    private BorrowRequestDto toRequestDto(BorrowRequest request) {
-        return BorrowRequestDto.builder()
+    private ReaderBorrowRequestItemDto toReaderRequestDto(BorrowRequest request) {
+        return ReaderBorrowRequestItemDto.builder()
                 .id(request.getId())
-                .readerId(request.getReader().getId())
-                .resourceId(request.getResource().getId())
-                .physicalItemId(request.getPhysicalItem().getId())
+                .resource(toResourceSummary(request.getResource()))
                 .status(request.getStatus())
-                .requestedAt(request.getRequestedAt())
-                .readyAt(request.getPreparedAt())
-                .expiresAt(request.getExpiresAt())
-                .fulfilledAt(request.getFulfilledAt())
-                .rejectedAt(request.getRejectedAt())
-                .rejectionReason(request.getRejectionReason())
+                .requestedAt(toOffset(request.getRequestedAt()))
+                .readyAt(toOffset(request.getPreparedAt()))
+                .expiresAt(toOffset(request.getExpiresAt()))
+                .fulfilledAt(toOffset(request.getFulfilledAt()))
+                .rejectedAt(toOffset(request.getRejectedAt()))
+                .statusUpdatedAt(toOffset(request.getStatusUpdatedAt()))
                 .build();
     }
 
-    private BorrowingDto toBorrowingDto(Borrowing borrowing) {
-        return BorrowingDto.builder()
+    private LibrarianBorrowRequestItemDto toLibrarianRequestDto(BorrowRequest request) {
+        return LibrarianBorrowRequestItemDto.builder()
+                .id(request.getId())
+                .reader(toReaderSummary(request.getReader()))
+                .resource(toResourceSummary(request.getResource()))
+                .physicalItemId(request.getPhysicalItem().getId())
+                .status(request.getStatus())
+                .requestedAt(toOffset(request.getRequestedAt()))
+                .readyAt(toOffset(request.getPreparedAt()))
+                .expiresAt(toOffset(request.getExpiresAt()))
+                .fulfilledAt(toOffset(request.getFulfilledAt()))
+                .rejectedAt(toOffset(request.getRejectedAt()))
+                .statusUpdatedAt(toOffset(request.getStatusUpdatedAt()))
+                .build();
+    }
+
+    private ReaderBorrowingItemDto toReaderBorrowingDto(Borrowing borrowing) {
+        return ReaderBorrowingItemDto.builder()
                 .id(borrowing.getId())
                 .borrowRequestId(borrowing.getBorrowRequest().getId())
-                .readerId(borrowing.getReader().getId())
-                .physicalItemId(borrowing.getPhysicalItem().getId())
-                .borrowedAt(borrowing.getBorrowedAt())
-                .dueAt(borrowing.getDueAt())
+                .resource(toResourceSummary(borrowing.getPhysicalItem().getResource()))
+                .borrowedAt(toOffset(borrowing.getBorrowedAt()))
+                .dueDate(toOffset(borrowing.getDueAt()))
                 .build();
+    }
+
+    private LibrarianBorrowingDto toLibrarianBorrowingDto(Borrowing borrowing) {
+        return LibrarianBorrowingDto.builder()
+                .id(borrowing.getId())
+                .borrowRequestId(borrowing.getBorrowRequest().getId())
+                .reader(toReaderSummary(borrowing.getReader()))
+                .resource(toResourceSummary(borrowing.getPhysicalItem().getResource()))
+                .physicalItemId(borrowing.getPhysicalItem().getId())
+                .borrowedAt(toOffset(borrowing.getBorrowedAt()))
+                .dueDate(toOffset(borrowing.getDueAt()))
+                .build();
+    }
+
+    private ReaderSummaryDto toReaderSummary(Account reader) {
+        return ReaderSummaryDto.builder()
+                .id(reader.getId())
+                .email(reader.getEmail())
+                .displayName(reader.getDisplayName())
+                .build();
+    }
+
+    private ResourceSummaryDto toResourceSummary(Resource resource) {
+        return ResourceSummaryDto.builder()
+                .id(resource.getId())
+                .title(resource.getTitle())
+                .authors(splitAuthors(resource.getAuthors()))
+                .build();
+    }
+
+    private List<String> splitAuthors(String authors) {
+        if (authors == null || authors.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(authors.split(","))
+                .map(String::trim)
+                .filter(author -> !author.isEmpty())
+                .toList();
+    }
+
+    private OffsetDateTime toOffset(LocalDateTime value) {
+        if (value == null) {
+            return null;
+        }
+        return value.atZone(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
+    private BorrowFlowException validation(String message) {
+        return new BorrowFlowException(BorrowErrorCode.VALIDATION_ERROR.name(), HttpStatus.BAD_REQUEST, message);
+    }
+
+    private BorrowFlowException conflict(BorrowErrorCode code, String message) {
+        return new BorrowFlowException(code.name(), HttpStatus.CONFLICT, message);
+    }
+
+    private BorrowFlowException notFound(BorrowErrorCode code, String message) {
+        return new BorrowFlowException(code.name(), HttpStatus.NOT_FOUND, message);
     }
 
     private static Map<BorrowRequestStatus, Set<BorrowRequestStatus>> buildAllowedTransitions() {
@@ -299,11 +423,13 @@ public class BorrowService {
         transitions.put(BorrowRequestStatus.REQUESTED, Set.of(
                 BorrowRequestStatus.READY_FOR_PICKUP,
                 BorrowRequestStatus.CANCELLED,
-                BorrowRequestStatus.REJECTED
+                BorrowRequestStatus.REJECTED,
+                BorrowRequestStatus.EXPIRED
         ));
         transitions.put(BorrowRequestStatus.READY_FOR_PICKUP, Set.of(
                 BorrowRequestStatus.FULFILLED,
                 BorrowRequestStatus.CANCELLED,
+                BorrowRequestStatus.REJECTED,
                 BorrowRequestStatus.EXPIRED
         ));
         return transitions;

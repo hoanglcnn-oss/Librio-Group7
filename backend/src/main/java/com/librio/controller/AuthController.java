@@ -1,8 +1,17 @@
 package com.librio.controller;
 
+import com.librio.domain.Account;
+import com.librio.dto.AccountSummaryDto;
 import com.librio.dto.LoginRequest;
+import com.librio.exception.BorrowErrorCode;
+import com.librio.exception.BorrowFlowException;
+import com.librio.repository.AccountRepository;
+import com.librio.security.CurrentAccountService;
+import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -20,20 +29,29 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
+    private final AccountRepository accountRepository;
+    private final CurrentAccountService currentAccountService;
 
     @PostMapping("/login")
-    public Map<String, Object> login(
-            @RequestBody LoginRequest request,
+    public AccountSummaryDto login(
+            @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest
     ) {
 
-        Authentication authentication =
-                authenticationManager.authenticate(
+        String email = request.getEmail().trim().toLowerCase();
+        Authentication authentication;
+        try {
+            authentication =
+                    authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
-                                request.getEmail(),
+                                email,
                                 request.getPassword()
                         )
                 );
+        } catch (AuthenticationException ex) {
+            throw new BorrowFlowException(BorrowErrorCode.INVALID_CREDENTIALS.name(), HttpStatus.UNAUTHORIZED,
+                    "Invalid credentials");
+        }
 
         SecurityContext securityContext =
                 SecurityContextHolder.createEmptyContext();
@@ -48,24 +66,36 @@ public class AuthController {
                 securityContext
         );
 
-        return Map.of(
-                "email", authentication.getName(),
-                "roles", authentication.getAuthorities()
-        );
+        return toSummary(findAccount(authentication.getName()));
     }
-    @GetMapping("/me")
-    public Map<String, Object> me(Authentication authentication) {
 
-        return Map.of(
-                "email", authentication.getName(),
-                "roles", authentication.getAuthorities()
-        );
+    @GetMapping("/me")
+    public AccountSummaryDto me(Authentication authentication) {
+        return toSummary(currentAccountService.getCurrentAccount());
     }
+
+    private Account findAccount(String email) {
+        return accountRepository.findByEmail(email)
+                .orElseThrow(() -> new BorrowFlowException(BorrowErrorCode.AUTHENTICATION_REQUIRED.name(),
+                        HttpStatus.UNAUTHORIZED, "Authentication required"));
+    }
+
+    private AccountSummaryDto toSummary(Account account) {
+        return AccountSummaryDto.builder()
+                .id(account.getId())
+                .email(account.getEmail())
+                .displayName(account.getDisplayName())
+                .role(account.getRole())
+                .accountStatus(account.getAccountStatus())
+                .build();
+    }
+
     @GetMapping("/csrf")
     public Map<String, String> csrf(CsrfToken token) {
         return Map.of(
                 "token", token.getToken(),
-                "headerName", token.getHeaderName()
+                "headerName", token.getHeaderName(),
+                "parameterName", token.getParameterName()
         );
     }
 

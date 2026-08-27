@@ -1,6 +1,14 @@
 server:
   port: 8080
 
+librio:
+  circulation:
+    commitment-limit: ${LIBRIO_COMMITMENT_LIMIT:3}
+    request-expiration: ${LIBRIO_REQUEST_EXPIRATION:1d}
+    pickup-expiration: ${LIBRIO_PICKUP_EXPIRATION:3d}
+    loan-period: ${LIBRIO_LOAN_PERIOD:14d}
+    expiration-scan-interval: ${LIBRIO_EXPIRATION_SCAN_INTERVAL:60s}
+
 spring:
   application:
     name: librio-backend

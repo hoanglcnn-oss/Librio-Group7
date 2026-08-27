@@ -1,116 +1,221 @@
 import { useCallback, useEffect, useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { cancelBorrowRequest, getReaderBorrowRequests } from '../services/authApi'
-import { getResourceById } from '../services/resourceApi'
+import { cancelBorrowRequest, getReaderBorrowings, getReaderBorrowRequests } from '../services/authApi'
+
+const initialRequests = { activeRequests: [], recentOutcomes: [] }
+const initialBorrowings = { activeBorrowings: [] }
 
 function MyLibraryPage() {
-  const [requests, setRequests] = useState([])
-  const [status, setStatus] = useState('loading')
-  const [error, setError] = useState('')
+  const [requests, setRequests] = useState(initialRequests)
+  const [borrowings, setBorrowings] = useState(initialBorrowings)
+  const [requestsStatus, setRequestsStatus] = useState('loading')
+  const [borrowingsStatus, setBorrowingsStatus] = useState('loading')
+  const [requestsError, setRequestsError] = useState('')
+  const [borrowingsError, setBorrowingsError] = useState('')
   const [submitting, setSubmitting] = useState(null)
 
-  const loadRequests = useCallback(async () => {
-    setStatus('loading')
-    setError('')
+  const loadRequests = useCallback(async ({ initial = false } = {}) => {
+    setRequestsStatus(initial ? 'loading' : 'revalidating')
+    setRequestsError('')
     try {
       const data = await getReaderBorrowRequests()
-      setRequests(await enrichRequests(data))
-      setStatus('success')
-    } catch (requestError) {
-      setError(requestError.message)
-      setStatus('error')
+      setRequests({
+        activeRequests: data.activeRequests || [],
+        recentOutcomes: data.recentOutcomes || [],
+      })
+      setRequestsStatus('success')
+    } catch (error) {
+      if (error.status === 401) setRequests(initialRequests)
+      setRequestsError(error.message)
+      setRequestsStatus('error')
     }
   }, [])
 
+  const loadBorrowings = useCallback(async ({ initial = false } = {}) => {
+    setBorrowingsStatus(initial ? 'loading' : 'revalidating')
+    setBorrowingsError('')
+    try {
+      const data = await getReaderBorrowings()
+      setBorrowings({ activeBorrowings: data.activeBorrowings || [] })
+      setBorrowingsStatus('success')
+    } catch (error) {
+      if (error.status === 401) setBorrowings(initialBorrowings)
+      setBorrowingsError(error.message)
+      setBorrowingsStatus('error')
+    }
+  }, [])
+
+  const refreshAll = useCallback(() => {
+    loadRequests()
+    loadBorrowings()
+  }, [loadBorrowings, loadRequests])
+
   useEffect(() => {
-    const timeoutId = window.setTimeout(loadRequests, 0)
+    const timeoutId = window.setTimeout(() => {
+      loadRequests({ initial: true })
+      loadBorrowings({ initial: true })
+    }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [loadRequests])
+  }, [loadBorrowings, loadRequests])
 
   async function cancel(request) {
+    if (!window.confirm(`Cancel request #${request.id}?`)) return
     setSubmitting(request.id)
-    setError('')
+    setRequestsError('')
     try {
-      const updated = await cancelBorrowRequest(request.id)
-      setRequests((current) => current.map((item) => item.id === request.id ? { ...item, ...updated } : item))
-    } catch (requestError) {
-      setError(`Không thể hủy request #${request.id}: ${requestError.message}`)
+      await cancelBorrowRequest(request.id)
+      await loadRequests()
+    } catch (error) {
+      setRequestsError(`Cannot cancel request #${request.id}: ${error.message}`)
+      if (error.status === 409) refreshAll()
     } finally {
       setSubmitting(null)
     }
   }
-
-  const pending = requests.filter((request) => ['REQUESTED', 'READY_FOR_PICKUP'].includes(request.status))
-  const borrowed = requests.filter((request) => request.status === 'FULFILLED')
-  const history = requests.filter((request) => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(request.status))
 
   return (
     <div className="app-shell">
       <Header />
       <main className="my-library-page">
         <section className="my-library-hero">
-          <p className="eyebrow">TÀI KHOẢN BẠN ĐỌC</p><h1>Thư viện của tôi</h1>
-          <p>Theo dõi yêu cầu và sách đang mượn bằng dữ liệu trực tiếp từ backend.</p>
+          <p className="eyebrow">MY ACCOUNT</p>
+          <h1>My Library</h1>
+          <p>Track live borrow requests and active borrowings directly from the server.</p>
         </section>
-        {error && <div className="demo-error" role="alert">{error}</div>}
-        {status === 'loading' && <div className="shelf-empty library-loading">Đang tải dữ liệu của bạn…</div>}
-        {status === 'error' && <button className="secondary-action retry-library" type="button" onClick={loadRequests}>Thử lại</button>}
-        {status === 'success' && <>
-          <LibrarySection title="Yêu cầu đang xử lý" count={pending.length} empty="Bạn chưa có yêu cầu nào đang xử lý.">
-            {pending.map((request) => <LibraryCard key={request.id} request={request} action={<button className="danger-action" type="button" disabled={submitting === request.id} onClick={() => cancel(request)}>{submitting === request.id ? 'Đang hủy…' : 'Hủy yêu cầu'}</button>} />)}
-          </LibrarySection>
-          <LibrarySection title="Sách đang mượn" count={borrowed.length} empty="Bạn chưa có sách nào đang mượn.">
-            {borrowed.map((request) => <LibraryCard key={request.id} request={request} />)}
-          </LibrarySection>
-          <LibrarySection title="Lịch sử yêu cầu" count={history.length} empty="Lịch sử yêu cầu đang trống.">
-            {history.map((request) => <LibraryCard key={request.id} request={request} />)}
-          </LibrarySection>
-        </>}
+
+        <LibrarySection
+          title="Active Requests"
+          count={requests.activeRequests.length}
+          empty="You have no active borrow requests."
+          error={requestsError}
+          loading={requestsStatus === 'loading'}
+          revalidating={requestsStatus === 'revalidating'}
+          onRetry={() => loadRequests()}
+        >
+          {requests.activeRequests.map((request) => (
+            <LibraryCard
+              key={request.id}
+              item={request}
+              action={(
+                <button
+                  className="danger-action"
+                  type="button"
+                  disabled={submitting === request.id}
+                  onClick={() => cancel(request)}
+                >
+                  {submitting === request.id ? 'Cancelling...' : 'Cancel request'}
+                </button>
+              )}
+            />
+          ))}
+        </LibrarySection>
+
+        <LibrarySection
+          title="Active Borrowings"
+          count={borrowings.activeBorrowings.length}
+          empty="You have no active borrowings."
+          error={borrowingsError}
+          loading={borrowingsStatus === 'loading'}
+          revalidating={borrowingsStatus === 'revalidating'}
+          onRetry={() => loadBorrowings()}
+        >
+          {borrowings.activeBorrowings.map((borrowing) => (
+            <BorrowingCard key={borrowing.id} borrowing={borrowing} />
+          ))}
+        </LibrarySection>
+
+        <LibrarySection
+          title="Recent Outcomes"
+          count={requests.recentOutcomes.length}
+          empty="Recent request history is empty."
+          error=""
+          loading={false}
+          revalidating={requestsStatus === 'revalidating'}
+          onRetry={() => loadRequests()}
+        >
+          {requests.recentOutcomes.map((request) => <LibraryCard key={request.id} item={request} />)}
+        </LibrarySection>
       </main>
       <Footer />
     </div>
   )
 }
 
-async function enrichRequests(requests) {
-  const titles = new Map()
-  await Promise.all([...new Set(requests.map((request) => request.resourceId))].map(async (id) => {
-    try { titles.set(id, (await getResourceById(id)).title) } catch { titles.set(id, `Tài liệu #${id}`) }
-  }))
-  return requests.map((request) => ({ ...request, resourceTitle: titles.get(request.resourceId) }))
+function LibrarySection({ title, count, empty, error, loading, revalidating, onRetry, children }) {
+  return (
+    <section className="library-shelf">
+      <div className="shelf-heading">
+        <h2>{title}</h2>
+        <span>{revalidating ? 'Refreshing...' : count}</span>
+      </div>
+      {error && <div className="demo-error" role="alert">{error}</div>}
+      {loading && <div className="shelf-empty library-loading">Loading...</div>}
+      {!loading && error && <button className="secondary-action retry-library" type="button" onClick={onRetry}>Retry</button>}
+      {!loading && !error && (count ? <div className="library-card-grid">{children}</div> : <div className="shelf-empty">{empty}</div>)}
+    </section>
+  )
 }
 
-function LibrarySection({ title, count, empty, children }) {
-  return <section className="library-shelf"><div className="shelf-heading"><h2>{title}</h2><span>{count}</span></div>{count ? <div className="library-card-grid">{children}</div> : <div className="shelf-empty">{empty}</div>}</section>
-}
-
-function LibraryCard({ request, action }) {
+function LibraryCard({ item, action }) {
   return (
     <article className="library-card">
-      <div className="mini-cover"><span>{request.resourceTitle?.slice(0, 1) || 'L'}</span></div>
+      <MiniCover title={item.resource?.title} />
       <div>
-        <div className="status-pair"><span className={`request-status status-${request.status?.toLowerCase()}`}>{formatRequestStatus(request.status)}</span><span className="item-status">{physicalStatus(request.status)}</span></div>
-        <h3>{request.resourceTitle}</h3>
-        <small>Ngày yêu cầu: {formatDate(request.requestedAt)}</small>
-        {request.expiresAt && <small>Hạn nhận: {formatDate(request.expiresAt)}</small>}
-        {request.rejectionReason && <small className="rejection-reason">Lý do: {request.rejectionReason}</small>}
+        <div className="status-pair">
+          <span className={`request-status status-${item.status?.toLowerCase()}`}>{formatRequestStatus(item.status)}</span>
+          <span className="item-status">{requestPhysicalStatus(item.status)}</span>
+        </div>
+        <h3>{item.resource?.title || `Resource #${item.resource?.id || 'unknown'}`}</h3>
+        <small>Requested: {formatDate(item.requestedAt)}</small>
+        {item.expiresAt && <small>Expires: {formatDate(item.expiresAt)}</small>}
+        {item.readyAt && <small>Ready: {formatDate(item.readyAt)}</small>}
         {action && <div className="card-action">{action}</div>}
       </div>
     </article>
   )
 }
 
-function formatRequestStatus(status) {
-  return { REQUESTED: 'Chờ xử lý', READY_FOR_PICKUP: 'Sẵn sàng nhận', FULFILLED: 'Đang mượn', CANCELLED: 'Đã hủy', REJECTED: 'Bị từ chối', EXPIRED: 'Đã hết hạn' }[status] || status
+function BorrowingCard({ borrowing }) {
+  return (
+    <article className="library-card">
+      <MiniCover title={borrowing.resource?.title} />
+      <div>
+        <div className="status-pair">
+          <span className="request-status status-fulfilled">Borrowed</span>
+          <span className="item-status">BORROWED</span>
+        </div>
+        <h3>{borrowing.resource?.title || `Resource #${borrowing.resource?.id || 'unknown'}`}</h3>
+        <small>Borrowed: {formatDate(borrowing.borrowedAt)}</small>
+        <small>Due date: {formatDate(borrowing.dueDate)}</small>
+      </div>
+    </article>
+  )
 }
 
-function physicalStatus(status) {
+function MiniCover({ title }) {
+  return <div className="mini-cover"><span>{title?.slice(0, 1) || 'L'}</span></div>
+}
+
+function formatRequestStatus(status) {
+  return {
+    REQUESTED: 'Requested',
+    READY_FOR_PICKUP: 'Ready for pickup',
+    FULFILLED: 'Fulfilled',
+    CANCELLED: 'Cancelled',
+    REJECTED: 'Rejected',
+    EXPIRED: 'Expired',
+  }[status] || status
+}
+
+function requestPhysicalStatus(status) {
   if (['REQUESTED', 'READY_FOR_PICKUP'].includes(status)) return 'RESERVED'
   if (status === 'FULFILLED') return 'BORROWED'
   return 'AVAILABLE'
 }
 
-function formatDate(value) { return value ? new Date(value).toLocaleString('vi-VN') : '—' }
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString('vi-VN') : '-'
+}
 
 export default MyLibraryPage

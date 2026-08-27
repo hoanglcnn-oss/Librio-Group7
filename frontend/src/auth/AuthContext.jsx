@@ -5,7 +5,7 @@ const AuthContext = createContext(null)
 
 function normalizeAccount(account) {
   if (!account) return null
-  const roles = (account.roles || []).map((role) => typeof role === 'string' ? role : role.authority)
+  const roles = account.role ? [`ROLE_${account.role}`] : (account.roles || []).map((role) => typeof role === 'string' ? role : role.authority)
   return { ...account, roles }
 }
 
@@ -23,6 +23,14 @@ export function AuthProvider({ children }) {
       .catch(() => { if (active) setAccount(null) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      setAccount(null)
+    }
+    window.addEventListener('librio:auth-expired', handleAuthExpired)
+    return () => window.removeEventListener('librio:auth-expired', handleAuthExpired)
   }, [])
 
   const value = useMemo(() => ({

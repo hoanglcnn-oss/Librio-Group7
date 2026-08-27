@@ -1,8 +1,9 @@
 package com.librio.service;
 
 import com.librio.domain.*;
-import com.librio.dto.BorrowRequestDto;
-import com.librio.dto.BorrowingDto;
+import com.librio.dto.LibrarianBorrowRequestItemDto;
+import com.librio.dto.LibrarianBorrowingDto;
+import com.librio.dto.ReaderBorrowRequestItemDto;
 import com.librio.exception.BorrowFlowException;
 import com.librio.repository.AccountRepository;
 import com.librio.repository.BorrowRequestRepository;
@@ -36,19 +37,20 @@ class BorrowServiceTest {
         Account reader = createAccount("flow-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("flow-librarian@test.local", AccountRole.LIBRARIAN);
 
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 1L);
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 1L);
+        Long physicalItemId = allocatedItemId(requested.getId());
         assertThat(requested.getStatus()).isEqualTo(BorrowRequestStatus.REQUESTED);
-        assertThat(requested.getPhysicalItemId()).isEqualTo(101L);
+        assertThat(physicalItemId).isEqualTo(101L);
         assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.RESERVED);
 
-        BorrowRequestDto ready = borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        LibrarianBorrowRequestItemDto ready = borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId);
         assertThat(ready.getStatus()).isEqualTo(BorrowRequestStatus.READY_FOR_PICKUP);
         assertThat(ready.getExpiresAt()).isAfter(ready.getReadyAt());
 
-        BorrowingDto borrowing = borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        LibrarianBorrowingDto borrowing = borrowService.fulfil(librarian.getId(), requested.getId(), physicalItemId);
         assertThat(borrowing.getBorrowRequestId()).isEqualTo(requested.getId());
-        assertThat(borrowing.getDueAt()).isAfter(borrowing.getBorrowedAt());
+        assertThat(borrowing.getDueDate()).isAfter(borrowing.getBorrowedAt());
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
                 .isEqualTo(BorrowRequestStatus.FULFILLED);
         assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
@@ -78,45 +80,48 @@ class BorrowServiceTest {
     @Test
     void readerCanCancelRequestedRequestAndItemBecomesAvailable() {
         Account reader = createAccount("cancel-reader@test.local", AccountRole.READER);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 4L);
+        Long physicalItemId = allocatedItemId(requested.getId());
 
-        BorrowRequestDto cancelled = borrowService.cancel(reader.getId(), requested.getId());
+        ReaderBorrowRequestItemDto cancelled = borrowService.cancel(reader.getId(), requested.getId());
 
         assertThat(cancelled.getStatus()).isEqualTo(BorrowRequestStatus.CANCELLED);
-        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.AVAILABLE);
     }
 
     @Test
-    void librarianCanRejectRequestedRequestAndReasonIsRecorded() {
+    void librarianCanRejectRequestedRequestAndItemBecomesAvailable() {
         Account reader = createAccount("reject-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("reject-librarian@test.local", AccountRole.LIBRARIAN);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 4L);
+        Long physicalItemId = allocatedItemId(requested.getId());
 
-        BorrowRequestDto rejected = borrowService.reject(
-                librarian.getId(), requested.getId(), "Reader account requires review");
+        LibrarianBorrowRequestItemDto rejected = borrowService.reject(librarian.getId(), requested.getId());
 
         assertThat(rejected.getStatus()).isEqualTo(BorrowRequestStatus.REJECTED);
         assertThat(rejected.getRejectedAt()).isNotNull();
-        assertThat(rejected.getRejectionReason()).isEqualTo("Reader account requires review");
-        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.AVAILABLE);
     }
 
     @Test
-    void librarianCanExpireReadyRequestAfterPickupDeadline() {
+    void schedulerCanExpireReadyRequestAfterPickupDeadline() {
         Account reader = createAccount("expire-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("expire-librarian@test.local", AccountRole.LIBRARIAN);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
-        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 4L);
+        Long physicalItemId = allocatedItemId(requested.getId());
+        borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId);
         BorrowRequest request = borrowRequestRepository.findById(requested.getId()).orElseThrow();
         request.setExpiresAt(LocalDateTime.now().minusMinutes(1));
         borrowRequestRepository.saveAndFlush(request);
 
-        BorrowRequestDto expired = borrowService.expire(librarian.getId(), requested.getId());
+        int expired = borrowService.expireDueRequests();
 
-        assertThat(expired.getStatus()).isEqualTo(BorrowRequestStatus.EXPIRED);
-        assertThat(physicalItemRepository.findById(requested.getPhysicalItemId()).orElseThrow().getStatus())
+        assertThat(expired).isEqualTo(1);
+        assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
+                .isEqualTo(BorrowRequestStatus.EXPIRED);
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.AVAILABLE);
     }
 
@@ -124,13 +129,14 @@ class BorrowServiceTest {
     void terminalStatusCannotTransitionBackToRequestedOrReady() {
         Account reader = createAccount("terminal-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("terminal-librarian@test.local", AccountRole.LIBRARIAN);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
-        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
-        borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 4L);
+        Long physicalItemId = allocatedItemId(requested.getId());
+        borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId);
+        borrowService.fulfil(librarian.getId(), requested.getId(), physicalItemId);
 
-        assertThatThrownBy(() -> borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId()))
+        assertThatThrownBy(() -> borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId))
                 .isInstanceOf(BorrowFlowException.class)
-                .hasMessage("Physical item must be RESERVED");
+                .hasMessage("Borrow request must be REQUESTED");
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
                 .isEqualTo(BorrowRequestStatus.FULFILLED);
     }
@@ -139,9 +145,10 @@ class BorrowServiceTest {
     void rejectsCreateRequestWhenActiveBorrowingExistsForSameResource() {
         Account reader = createAccount("active-borrow-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("active-borrow-librarian@test.local", AccountRole.LIBRARIAN);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 1L);
-        borrowService.prepare(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
-        borrowService.fulfil(librarian.getId(), requested.getId(), requested.getPhysicalItemId());
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 1L);
+        Long physicalItemId = allocatedItemId(requested.getId());
+        borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId);
+        borrowService.fulfil(librarian.getId(), requested.getId(), physicalItemId);
 
         Throwable thrown = catchThrowable(() -> borrowService.createRequest(reader.getId(), 1L));
         assertThat(thrown).isInstanceOf(BorrowFlowException.class);
@@ -152,7 +159,7 @@ class BorrowServiceTest {
     void librarianActionRejectsMismatchedItemWhenBodyDoesNotMatchAllocation() {
         Account reader = createAccount("mismatch-reader@test.local", AccountRole.READER);
         Account librarian = createAccount("mismatch-librarian@test.local", AccountRole.LIBRARIAN);
-        BorrowRequestDto requested = borrowService.createRequest(reader.getId(), 4L);
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 4L);
 
         Throwable thrown = catchThrowable(() -> borrowService.prepare(librarian.getId(), requested.getId(), 9999L));
         assertThat(thrown).isInstanceOf(BorrowFlowException.class);
@@ -170,5 +177,12 @@ class BorrowServiceTest {
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
+    }
+
+    private Long allocatedItemId(Long requestId) {
+        return borrowRequestRepository.findById(requestId)
+                .orElseThrow()
+                .getPhysicalItem()
+                .getId();
     }
 }

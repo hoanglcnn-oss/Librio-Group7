@@ -1,19 +1,26 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
 let csrf = null
 let currentAccountPromise = null
 const SESSION_MARKER = 'librio.hasSession'
 
 async function parseError(response) {
-  let message = 'Yêu cầu không thành công.'
+  let message = 'Request failed.'
+  let code = ''
   try {
     const body = await response.json()
     message = body.message || body.error || body.code || message
+    code = body.code || ''
   } catch {
-    // Spring Security may return an empty response body.
+    // Security filters may legitimately return an empty response body.
   }
   const error = new Error(message)
   error.status = response.status
+  error.code = code
+  if (response.status === 401) {
+    sessionStorage.removeItem(SESSION_MARKER)
+    window.dispatchEvent(new CustomEvent('librio:auth-expired'))
+  }
   throw error
 }
 
@@ -51,6 +58,7 @@ export function getCurrentAccount() {
       .then(async (response) => {
         if (response.status === 401) {
           sessionStorage.removeItem(SESSION_MARKER)
+          window.dispatchEvent(new CustomEvent('librio:auth-expired'))
           return null
         }
         if (!response.ok) return parseError(response)
@@ -71,38 +79,6 @@ export async function logout() {
   csrf = null
   sessionStorage.removeItem(SESSION_MARKER)
   if (!response.ok && response.status !== 401) return parseError(response)
-}
-
-export async function createBorrowRequest(resourceId) {
-  const token = csrf || await getCsrf()
-  const response = await fetch(`${API_BASE_URL}/borrow-requests`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      [token.headerName]: token.token,
-    },
-    body: JSON.stringify({ resourceId }),
-  })
-  if (!response.ok) return parseError(response)
-  csrf = null
-  return response.json()
-}
-
-async function librarianAction(requestId, action, body) {
-  const token = csrf || await getCsrf()
-  const response = await fetch(`${API_BASE_URL}/librarian/borrow-requests/${encodeURIComponent(requestId)}/${action}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      [token.headerName]: token.token,
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  })
-  if (!response.ok) return parseError(response)
-  csrf = null
-  return response.json()
 }
 
 async function authenticatedGet(path) {
@@ -127,8 +103,16 @@ async function csrfPost(path, body) {
   return response.json()
 }
 
+export function createBorrowRequest(resourceId) {
+  return csrfPost('/borrow-requests', { resourceId })
+}
+
 export function getReaderBorrowRequests() {
   return authenticatedGet('/me/borrow-requests')
+}
+
+export function getReaderBorrowings() {
+  return authenticatedGet('/me/borrowings')
 }
 
 export function cancelBorrowRequest(requestId) {
@@ -140,17 +124,13 @@ export function getLibrarianBorrowRequests() {
 }
 
 export function prepareBorrowRequest(requestId, physicalItemId) {
-  return librarianAction(requestId, 'prepare', physicalItemId ? { physicalItemId } : undefined)
+  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/prepare`, { physicalItemId })
 }
 
 export function fulfilBorrowRequest(requestId, physicalItemId) {
-  return librarianAction(requestId, 'fulfil', physicalItemId ? { physicalItemId } : undefined)
+  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/fulfil`, { physicalItemId })
 }
 
-export function rejectBorrowRequest(requestId, reason) {
-  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`, { reason })
-}
-
-export function expireBorrowRequest(requestId) {
-  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/expire`)
+export function rejectBorrowRequest(requestId) {
+  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`)
 }

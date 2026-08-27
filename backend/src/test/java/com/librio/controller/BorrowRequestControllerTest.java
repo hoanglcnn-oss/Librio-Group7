@@ -43,7 +43,7 @@ class BorrowRequestControllerTest {
                         .content("{\"resourceId\":1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("REQUESTED"))
-                .andExpect(jsonPath("$.physicalItemId").value(101));
+                .andExpect(jsonPath("$.physicalItemId").doesNotExist());
 
         assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
                 .isEqualTo(PhysicalItemStatus.RESERVED);
@@ -55,7 +55,7 @@ class BorrowRequestControllerTest {
         createAccount("http-reader@test.local", AccountRole.READER);
         createAccount("http-librarian@test.local", AccountRole.LIBRARIAN);
 
-        String requestJson = mockMvc.perform(post("/borrow-requests")
+        mockMvc.perform(post("/borrow-requests")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"resourceId\":4}"))

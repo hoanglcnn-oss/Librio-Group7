@@ -2,6 +2,7 @@ package com.librio.repository;
 
 import com.librio.domain.BorrowRequest;
 import com.librio.domain.BorrowRequestStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -34,6 +35,72 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select br from BorrowRequest br " +
-            "join fetch br.physicalItem where br.id = :id")
+            "join fetch br.reader " +
+            "join fetch br.resource " +
+            "join fetch br.physicalItem pi " +
+            "join fetch pi.resource " +
+            "where br.id = :id")
     Optional<BorrowRequest> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select br from BorrowRequest br " +
+            "join fetch br.reader " +
+            "join fetch br.resource " +
+            "join fetch br.physicalItem pi " +
+            "join fetch pi.resource " +
+            "where br.id = :id and br.reader.id = :readerId")
+    Optional<BorrowRequest> findByIdAndReaderIdForUpdate(@Param("id") Long id, @Param("readerId") Long readerId);
+
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.resource
+            join fetch br.physicalItem pi
+            where br.reader.id = :readerId
+              and br.status in :statuses
+            order by case br.status
+                       when com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP then 0
+                       when com.librio.domain.BorrowRequestStatus.REQUESTED then 1
+                       else 2
+                     end,
+                     case when br.expiresAt is null then 1 else 0 end,
+                     br.expiresAt asc,
+                     br.requestedAt asc,
+                     br.id asc
+            """)
+    List<BorrowRequest> findActiveForReader(@Param("readerId") Long readerId,
+                                            @Param("statuses") Collection<BorrowRequestStatus> statuses);
+
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.resource
+            join fetch br.physicalItem pi
+            where br.reader.id = :readerId
+              and br.status in :statuses
+            order by br.statusUpdatedAt desc, br.id desc
+            """)
+    List<BorrowRequest> findRecentOutcomesForReader(@Param("readerId") Long readerId,
+                                                    @Param("statuses") Collection<BorrowRequestStatus> statuses,
+                                                    Pageable pageable);
+
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.reader
+            join fetch br.resource
+            join fetch br.physicalItem pi
+            where br.status in :statuses
+            order by br.requestedAt asc, br.id asc
+            """)
+    List<BorrowRequest> findActiveForLibrarian(@Param("statuses") Collection<BorrowRequestStatus> statuses);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.physicalItem pi
+            where br.status in :statuses
+              and br.expiresAt is not null
+              and br.expiresAt <= :now
+            order by br.expiresAt asc, br.id asc
+            """)
+    List<BorrowRequest> findExpiredActiveForUpdate(@Param("now") java.time.LocalDateTime now,
+                                                   @Param("statuses") Collection<BorrowRequestStatus> statuses);
 }

@@ -1,8 +1,11 @@
 package com.librio.security;
 
 import com.librio.domain.Account;
+import com.librio.exception.BorrowErrorCode;
+import com.librio.exception.BorrowFlowException;
 import com.librio.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -19,14 +22,16 @@ public class CurrentAccountService {
                 SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new IllegalStateException("User is not authenticated");
+            throw new BorrowFlowException(BorrowErrorCode.AUTHENTICATION_REQUIRED.name(), HttpStatus.UNAUTHORIZED,
+                    "Authentication required");
         }
 
         String email = authentication.getName();
 
         return accountRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new IllegalStateException("Authenticated account not found")
+                        new BorrowFlowException(BorrowErrorCode.AUTHENTICATION_REQUIRED.name(), HttpStatus.UNAUTHORIZED,
+                                "Authentication required")
                 );
     }
 }
