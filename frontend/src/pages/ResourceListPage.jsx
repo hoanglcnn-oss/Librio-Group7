@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -10,9 +10,9 @@ function ResourceListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const keyword = searchParams.get('q')?.trim() || ''
 
-  function handleSearch(value) {
+  const handleSearch = useCallback((value) => {
     setSearchParams(value ? { q: value } : {})
-  }
+  }, [setSearchParams])
 
   return (
     <div className="app-shell">
@@ -23,7 +23,7 @@ function ResourceListPage() {
             <p className="eyebrow">CỔNG THÔNG TIN THƯ VIỆN TRƯỜNG HỌC</p>
             <h1>Học tập hôm nay,<br /><em>kiến tạo tương lai.</em></h1>
             <p className="hero-description">Tra cứu giáo trình, sách tham khảo và tài liệu số phục vụ học tập, giảng dạy và nghiên cứu trong nhà trường.</p>
-            <SearchInput key={keyword} initialValue={keyword} onSearch={handleSearch} />
+            <SearchInput initialValue={keyword} onSearch={handleSearch} />
             <div className="hero-stats" aria-label="Thống kê thư viện">
               <div><strong>10K+</strong><span>Tài liệu</span></div><div><strong>24/7</strong><span>Thư viện số</span></div><div><strong>5K+</strong><span>Học viên</span></div>
             </div>
