@@ -27,6 +27,9 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
     @Query("select p from PhysicalItem p where p.id = :id")
     Optional<PhysicalItem> findByIdForUpdate(@Param("id") Long id);
 
+    /**
+     * Lock các copy ứng viên trước khi reserve/reconcile để các flow cạnh tranh không claim cùng item.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PhysicalItem p where p.resource.id = :resourceId " +
             "and p.status = :status order by p.id asc")

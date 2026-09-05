@@ -67,6 +67,7 @@ function LibrarianRequestsPage() {
       }[action]())
       const updated = action === 'fulfil' ? { ...request, status: 'FULFILLED', borrowing: data } : data
       setRequests((current) => current.map((item) => item.id === request.id ? { ...item, ...updated } : item))
+      // Server là source of truth cho queue, recent outcomes và state cạnh tranh sau mutation.
       loadRequests()
     } catch (requestError) {
       setError(`Yêu cầu #${request.id}: ${requestError.message}`)

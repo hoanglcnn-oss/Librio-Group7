@@ -17,6 +17,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Cấp capability đọc nội dung số đã được bảo vệ bởi Spring Security.
+ *
+ * <p>Sprint 3 chỉ xác minh vertical slice phân quyền bằng PDF generate tại server.
+ * Object storage, signed URL và DRM chưa nằm trong scope implementation hiện tại.
+ */
 @Service
 @RequiredArgsConstructor
 public class DigitalAccessService {
@@ -54,6 +60,7 @@ public class DigitalAccessService {
     }
 
     private byte[] createPdf(String title, String description) {
+        // Demo Sprint 3: tạo PDF tối thiểu trong memory, chưa đại diện cho storage production-ready.
         String safeTitle = pdfText(title);
         String safeDescription = pdfText(description == null || description.isBlank()
                 ? "Protected digital content preview"

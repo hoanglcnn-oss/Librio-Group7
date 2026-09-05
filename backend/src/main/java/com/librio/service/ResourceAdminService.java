@@ -25,6 +25,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Quản trị metadata resource và reconcile access records của librarian.
+ *
+ * <p>Physical copies được quản lý theo exact item rows. Giảm số lượng chỉ được xóa item AVAILABLE;
+ * RESERVED, BORROWED hoặc OVERDUE là circulation commitment đang hoạt động nên phải giữ lại.
+ * Authors hiện đi qua API dạng JSON array nhưng vẫn persist dạng comma-separated để tương thích schema.
+ */
 @Service
 @RequiredArgsConstructor
 public class ResourceAdminService {
@@ -49,6 +56,7 @@ public class ResourceAdminService {
                 .category(input.category())
                 .build();
         resource = resourceRepository.save(resource);
+        // Reconcile physical/digital access nằm trong cùng transaction với metadata resource.
         reconcilePhysicalCopies(resource, 0, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         return toDto(resource);
@@ -64,6 +72,7 @@ public class ResourceAdminService {
         resource.setCategory(input.category());
 
         long currentCopies = physicalItemRepository.countByResourceId(resourceId);
+        // Atomic boundary: metadata update và reconcile copy/access cùng commit hoặc cùng rollback.
         reconcilePhysicalCopies(resource, currentCopies, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         return toDto(resource);
@@ -84,6 +93,7 @@ public class ResourceAdminService {
         }
 
         long removeCount = current - desired;
+        // Chỉ xóa copy AVAILABLE; RESERVED/BORROWED/OVERDUE vẫn là commitment lưu thông cần bảo toàn.
         List<PhysicalItem> available = physicalItemRepository.findForUpdate(
                 resource.getId(), PhysicalItemStatus.AVAILABLE,
                 PageRequest.of(0, Math.toIntExact(removeCount)));
@@ -134,6 +144,7 @@ public class ResourceAdminService {
             throw validation("Unsupported access type");
         }
 
+        // Ranh giới tương thích hiện tại: API nhận authors dạng array, database lưu chuỗi phân tách bằng dấu phẩy.
         String authors = request.getAuthors().stream()
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())

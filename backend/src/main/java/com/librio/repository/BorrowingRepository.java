@@ -56,6 +56,9 @@ public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
             """)
     List<Borrowing> findActiveForLibrarian();
 
+    /**
+     * Return flow lock borrowing trước khi lock đúng physical item.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select b from Borrowing b

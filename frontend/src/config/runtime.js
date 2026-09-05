@@ -9,6 +9,7 @@ function normalizeApiBaseUrl(value) {
 
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
 
+// Mock adapters chỉ dùng khi DEV; integration/E2E/production phải lấy backend làm source of truth.
 export const featureFlags = Object.freeze({
   mockBorrowings: import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_BORROWINGS === 'true',
   mockLibrarianBorrowings: import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_LIBRARIAN_BORROWINGS === 'true',

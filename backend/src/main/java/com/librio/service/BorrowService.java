@@ -22,6 +22,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Điều phối toàn bộ vòng đời mượn sách vật lý.
+ *
+ * <p>Các invariant chính:
+ * <ul>
+ *   <li>Một physical item chỉ thuộc tối đa một active request hoặc một active borrowing.</li>
+ *   <li>Reserve làm giảm availability; fulfil không được giảm availability lần thứ hai.</li>
+ *   <li>Transition terminal release hoặc consume đúng item đã reserve trong cùng transaction.</li>
+ *   <li>Overdue được derive từ dueAt và returnedAt, không persist như borrowing status.</li>
+ * </ul>
+ */
 @Service
 @RequiredArgsConstructor
 public class BorrowService {
@@ -52,6 +63,7 @@ public class BorrowService {
             throw validation("resourceId is required");
         }
 
+        // Lock reader để serialize eligibility, duplicate và commitment-limit checks của cùng reader.
         Account reader = accountRepository.findByIdForUpdate(readerId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Reader not found"));
         requireReaderEligible(reader);
@@ -88,6 +100,7 @@ public class BorrowService {
                         "No physical item is currently available"));
 
         LocalDateTime now = LocalDateTime.now();
+        // Reserve là thời điểm availability giảm; các bước sau chỉ chuyển commitment sang state khác.
         item.setStatus(PhysicalItemStatus.RESERVED);
 
         BorrowRequest request = BorrowRequest.builder()
@@ -146,6 +159,7 @@ public class BorrowService {
         transition(request, BorrowRequestStatus.FULFILLED, now);
         request.setFulfilledAt(now);
         request.setFulfilledBy(librarian);
+        // Item đã bị loại khỏi availability khi reserve, nên fulfil chỉ consume reservation sang borrowing.
         request.getPhysicalItem().setStatus(PhysicalItemStatus.BORROWED);
 
         Borrowing borrowing = Borrowing.builder()
@@ -199,6 +213,7 @@ public class BorrowService {
     @Transactional
     public LibrarianBorrowingDto returnBorrowing(Long librarianId, Long borrowingId) {
         getLibrarian(librarianId);
+        // Lock borrowing trước để một lượt mượn chỉ có một return thắng, rồi mới lock exact item.
         Borrowing borrowing = borrowingRepository.findByIdForUpdate(borrowingId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.BORROWING_NOT_FOUND, "Borrowing not found"));
         if (borrowing.getReturnedAt() != null) {
@@ -332,6 +347,7 @@ public class BorrowService {
     private void requireNotExpired(BorrowRequest request) {
         LocalDateTime now = LocalDateTime.now();
         if (request.getExpiresAt() != null && !now.isBefore(request.getExpiresAt())) {
+            // noRollbackFor cho phép commit EXPIRED + release item dù API trả 409 REQUEST_EXPIRED.
             expireRequest(request, now);
             throw new RequestExpiredTransitionException("Borrow request has expired");
         }
@@ -423,6 +439,7 @@ public class BorrowService {
     }
 
     private boolean isOverdue(Borrowing borrowing, LocalDateTime now) {
+        // Overdue là derived value tại serverNow, không phải status persist trong bảng borrowing.
         return borrowing.getReturnedAt() == null && borrowing.getDueAt().isBefore(now);
     }
 

@@ -22,6 +22,12 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import org.springframework.http.HttpMethod;
 
+/**
+ * Cấu hình bảo mật dựa trên session, CSRF và phân quyền route của Librio.
+ *
+ * <p>Discovery resource vẫn public, nhưng digital access/content là capability chỉ dành cho reader.
+ * Thứ tự matcher vì vậy là một phần của security model.
+ */
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -101,6 +107,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
+                        // Digital routes phải match trước /resources/**; đảo thứ tự sẽ làm content số thành public.
                         .requestMatchers(HttpMethod.GET,
                                 "/resources/*/digital-access",
                                 "/resources/*/digital-content").hasRole("READER")

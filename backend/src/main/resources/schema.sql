@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS borrowing (
 
     physical_item_id BIGINT NOT NULL,
     reader_id BIGINT NOT NULL,
+    -- Bảo vệ invariant: một borrow request chỉ được fulfil thành một borrowing.
     borrow_request_id BIGINT NOT NULL UNIQUE,
 
     borrowed_at TIMESTAMP NOT NULL,
@@ -139,35 +140,43 @@ CREATE TABLE IF NOT EXISTS borrowing (
         CHECK (returned_at IS NULL OR returned_at >= borrowed_at)
 );
 
+-- Bảo vệ invariant: một physical item chỉ nằm trong một active request.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_active_request_physical_item
     ON borrow_request (physical_item_id)
     WHERE status IN ('REQUESTED', 'READY_FOR_PICKUP');
 
+-- Bảo vệ invariant: một reader chỉ có một active request cho cùng resource.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_active_request_reader_resource
     ON borrow_request (reader_id, resource_id)
     WHERE status IN ('REQUESTED', 'READY_FOR_PICKUP');
 
+-- Bảo vệ invariant: một physical item chỉ có một active borrowing chưa trả.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_active_borrowing_physical_item
     ON borrowing (physical_item_id)
     WHERE returned_at IS NULL;
 
+-- Hỗ trợ lock/select copy AVAILABLE theo resource khi reserve hoặc reconcile số lượng.
 CREATE INDEX IF NOT EXISTS idx_physical_item_allocation
     ON physical_item (resource_id, status, id);
 
+-- Hỗ trợ My Library active query theo reader và trạng thái request.
 CREATE INDEX IF NOT EXISTS idx_borrow_request_reader_active
     ON borrow_request (reader_id, status, requested_at, id);
 
 CREATE INDEX IF NOT EXISTS idx_borrow_request_reader_outcomes
     ON borrow_request (reader_id, status_updated_at, id);
 
+-- Scheduler chỉ quét active request đã quá hạn, không scan toàn bộ lịch sử request.
 CREATE INDEX IF NOT EXISTS idx_borrow_request_expiration
     ON borrow_request (expires_at, id)
     WHERE status IN ('REQUESTED', 'READY_FOR_PICKUP');
 
+-- Hỗ trợ active/overdue borrowing query; overdue được derive từ due_at và returned_at.
 CREATE INDEX IF NOT EXISTS idx_borrowing_reader_active_due
     ON borrowing (reader_id, due_at, borrowed_at, id)
     WHERE returned_at IS NULL;
 
+-- Hỗ trợ queue librarian cho active borrowing và sắp xếp overdue theo due_at.
 CREATE INDEX IF NOT EXISTS idx_borrowing_active_due
     ON borrowing (due_at, borrowed_at, id)
     WHERE returned_at IS NULL;

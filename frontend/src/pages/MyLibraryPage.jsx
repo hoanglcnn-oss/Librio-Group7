@@ -66,6 +66,7 @@ function MyLibraryPage() {
     setRequestsError('')
     try {
       await cancelBorrowRequest(request.id)
+      // Sau mutation, refetch thay vì tự derive lại circulation state ở frontend.
       await loadRequests()
     } catch (error) {
       setRequestsError(`Không thể hủy yêu cầu #${request.id}: ${error.message}`)

@@ -33,6 +33,9 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
 
     List<BorrowRequest> findAllByOrderByRequestedAtDesc();
 
+    /**
+     * Lock request cùng exact item để chỉ một transition lifecycle được commit.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select br from BorrowRequest br " +
             "join fetch br.reader " +
@@ -104,6 +107,9 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
             @Param("statuses") Collection<BorrowRequestStatus> statuses,
             Pageable pageable);
 
+    /**
+     * Scheduler lock active request hết hạn để expire và release reservation trong cùng transaction.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select br from BorrowRequest br
