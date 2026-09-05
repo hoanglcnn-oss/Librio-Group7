@@ -12,4 +12,5 @@ public class ReaderBorrowingItemDto {
     private ResourceSummaryDto resource;
     private OffsetDateTime borrowedAt;
     private OffsetDateTime dueDate;
+    private boolean overdue;
 }

@@ -13,13 +13,13 @@ Tạo `.env.local` từ `.env.example`. Chỉ các biến có tiền tố `VITE_
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
-VITE_USE_MOCK_BORROWINGS=true
-VITE_USE_MOCK_LIBRARIAN_BORROWINGS=true
-VITE_USE_MOCK_DIGITAL_ACCESS=true
-VITE_USE_MOCK_RESOURCE_ADMIN=true
+VITE_USE_MOCK_BORROWINGS=false
+VITE_USE_MOCK_LIBRARIAN_BORROWINGS=false
+VITE_USE_MOCK_DIGITAL_ACCESS=false
+VITE_USE_MOCK_RESOURCE_ADMIN=false
 ```
 
-Mock chỉ hoạt động trong development mode. Production bundle luôn tắt mock ngay cả khi máy phát triển còn `.env.local`.
+Giữ các flag `false` khi chạy integration/E2E với backend thật. Chỉ bật từng mock trong development khi cần làm UI cô lập. Production bundle luôn tắt mock ngay cả khi máy phát triển còn `.env.local`.
 
 ## Production build
 
@@ -32,10 +32,10 @@ npm run build:production
 
 Output deploy nằm trong `dist/`. `build:production` tự kiểm tra bundle và thất bại nếu phát hiện `localhost`, `127.0.0.1`, tên biến mock hoặc thiếu `dist/index.html`.
 
-`.env.production` mặc định dùng API cùng origin dưới `/api`:
+`.env.production` mặc định dùng API cùng origin và không thêm `/api` prefix:
 
 ```env
-VITE_API_BASE_URL=/api
+VITE_API_BASE_URL=
 ```
 
 Nếu frontend và backend deploy ở hai origin khác nhau, truyền URL lúc build trên CI/hosting:
@@ -51,7 +51,7 @@ Không sửa source để hard-code URL theo môi trường.
 
 | Biến | Production | Mục đích |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `/api` | URL API `http(s)` hoặc đường dẫn cùng origin bắt đầu bằng `/`. |
+| `VITE_API_BASE_URL` | *(empty)* | URL API `http(s)` hoặc đường dẫn cùng origin bắt đầu bằng `/`. |
 | `VITE_USE_MOCK_BORROWINGS` | `false` | Mock T-103 trong development. |
 | `VITE_USE_MOCK_LIBRARIAN_BORROWINGS` | `false` | Mock T-114 trong development. |
 | `VITE_USE_MOCK_DIGITAL_ACCESS` | `false` | Mock T-125 trong development. |

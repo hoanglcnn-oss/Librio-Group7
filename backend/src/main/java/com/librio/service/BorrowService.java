@@ -185,6 +185,40 @@ public class BorrowService {
     }
 
     @Transactional(readOnly = true)
+    public LibrarianBorrowingsResponseDto getActiveBorrowingsForLibrarian(Long librarianId) {
+        getLibrarian(librarianId);
+        LocalDateTime now = LocalDateTime.now();
+        return LibrarianBorrowingsResponseDto.builder()
+                .activeBorrowings(borrowingRepository.findActiveForLibrarian()
+                        .stream()
+                        .map(borrowing -> toLibrarianBorrowingDto(borrowing, now))
+                        .toList())
+                .build();
+    }
+
+    @Transactional
+    public LibrarianBorrowingDto returnBorrowing(Long librarianId, Long borrowingId) {
+        getLibrarian(librarianId);
+        Borrowing borrowing = borrowingRepository.findByIdForUpdate(borrowingId)
+                .orElseThrow(() -> notFound(BorrowErrorCode.BORROWING_NOT_FOUND, "Borrowing not found"));
+        if (borrowing.getReturnedAt() != null) {
+            throw conflict(BorrowErrorCode.BORROWING_ALREADY_RETURNED, "Borrowing has already been returned");
+        }
+        PhysicalItem item = physicalItemRepository.findByIdForUpdate(borrowing.getPhysicalItem().getId())
+                .orElseThrow(() -> conflict(BorrowErrorCode.BORROWING_ITEM_CONFLICT,
+                        "Borrowed item no longer exists"));
+        if (item.getStatus() != PhysicalItemStatus.BORROWED) {
+            throw conflict(BorrowErrorCode.BORROWING_ITEM_CONFLICT,
+                    "Borrowed item is not in BORROWED state");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        borrowing.setReturnedAt(now);
+        item.setStatus(PhysicalItemStatus.AVAILABLE);
+        return toLibrarianBorrowingDto(borrowing, now);
+    }
+
+    @Transactional(readOnly = true)
     public LibrarianBorrowRequestsResponseDto getAllRequests(Long librarianId) {
         getLibrarian(librarianId);
         return LibrarianBorrowRequestsResponseDto.builder()
@@ -217,11 +251,6 @@ public class BorrowService {
 
     @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId) {
-        return reject(librarianId, requestId, null);
-    }
-
-    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
-    public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId, String reason) {
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
         if (!Set.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP).contains(request.getStatus())) {
@@ -234,7 +263,7 @@ public class BorrowService {
         releaseReservedItem(request);
         request.setRejectedAt(now);
         request.setRejectedBy(librarian);
-        request.setRejectionReason(reason == null || reason.isBlank() ? null : reason.trim());
+        request.setRejectionReason(null);
         return toLibrarianRequestDto(request);
     }
 
@@ -360,21 +389,26 @@ public class BorrowService {
                 .expiresAt(toOffset(request.getExpiresAt()))
                 .fulfilledAt(toOffset(request.getFulfilledAt()))
                 .rejectedAt(toOffset(request.getRejectedAt()))
-                .rejectionReason(request.getRejectionReason())
                 .statusUpdatedAt(toOffset(request.getStatusUpdatedAt()))
                 .build();
     }
 
     private ReaderBorrowingItemDto toReaderBorrowingDto(Borrowing borrowing) {
+        LocalDateTime now = LocalDateTime.now();
         return ReaderBorrowingItemDto.builder()
                 .id(borrowing.getId())
                 .resource(toResourceSummary(borrowing.getPhysicalItem().getResource()))
                 .borrowedAt(toOffset(borrowing.getBorrowedAt()))
                 .dueDate(toOffset(borrowing.getDueAt()))
+                .overdue(isOverdue(borrowing, now))
                 .build();
     }
 
     private LibrarianBorrowingDto toLibrarianBorrowingDto(Borrowing borrowing) {
+        return toLibrarianBorrowingDto(borrowing, LocalDateTime.now());
+    }
+
+    private LibrarianBorrowingDto toLibrarianBorrowingDto(Borrowing borrowing, LocalDateTime now) {
         return LibrarianBorrowingDto.builder()
                 .id(borrowing.getId())
                 .borrowRequestId(borrowing.getBorrowRequest().getId())
@@ -383,7 +417,13 @@ public class BorrowService {
                 .physicalItemId(borrowing.getPhysicalItem().getId())
                 .borrowedAt(toOffset(borrowing.getBorrowedAt()))
                 .dueDate(toOffset(borrowing.getDueAt()))
+                .returnedAt(toOffset(borrowing.getReturnedAt()))
+                .overdue(isOverdue(borrowing, now))
                 .build();
+    }
+
+    private boolean isOverdue(Borrowing borrowing, LocalDateTime now) {
+        return borrowing.getReturnedAt() == null && borrowing.getDueAt().isBefore(now);
     }
 
     private ReaderSummaryDto toReaderSummary(Account reader) {

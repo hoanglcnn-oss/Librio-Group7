@@ -101,6 +101,9 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/resources/*/digital-access",
+                                "/resources/*/digital-content").hasRole("READER")
                         .requestMatchers("/resources/**").permitAll()
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/auth/csrf").permitAll()

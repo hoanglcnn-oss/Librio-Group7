@@ -15,4 +15,6 @@ public class LibrarianBorrowingDto {
     private Long physicalItemId;
     private OffsetDateTime borrowedAt;
     private OffsetDateTime dueDate;
+    private OffsetDateTime returnedAt;
+    private boolean overdue;
 }

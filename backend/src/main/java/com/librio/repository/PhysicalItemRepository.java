@@ -24,6 +24,10 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
     long countByResourceIdAndStatus(Long resourceId, PhysicalItemStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from PhysicalItem p where p.id = :id")
+    Optional<PhysicalItem> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PhysicalItem p where p.resource.id = :resourceId " +
             "and p.status = :status order by p.id asc")
     List<PhysicalItem> findForUpdate(

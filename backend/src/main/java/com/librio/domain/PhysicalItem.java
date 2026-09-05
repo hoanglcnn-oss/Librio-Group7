@@ -13,6 +13,8 @@ import lombok.*;
 public class PhysicalItem {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "physical_item_seq")
+    @SequenceGenerator(name = "physical_item_seq", sequenceName = "physical_item_id_seq", allocationSize = 1, initialValue = 10000)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

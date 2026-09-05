@@ -89,7 +89,7 @@ function ResourceAdminPage() {
 
             {form.hasPhysical && (
               <FormField label="Tổng số bản vật lý" error={errors.physicalCopies} required>
-                <input name="physicalCopies" type="number" min="0" max="9999" step="1" value={form.physicalCopies} onChange={updateField} aria-invalid={Boolean(errors.physicalCopies)} />
+                <input name="physicalCopies" type="number" min="1" max="9999" step="1" value={form.physicalCopies} onChange={updateField} aria-invalid={Boolean(errors.physicalCopies)} />
               </FormField>
             )}
 

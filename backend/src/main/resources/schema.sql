@@ -1,9 +1,16 @@
+CREATE SEQUENCE IF NOT EXISTS resource_id_seq START WITH 1000;
+CREATE SEQUENCE IF NOT EXISTS physical_item_id_seq START WITH 10000;
+CREATE SEQUENCE IF NOT EXISTS digital_item_id_seq START WITH 1000;
+
 CREATE TABLE IF NOT EXISTS resource (
     id BIGINT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     authors VARCHAR(255) NOT NULL,
-    description TEXT
+    description TEXT,
+    category VARCHAR(100)
 );
+
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS category VARCHAR(100);
 
 CREATE TABLE IF NOT EXISTS physical_item (
     id BIGINT PRIMARY KEY,
@@ -159,4 +166,8 @@ CREATE INDEX IF NOT EXISTS idx_borrow_request_expiration
 
 CREATE INDEX IF NOT EXISTS idx_borrowing_reader_active_due
     ON borrowing (reader_id, due_at, borrowed_at, id)
+    WHERE returned_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_borrowing_active_due
+    ON borrowing (due_at, borrowed_at, id)
     WHERE returned_at IS NULL;

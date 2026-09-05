@@ -1,7 +1,10 @@
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 librio:
+  cors:
+    allowed-origin-patterns: ${LIBRIO_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
   circulation:
     commitment-limit: ${LIBRIO_COMMITMENT_LIMIT:3}
     request-expiration: ${LIBRIO_REQUEST_EXPIRATION:1d}

@@ -19,6 +19,5 @@ public class LibrarianBorrowRequestItemDto {
     private OffsetDateTime expiresAt;
     private OffsetDateTime fulfilledAt;
     private OffsetDateTime rejectedAt;
-    private String rejectionReason;
     private OffsetDateTime statusUpdatedAt;
 }

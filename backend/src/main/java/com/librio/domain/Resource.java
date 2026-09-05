@@ -16,6 +16,8 @@ import java.util.List;
 public class Resource {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "resource_seq")
+    @SequenceGenerator(name = "resource_seq", sequenceName = "resource_id_seq", allocationSize = 1, initialValue = 1000)
     private Long id;
 
     @Column(nullable = false)
@@ -26,6 +28,9 @@ public class Resource {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(length = 100)
+    private String category;
 
     @OneToMany(mappedBy = "resource", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

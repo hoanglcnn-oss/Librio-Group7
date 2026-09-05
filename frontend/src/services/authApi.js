@@ -32,6 +32,11 @@ const ERROR_MESSAGES = {
   OPERATION_FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
   CSRF_TOKEN_INVALID: 'Phiên làm việc không hợp lệ. Vui lòng thử lại.',
+  BORROWING_NOT_FOUND: 'Không tìm thấy lượt mượn.',
+  BORROWING_ALREADY_RETURNED: 'Lượt mượn này đã được trả.',
+  BORROWING_ITEM_CONFLICT: 'Trạng thái bản sách không phù hợp với lượt mượn.',
+  DIGITAL_CONTENT_NOT_FOUND: 'Tài liệu này không có nội dung số.',
+  RESOURCE_IN_USE: 'Không thể giảm các bản sách đang được giữ hoặc đang cho mượn.',
 }
 
 async function parseError(response) {
@@ -192,6 +197,6 @@ export function fulfilBorrowRequest(requestId, physicalItemId) {
   return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/fulfil`, { physicalItemId })
 }
 
-export function rejectBorrowRequest(requestId, reason) {
-  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`, { reason })
+export function rejectBorrowRequest(requestId) {
+  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`)
 }

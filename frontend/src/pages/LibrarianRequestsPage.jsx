@@ -56,14 +56,14 @@ function LibrarianRequestsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [loadBorrowings, loadRequests])
 
-  async function runAction(request, action, reason = '') {
+  async function runAction(request, action) {
     setSubmitting(`${request.id}:${action}`)
     setError('')
     try {
       const data = await ({
         prepare: () => prepareBorrowRequest(request.id, request.physicalItemId),
         fulfil: () => fulfilBorrowRequest(request.id, request.physicalItemId),
-        reject: () => rejectBorrowRequest(request.id, reason),
+        reject: () => rejectBorrowRequest(request.id),
       }[action]())
       const updated = action === 'fulfil' ? { ...request, status: 'FULFILLED', borrowing: data } : data
       setRequests((current) => current.map((item) => item.id === request.id ? { ...item, ...updated } : item))
@@ -207,7 +207,6 @@ function RequestSection({ title, count, empty, children }) {
 }
 
 function RequestCard({ request, submitting, onAction }) {
-  const [reason, setReason] = useState('')
   const isRequested = request.status === 'REQUESTED'
   const isReady = request.status === 'READY_FOR_PICKUP'
   const busy = submitting?.startsWith(`${request.id}:`)
@@ -230,18 +229,12 @@ function RequestCard({ request, submitting, onAction }) {
         {request.expiresAt && <div><dt>Hạn nhận</dt><dd>{formatDate(request.expiresAt)}</dd></div>}
         {request.fulfilledAt && <div><dt>Ngày giao sách</dt><dd>{formatDate(request.fulfilledAt)}</dd></div>}
         {request.rejectedAt && <div><dt>Ngày từ chối</dt><dd>{formatDate(request.rejectedAt)}</dd></div>}
-        {request.rejectionReason && <div><dt>Lý do từ chối</dt><dd>{request.rejectionReason}</dd></div>}
       </dl>
-      {isRequested && (
-        <div className="reject-row">
-          <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="Lý do từ chối" />
-        </div>
-      )}
       <div className="action-row">
         {isRequested && (
           <>
             <button className="secondary-action" type="button" disabled={busy} onClick={() => onAction(request, 'prepare')}>Chuẩn bị sách</button>
-            <button className="danger-action" type="button" disabled={busy || !reason.trim()} onClick={() => onAction(request, 'reject', reason.trim())}>Từ chối</button>
+            <button className="danger-action" type="button" disabled={busy} onClick={() => onAction(request, 'reject')}>Từ chối</button>
           </>
         )}
         {isReady && <button className="primary-action" type="button" disabled={busy} onClick={() => onAction(request, 'fulfil')}>Xác nhận giao sách</button>}

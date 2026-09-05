@@ -5,7 +5,6 @@ import com.librio.dto.BorrowItemReferenceDto;
 import com.librio.dto.LibrarianBorrowRequestItemDto;
 import com.librio.dto.LibrarianBorrowRequestsResponseDto;
 import com.librio.dto.LibrarianBorrowingDto;
-import com.librio.dto.RejectBorrowRequestDto;
 import com.librio.security.CurrentAccountService;
 import com.librio.service.BorrowService;
 import jakarta.validation.Valid;
@@ -46,11 +45,8 @@ public class LibrarianBorrowController {
     }
 
     @PostMapping("/{id}/reject")
-    public ResponseEntity<LibrarianBorrowRequestItemDto> reject(
-            @PathVariable Long id,
-            @Valid @RequestBody(required = false) RejectBorrowRequestDto body) {
+    public ResponseEntity<LibrarianBorrowRequestItemDto> reject(@PathVariable Long id) {
         Account librarian = currentAccountService.getCurrentAccount();
-        return ResponseEntity.ok(borrowService.reject(
-                librarian.getId(), id, body == null ? null : body.getReason()));
+        return ResponseEntity.ok(borrowService.reject(librarian.getId(), id));
     }
 }

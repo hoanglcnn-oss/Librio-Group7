@@ -31,8 +31,8 @@ export function validateResourceForm(form) {
   if (!authors.length) errors.authors = 'Nhập ít nhất một tác giả.'
   if (form.description.length > 5000) errors.description = 'Mô tả không được vượt quá 5.000 ký tự.'
   if (!form.hasPhysical && !form.hasDigital) errors.accessTypes = 'Chọn ít nhất một loại tài liệu.'
-  if (form.hasPhysical && (!Number.isInteger(copies) || copies < 0 || copies > 9999)) {
-    errors.physicalCopies = 'Số bản vật lý phải là số nguyên từ 0 đến 9.999.'
+  if (form.hasPhysical && (!Number.isInteger(copies) || copies < 1 || copies > 9999)) {
+    errors.physicalCopies = 'Số bản vật lý phải là số nguyên từ 1 đến 9.999.'
   }
   return errors
 }
