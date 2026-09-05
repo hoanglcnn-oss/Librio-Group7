@@ -9,4 +9,5 @@ import java.util.List;
 @Builder
 public class LibrarianBorrowRequestsResponseDto {
     private List<LibrarianBorrowRequestItemDto> items;
+    private List<LibrarianBorrowRequestItemDto> recentOutcomes;
 }

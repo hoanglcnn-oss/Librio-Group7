@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import LibrarianRequestsPage from './pages/LibrarianRequestsPage'
 import MyLibraryPage from './pages/MyLibraryPage'
 import ForbiddenPage from './pages/ForbiddenPage'
+import ResourceAdminPage from './pages/ResourceAdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
@@ -20,6 +21,8 @@ function App() {
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/my-library" element={<ProtectedRoute role="READER"><MyLibraryPage /></ProtectedRoute>} />
         <Route path="/librarian/requests" element={<ProtectedRoute role="LIBRARIAN"><LibrarianRequestsPage /></ProtectedRoute>} />
+        <Route path="/librarian/resources/new" element={<ProtectedRoute role="LIBRARIAN"><ResourceAdminPage /></ProtectedRoute>} />
+        <Route path="/librarian/resources/:id/edit" element={<ProtectedRoute role="LIBRARIAN"><ResourceAdminPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

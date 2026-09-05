@@ -92,6 +92,18 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
             """)
     List<BorrowRequest> findActiveForLibrarian(@Param("statuses") Collection<BorrowRequestStatus> statuses);
 
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.reader
+            join fetch br.resource
+            join fetch br.physicalItem pi
+            where br.status in :statuses
+            order by br.statusUpdatedAt desc, br.id desc
+            """)
+    List<BorrowRequest> findRecentOutcomesForLibrarian(
+            @Param("statuses") Collection<BorrowRequestStatus> statuses,
+            Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select br from BorrowRequest br

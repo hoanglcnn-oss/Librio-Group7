@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { createBorrowRequest } from '../services/authApi'
+import { createBorrowRequest, getDigitalReadCapability } from '../services/authApi'
 
 function DemoActions({ resource }) {
   const [dialog, setDialog] = useState(null)
-  const [reader, setReader] = useState(null)
+  const [openingDigital, setOpeningDigital] = useState(false)
   const [saved, setSaved] = useState(false)
   const [borrowRequest, setBorrowRequest] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -49,6 +49,50 @@ function DemoActions({ resource }) {
     }
   }
 
+  async function openDigitalResource() {
+    setError('')
+    if (!auth.account) {
+      navigate('/login', { state: { from: location.pathname } })
+      return
+    }
+    if (!auth.isReader) {
+      setError('Chỉ tài khoản bạn đọc được phép mở tài liệu số.')
+      return
+    }
+
+    const pdfTab = window.open('about:blank', '_blank')
+    if (!pdfTab) {
+      setError('Trình duyệt đã chặn tab PDF. Vui lòng cho phép mở cửa sổ bật lên và thử lại.')
+      return
+    }
+    pdfTab.opener = null
+    pdfTab.document.title = 'Đang mở tài liệu số…'
+    pdfTab.document.body.textContent = 'Đang xác thực quyền truy cập tài liệu số…'
+
+    setOpeningDigital(true)
+    try {
+      const capability = await getDigitalReadCapability(resource.id)
+      if (capability.canRead !== true || !capability.contentUrl) {
+        const accessError = new Error('Bạn chưa được cấp quyền đọc tài liệu số này.')
+        accessError.status = 403
+        throw accessError
+      }
+      pdfTab.location.replace(capability.contentUrl)
+      if (capability.temporaryUrl) {
+        window.setTimeout(() => URL.revokeObjectURL(capability.contentUrl), 60_000)
+      }
+    } catch (requestError) {
+      pdfTab.close()
+      if (requestError.status === 401) {
+        navigate('/login', { state: { from: location.pathname } })
+      } else {
+        setError(requestError.message)
+      }
+    } finally {
+      setOpeningDigital(false)
+    }
+  }
+
   return (
     <section className="demo-actions" aria-labelledby="demo-actions-title">
       <div className="demo-heading">
@@ -62,7 +106,7 @@ function DemoActions({ resource }) {
         <button className="primary-action" type="button" onClick={beginBorrow} disabled={!canBorrow || borrowRequest || submitting}>
           {borrowRequest ? 'Đã gửi yêu cầu' : canBorrow ? 'Mượn bản vật lý' : 'Tạm hết sách'}
         </button>
-        {canRead && <button className="secondary-action" type="button" onClick={() => setReader('open')}>Đọc tài liệu số</button>}
+        {canRead && <button className="secondary-action" type="button" disabled={openingDigital} onClick={openDigitalResource}>{openingDigital ? 'Đang mở PDF…' : 'Đọc tài liệu số'}</button>}
         <button className="text-action" type="button" onClick={() => setSaved((value) => !value)}>{saved ? '✓ Đã lưu' : '+ Lưu vào danh sách'}</button>
       </div>
 
@@ -91,21 +135,6 @@ function DemoActions({ resource }) {
         </div>
       )}
 
-      {reader && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setReader(null)}>
-          <section className="demo-modal reader-modal" role="dialog" aria-modal="true" aria-labelledby="reader-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="modal-close" type="button" aria-label="Đóng" onClick={() => setReader(null)}>×</button>
-            <span className="demo-label">TÀI LIỆU SỐ</span>
-            <h2 id="reader-title">{resource.title}</h2>
-            <p className="reader-meta">Bản xem trước · Trang 1 / 12</p>
-            <div className="reader-page">
-              <h3>Giới thiệu</h3>
-              <p>{resource.description}</p>
-              <p>Nội dung tài liệu số đầy đủ sẽ được mở sau.</p>
-            </div>
-          </section>
-        </div>
-      )}
     </section>
   )
 }

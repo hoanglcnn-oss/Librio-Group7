@@ -1,30 +1,58 @@
 # Librio Frontend
 
-Frontend React + Vite cho luồng tìm kiếm tài nguyên, xem chi tiết và kiểm tra tình trạng khả dụng.
+React + Vite frontend cho Librio.
 
 ## Chạy local
 
-```bash
+```powershell
 npm install
 npm run dev
 ```
 
-Mặc định ứng dụng dùng fixtures tại `src/data/mockResources.js`. Component chỉ lấy dữ liệu qua `src/services/resourceApi.js`.
-
-Để chuyển sang backend thật, tạo `.env.local`:
+Tạo `.env.local` từ `.env.example`. Chỉ các biến có tiền tố `VITE_` được đưa vào frontend; không đặt mật khẩu, token, khóa API hoặc database credential trong các biến này.
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api
+VITE_API_BASE_URL=http://localhost:8080
+VITE_USE_MOCK_BORROWINGS=true
+VITE_USE_MOCK_LIBRARIAN_BORROWINGS=true
+VITE_USE_MOCK_DIGITAL_ACCESS=true
+VITE_USE_MOCK_RESOURCE_ADMIN=true
 ```
 
-Không đặt `VITE_API_BASE_URL` nếu muốn tiếp tục dùng mock adapter. Backend được kỳ vọng cung cấp:
+Mock chỉ hoạt động trong development mode. Production bundle luôn tắt mock ngay cả khi máy phát triển còn `.env.local`.
 
-- `GET /resources?q=<keyword>` trả `{ "items": [...] }`.
-- `GET /resources/:id` trả resource detail; HTTP 404 được hiển thị thành Not Found.
+## Production build
 
-## Kiểm tra
-
-```bash
+```powershell
+npm ci
+npm test
 npm run lint
-npm run build
+npm run build:production
 ```
+
+Output deploy nằm trong `dist/`. `build:production` tự kiểm tra bundle và thất bại nếu phát hiện `localhost`, `127.0.0.1`, tên biến mock hoặc thiếu `dist/index.html`.
+
+`.env.production` mặc định dùng API cùng origin dưới `/api`:
+
+```env
+VITE_API_BASE_URL=/api
+```
+
+Nếu frontend và backend deploy ở hai origin khác nhau, truyền URL lúc build trên CI/hosting:
+
+```powershell
+$env:VITE_API_BASE_URL="https://api.example.edu"
+npm run build:production
+```
+
+Không sửa source để hard-code URL theo môi trường.
+
+## Biến môi trường
+
+| Biến | Production | Mục đích |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `/api` | URL API `http(s)` hoặc đường dẫn cùng origin bắt đầu bằng `/`. |
+| `VITE_USE_MOCK_BORROWINGS` | `false` | Mock T-103 trong development. |
+| `VITE_USE_MOCK_LIBRARIAN_BORROWINGS` | `false` | Mock T-114 trong development. |
+| `VITE_USE_MOCK_DIGITAL_ACCESS` | `false` | Mock T-125 trong development. |
+| `VITE_USE_MOCK_RESOURCE_ADMIN` | `false` | Mock T-135 trong development. |

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { cancelBorrowRequest, getReaderBorrowings, getReaderBorrowRequests } from '../services/authApi'
+import { getBorrowingPresentation } from '../utils/borrowingStatus'
 
 const initialRequests = { activeRequests: [], recentOutcomes: [] }
 const initialBorrowings = { activeBorrowings: [] }
@@ -176,17 +177,26 @@ function LibraryCard({ item, action }) {
 }
 
 function BorrowingCard({ borrowing }) {
+  const presentation = getBorrowingPresentation(borrowing)
+  const isOverdue = presentation.overdue
+
   return (
-    <article className="library-card">
+    <article className={`library-card${isOverdue ? ' library-card-overdue' : ''}`}>
       <MiniCover title={borrowing.resource?.title} />
       <div>
         <div className="status-pair">
-          <span className="request-status status-fulfilled">Đang mượn</span>
-          <span className="item-status">ĐANG MƯỢN</span>
+          <span className={`request-status ${isOverdue ? 'status-overdue' : 'status-fulfilled'}`}>
+            {presentation.requestLabel}
+          </span>
+          <span className={`item-status${isOverdue ? ' item-status-overdue' : ''}`}>
+            {presentation.itemLabel}
+          </span>
         </div>
         <h3>{borrowing.resource?.title || `Tài liệu #${borrowing.resource?.id || 'không xác định'}`}</h3>
         <small>Ngày mượn: {formatDate(borrowing.borrowedAt)}</small>
-        <small>Hạn trả: {formatDate(borrowing.dueDate)}</small>
+        <small className={isOverdue ? 'overdue-text' : undefined}>
+          Hạn trả: {formatDate(borrowing.dueDate)}
+        </small>
       </div>
     </article>
   )

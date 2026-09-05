@@ -173,6 +173,29 @@ footer > span { font-size: 11px; opacity: .6; }
 .local-data-note { margin-top: 25px; padding: 12px 15px; border-left: 3px solid #d3ad67; background: #fff8e9; color: #74613d; font-size: 12px; }
 .server-data-note { margin-top: 25px; padding: 12px 15px; border-left: 3px solid #3c825f; background: #edf7f1; color: #315e48; font-size: 12px; }
 .request-list { display: grid; gap: 18px; margin-top: 24px; }
+.librarian-request-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid #deded4; }
+.librarian-request-section .request-list { margin-top: 0; }
+.borrowing-management-card { position: relative; }
+.return-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.resource-admin-page { max-width: 900px; min-height: calc(100vh - 196px); margin: auto; padding: 55px 28px 90px; }
+.resource-admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 32px; padding: 32px; border: 1px solid #e2e1d8; background: white; }
+.resource-form-field { display: grid; align-content: start; gap: 8px; color: var(--green); font-size: 12px; font-weight: 700; }
+.resource-form-field:nth-of-type(4) { grid-column: 1 / -1; }
+.resource-form-field input, .resource-form-field textarea { width: 100%; border: 1px solid #d8d8cf; border-radius: 3px; padding: 12px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; }
+.resource-form-field textarea { resize: vertical; }
+.resource-form-field input[aria-invalid="true"], .resource-form-field textarea[aria-invalid="true"] { border-color: #b5473c; }
+.resource-form-field b, .access-type-fieldset legend span { color: #b5473c; }
+.resource-form-field small { color: #879087; font-weight: 400; }
+.field-error { color: #a13c32 !important; font-weight: 600 !important; }
+.access-type-fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; border: 0; padding: 0; }
+.access-type-fieldset legend { margin-bottom: 9px; color: var(--green); font-size: 12px; font-weight: 700; }
+.checkbox-card { display: flex; gap: 10px; border: 1px solid #d8d8cf; padding: 13px; background: #fafaf7; }
+.checkbox-card input { margin-top: 3px; }
+.checkbox-card span { display: grid; gap: 4px; }
+.checkbox-card small { color: #879087; font-size: 10px; font-weight: 400; }
+.resource-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid #eceae2; }
+.resource-form-actions .text-action { display: inline-flex; align-items: center; }
+.resource-form-loading { margin-top: 30px; }
 .request-card { padding: 25px; border: 1px solid #e2e1d8; background: white; }
 .request-card-heading { display: flex; justify-content: space-between; gap: 25px; align-items: start; }
 .request-card-heading h2 { margin-top: 7px; font-size: 25px; }
@@ -213,6 +236,9 @@ footer > span { font-size: 11px; opacity: .6; }
 .retry-library { margin-top: 18px; }
 .shelf-empty { padding: 24px; border: 1px dashed #cbcbbf; background: #fff; color: #879087; text-align: center; font-size: 13px; }
 .overdue-text { color: #b5473c !important; font-weight: 700; }
+.library-card-overdue { border-color: #e4aaa4; box-shadow: inset 4px 0 #b5473c; }
+.status-overdue { background: #fff0ed; color: #9b352c; }
+.item-status-overdue { background: #f8d9d5; color: #8d3028; }
 .request-console { margin-top: 35px; padding: 32px; border: 1px solid #e2e1d8; background: white; }
 .request-console > p { max-width: 650px; color: #68756e; line-height: 1.7; }
 .request-console label { max-width: 360px; }
@@ -258,4 +284,7 @@ footer > span { font-size: 11px; opacity: .6; }
   .request-card-heading { flex-direction: column; }
   .request-card dl { grid-template-columns: 1fr; }
   .library-card-grid { grid-template-columns: 1fr; }
+  .resource-admin-form { grid-template-columns: 1fr; padding: 22px; }
+  .resource-form-field:nth-of-type(4), .resource-form-actions { grid-column: auto; }
+  .access-type-fieldset { grid-template-columns: 1fr; }
 }

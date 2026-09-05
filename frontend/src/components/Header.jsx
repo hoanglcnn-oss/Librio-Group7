@@ -21,6 +21,7 @@ function Header() {
           <NavLink to="/resources">Kho tài liệu</NavLink>
           {auth.isReader && <NavLink to="/my-library">Thư viện của tôi</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/requests">Xử lý mượn</NavLink>}
+          {auth.isLibrarian && <NavLink to="/librarian/resources/new">Quản lý tài liệu</NavLink>}
           <Link to="/resources#library-info">Thông tin thư viện</Link>
         </nav>
         {auth.loading ? <span className="account-chip">Đang tải…</span> : auth.account ? (

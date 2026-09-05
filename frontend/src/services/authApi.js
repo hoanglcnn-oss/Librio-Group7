@@ -1,4 +1,13 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+import { mockReaderBorrowings } from '../data/mockBorrowings'
+import { getMockLibrarianBorrowings, returnMockLibrarianBorrowing } from '../data/mockLibrarianBorrowings'
+import { getMockDigitalCapability } from '../data/mockDigitalAccess'
+import { getMockManagedResource, saveMockManagedResource } from '../data/mockResourceAdmin'
+import { API_BASE_URL, featureFlags } from '../config/runtime'
+
+const USE_MOCK_BORROWINGS = featureFlags.mockBorrowings
+const USE_MOCK_LIBRARIAN_BORROWINGS = featureFlags.mockLibrarianBorrowings
+const USE_MOCK_DIGITAL_ACCESS = featureFlags.mockDigitalAccess
+const USE_MOCK_RESOURCE_ADMIN = featureFlags.mockResourceAdmin
 
 let csrf = null
 let currentAccountPromise = null
@@ -108,10 +117,10 @@ async function authenticatedGet(path) {
   return response.json()
 }
 
-async function csrfPost(path, body) {
+async function csrfPost(path, body, method = 'POST') {
   const token = csrf || await getCsrf()
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
+    method,
     credentials: 'include',
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -132,8 +141,29 @@ export function getReaderBorrowRequests() {
   return authenticatedGet('/me/borrow-requests')
 }
 
-export function getReaderBorrowings() {
+export async function getReaderBorrowings() {
+  if (USE_MOCK_BORROWINGS) return mockReaderBorrowings
   return authenticatedGet('/me/borrowings')
+}
+
+export function getDigitalReadCapability(resourceId) {
+  if (USE_MOCK_DIGITAL_ACCESS) return Promise.resolve(getMockDigitalCapability(resourceId))
+  return authenticatedGet(`/resources/${encodeURIComponent(resourceId)}/digital-access`)
+}
+
+export function getLibrarianResource(resourceId) {
+  if (USE_MOCK_RESOURCE_ADMIN) return getMockManagedResource(resourceId)
+  return authenticatedGet(`/librarian/resources/${encodeURIComponent(resourceId)}`)
+}
+
+export function createLibrarianResource(payload) {
+  if (USE_MOCK_RESOURCE_ADMIN) return saveMockManagedResource(payload)
+  return csrfPost('/librarian/resources', payload)
+}
+
+export function updateLibrarianResource(resourceId, payload) {
+  if (USE_MOCK_RESOURCE_ADMIN) return saveMockManagedResource(payload, resourceId)
+  return csrfPost(`/librarian/resources/${encodeURIComponent(resourceId)}`, payload, 'PUT')
 }
 
 export function cancelBorrowRequest(requestId) {
@@ -144,6 +174,16 @@ export function getLibrarianBorrowRequests() {
   return authenticatedGet('/librarian/borrow-requests')
 }
 
+export function getLibrarianBorrowings() {
+  if (USE_MOCK_LIBRARIAN_BORROWINGS) return getMockLibrarianBorrowings()
+  return authenticatedGet('/librarian/borrowings?status=active')
+}
+
+export function returnLibrarianBorrowing(borrowingId) {
+  if (USE_MOCK_LIBRARIAN_BORROWINGS) return returnMockLibrarianBorrowing(borrowingId)
+  return csrfPost(`/librarian/borrowings/${encodeURIComponent(borrowingId)}/return`)
+}
+
 export function prepareBorrowRequest(requestId, physicalItemId) {
   return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/prepare`, { physicalItemId })
 }
@@ -152,6 +192,6 @@ export function fulfilBorrowRequest(requestId, physicalItemId) {
   return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/fulfil`, { physicalItemId })
 }
 
-export function rejectBorrowRequest(requestId) {
-  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`)
+export function rejectBorrowRequest(requestId, reason) {
+  return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`, { reason })
 }

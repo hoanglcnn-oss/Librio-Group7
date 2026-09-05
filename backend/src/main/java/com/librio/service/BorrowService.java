@@ -192,6 +192,11 @@ public class BorrowService {
                         .stream()
                         .map(this::toLibrarianRequestDto)
                         .toList())
+                .recentOutcomes(borrowRequestRepository.findRecentOutcomesForLibrarian(
+                                TERMINAL_STATUSES, PageRequest.of(0, 50))
+                        .stream()
+                        .map(this::toLibrarianRequestDto)
+                        .toList())
                 .build();
     }
 
@@ -212,6 +217,11 @@ public class BorrowService {
 
     @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId) {
+        return reject(librarianId, requestId, null);
+    }
+
+    @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
+    public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId, String reason) {
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
         if (!Set.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP).contains(request.getStatus())) {
@@ -224,7 +234,7 @@ public class BorrowService {
         releaseReservedItem(request);
         request.setRejectedAt(now);
         request.setRejectedBy(librarian);
-        request.setRejectionReason(null);
+        request.setRejectionReason(reason == null || reason.isBlank() ? null : reason.trim());
         return toLibrarianRequestDto(request);
     }
 
@@ -350,6 +360,7 @@ public class BorrowService {
                 .expiresAt(toOffset(request.getExpiresAt()))
                 .fulfilledAt(toOffset(request.getFulfilledAt()))
                 .rejectedAt(toOffset(request.getRejectedAt()))
+                .rejectionReason(request.getRejectionReason())
                 .statusUpdatedAt(toOffset(request.getStatusUpdatedAt()))
                 .build();
     }
