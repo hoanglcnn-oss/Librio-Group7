@@ -46,14 +46,14 @@ function ResourceDetailLoader({ id }) {
         {status === 'loading' && <DetailLoading />}
         {status === 'error' && <DetailError onRetry={retryLoad} />}
         {status === 'not-found' && <NotFoundResource />}
-        {status === 'success' && resource && <ResourceDetail resource={resource} />}
+        {status === 'success' && resource && <ResourceDetail resource={resource} onResourceChanged={loadResource} />}
       </main>
       <Footer />
     </div>
   )
 }
 
-function ResourceDetail({ resource }) {
+function ResourceDetail({ resource, onResourceChanged }) {
   return (
     <section className="detail-card">
       <div className="detail-cover book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
@@ -69,7 +69,7 @@ function ResourceDetail({ resource }) {
           {resource.location && <div><dt>Vị trí</dt><dd>{resource.location}</dd></div>}
         </dl>}
         <AvailabilitySection resource={resource} />
-        <DemoActions resource={resource} />
+        <DemoActions resource={resource} onBorrowRequestCreated={onResourceChanged} />
       </div>
     </section>
   )

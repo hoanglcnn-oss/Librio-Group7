@@ -8,6 +8,9 @@
     "build": "vite build",
     "build:production": "vite build --mode production && node scripts/check-production-build.mjs",
     "check:production": "node scripts/check-production-build.mjs",
+    "e2e": "playwright test",
+    "e2e:review": "playwright test --headed --workers=1",
+    "e2e:report": "playwright show-report",
     "lint": "eslint .",
     "test": "node --test",
     "preview": "vite preview"
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",

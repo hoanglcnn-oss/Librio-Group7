@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { createBorrowRequest, getDigitalReadCapability } from '../services/authApi'
 
-function DemoActions({ resource }) {
+function DemoActions({ resource, onBorrowRequestCreated }) {
   const [dialog, setDialog] = useState(null)
   const [openingDigital, setOpeningDigital] = useState(false)
+  const [digitalCapabilityState, setDigitalCapabilityState] = useState({ resourceId: null, capability: null })
   const [saved, setSaved] = useState(false)
   const [borrowRequest, setBorrowRequest] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -16,6 +17,25 @@ function DemoActions({ resource }) {
 
   const canBorrow = Boolean(resource.physical?.availableCopies > 0)
   const canRead = Boolean(resource.digital?.available)
+  const digitalCapability = digitalCapabilityState.resourceId === resource.id ? digitalCapabilityState.capability : null
+
+  useEffect(() => {
+    let active = true
+    if (!canRead || !auth.isReader) return () => { active = false }
+
+    getDigitalReadCapability(resource.id)
+      .then((capability) => {
+        if (active) setDigitalCapabilityState({
+          resourceId: resource.id,
+          capability: capability.canRead === true && capability.contentUrl ? capability : null,
+        })
+      })
+      .catch(() => {
+        if (active) setDigitalCapabilityState({ resourceId: resource.id, capability: null })
+      })
+
+    return () => { active = false }
+  }, [auth.isReader, canRead, resource.id])
 
   function beginBorrow() {
     setError('')
@@ -37,6 +57,7 @@ function DemoActions({ resource }) {
       const request = await createBorrowRequest(resource.id)
       setBorrowRequest(request)
       setDialog(null)
+      await onBorrowRequestCreated?.()
     } catch (requestError) {
       if (requestError.status === 401 || requestError.status === 403) {
         setDialog(null)
@@ -60,15 +81,6 @@ function DemoActions({ resource }) {
       return
     }
 
-    const pdfTab = window.open('about:blank', '_blank')
-    if (!pdfTab) {
-      setError('Trình duyệt đã chặn tab PDF. Vui lòng cho phép mở cửa sổ bật lên và thử lại.')
-      return
-    }
-    pdfTab.opener = null
-    pdfTab.document.title = 'Đang mở tài liệu số…'
-    pdfTab.document.body.textContent = 'Đang xác thực quyền truy cập tài liệu số…'
-
     setOpeningDigital(true)
     try {
       const capability = await getDigitalReadCapability(resource.id)
@@ -77,12 +89,11 @@ function DemoActions({ resource }) {
         accessError.status = 403
         throw accessError
       }
-      pdfTab.location.replace(capability.contentUrl)
+      setDigitalCapabilityState({ resourceId: resource.id, capability })
       if (capability.temporaryUrl) {
         window.setTimeout(() => URL.revokeObjectURL(capability.contentUrl), 60_000)
       }
     } catch (requestError) {
-      pdfTab.close()
       if (requestError.status === 401) {
         navigate('/login', { state: { from: location.pathname } })
       } else {
@@ -106,7 +117,9 @@ function DemoActions({ resource }) {
         <button className="primary-action" type="button" onClick={beginBorrow} disabled={!canBorrow || borrowRequest || submitting}>
           {borrowRequest ? 'Đã gửi yêu cầu' : canBorrow ? 'Mượn bản vật lý' : 'Tạm hết sách'}
         </button>
-        {canRead && <button className="secondary-action" type="button" disabled={openingDigital} onClick={openDigitalResource}>{openingDigital ? 'Đang mở PDF…' : 'Đọc tài liệu số'}</button>}
+        {canRead && auth.isReader && digitalCapability?.contentUrl
+          ? <a className="secondary-action" href={digitalCapability.contentUrl}>Đọc tài liệu số</a>
+          : canRead && <button className="secondary-action" type="button" disabled={openingDigital} onClick={openDigitalResource}>{openingDigital ? 'Đang mở PDF…' : 'Đọc tài liệu số'}</button>}
         <button className="text-action" type="button" onClick={() => setSaved((value) => !value)}>{saved ? '✓ Đã lưu' : '+ Lưu vào danh sách'}</button>
       </div>
 
