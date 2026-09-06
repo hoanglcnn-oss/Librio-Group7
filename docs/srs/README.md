@@ -1,12 +1,7 @@
 # Software Requirements Specification (SRS) — Overview
 
-> Thư mục này chứa toàn bộ các yêu cầu phần mềm của dự án **Librio**, bao gồm các yêu cầu chức năng, phi chức năng và phạm vi qua từng Sprint.
+- [Sprint 1 SRS](sprint-1-srs.md) — public discovery and availability.
+- [Sprint 2 SRS](sprint-2-srs.md) — authentication, physical circulation and My Library.
+- [Sprint 3 SRS](sprint-3-srs.md) — overdue, return, protected digital access and aggregate resource administration.
 
----
-
-## 📂 Danh mục Tài liệu SRS
-
-- 📄 **[Sprint 1 SRS Baseline](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/srs/sprint-1-srs.md)**
-  - Phạm vi: `Search/Browse ➔ Resource Detail ➔ Availability`
-  - Các PBI: `LIB-01` đến `LIB-06`
-  - User Stories, Acceptance Criteria, Out-of-scope decisions & Traceability Matrix.
+Sprint SRS files remain separate to preserve scope and traceability; the HLD and database documents are living project-level specifications.

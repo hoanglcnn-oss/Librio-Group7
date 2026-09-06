@@ -1,16 +1,18 @@
 # Low-Level Design (LLD) — Overview
 
-> Thư mục này chứa toàn bộ thiết kế chi tiết (Low-Level Design) của dự án **Librio**, phân chia theo API Contracts, Frontend Design, Sequence Diagrams và Test Verification.
+## Sprint designs
 
----
+- [Sprint 1 Unified LLD](sprint-1-lld.md)
+- [Sprint 2 Authentication LLD](sprint-2-auth-lld.md)
+- [Sprint 2 Borrowing LLD](sprint-2-borrow-lld.md)
+- [Sprint 3 Canonical LLD](sprint-3-lld.md)
 
-## 📂 Danh mục File Thiết kế LLD
+## API contracts
 
-- 📘 **[Sprint 1 Unified LLD Specification (`sprint-1-lld.md`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/sprint-1-lld.md)**  
-  *(Tài liệu tổng hợp Baseline LLD cho Sprint 1, bao gồm cả Frontend, Backend & 18 Test Scenarios)*
-- 🔌 **[API Contracts (`api-contracts/sprint-1-api.md`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/api-contracts/sprint-1-api.md)**  
-  *(Định nghĩa chi tiết JSON REST API payloads cho `GET /resources` và `GET /resources/{id}`)*
-- 🎨 **[Frontend Architecture (`frontend-lld.md`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/frontend-lld.md)**  
-  *(Cấu trúc thư mục `src/`, phân rã Components, UI State Rules)*
-- 🔄 **[Sequence Diagram Source (`sequence-diagrams/s1-search-detail.mmd`)](file:///d:/FM%E1%BB%81m/Librio-Group7/docs/lld/sequence-diagrams/s1-search-detail.mmd)**  
-  *(Sơ đồ luồng tương tác tuần tự giữa User ➔ React UI ➔ API ➔ Service ➔ Database)*
+- [Sprint 1 API](api-contracts/sprint-1-api.md)
+- [Sprint 2 API](api-contracts/sprint-2-api.md)
+- [Sprint 3 API](api-contracts/sprint-3-api.md)
+
+`frontend-lld.md` is a Sprint 1 legacy frontend snapshot. It remains available for historical traceability but is not the current cross-sprint source of truth.
+
+Sequence-diagram sources are under [sequence-diagrams](sequence-diagrams/).

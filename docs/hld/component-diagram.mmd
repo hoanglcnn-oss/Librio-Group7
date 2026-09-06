@@ -1,72 +1,36 @@
 flowchart TB
-Guest["Guest"]
-Reader["Reader"]
-Librarian["Librarian"]
+    Users["Guest · Reader · Librarian"]
 
-subgraph Client["React SPA"]
-    DiscoveryUI["Discovery UI"]
-    AuthUI["Authentication UI"]
-    MyLibraryUI["My Library UI"]
-    LibrarianUI["Librarian Circulation UI"]
-end
-
-subgraph Backend["Spring Boot Modular Monolith"]
-    Security["Spring Security Boundary<br/>Session · CSRF · Authorization"]
-
-    subgraph AccountModule["Account and Access Module"]
-        Account["Account Identity"]
-        CurrentAccount["Current Account Context"]
+    subgraph Client["React SPA"]
+        Discovery["Discovery"]
+        ReaderUI["My Library · Digital"]
+        LibrarianUI["Circulation · Resource Admin"]
     end
 
-    subgraph CatalogModule["Catalog Module"]
-        Resource["Resource"]
-        PhysicalItem["PhysicalItem"]
-        DigitalItem["DigitalItem"]
-        Availability["Derived Availability"]
+    Security["Spring Security<br/>Session · CSRF · Roles"]
+
+    subgraph Backend["Spring Boot Modular Monolith"]
+        Account["Account & Access"]
+        Catalog["Catalog & Availability"]
+        Circulation["Request · Checkout · Return"]
+        Admin["Digital Access · Resource Admin"]
     end
 
-    subgraph CirculationModule["Circulation Module"]
-        BorrowRequest["BorrowRequest Lifecycle"]
-        Checkout["Checkout and Borrowing"]
-        MyLibrary["My Requests / My Borrowings"]
-    end
-end
+    Database[("PostgreSQL")]
 
-Database[("PostgreSQL")]
-
-Guest --> DiscoveryUI
-Reader --> DiscoveryUI
-Reader --> AuthUI
-Reader --> MyLibraryUI
-Librarian --> AuthUI
-Librarian --> LibrarianUI
-
-DiscoveryUI -->|"Public HTTP/JSON"| Security
-AuthUI -->|"Login · Logout · Current Account"| Security
-MyLibraryUI -->|"Protected Reader Operations"| Security
-LibrarianUI -->|"Protected Librarian Operations"| Security
-
-Security -->|"Public Discovery"| Resource
-Security -->|"Authentication"| Account
-Security -->|"Authenticated Principal"| CurrentAccount
-Security -->|"Reader Access"| MyLibrary
-Security -->|"Reader Request / Cancel"| BorrowRequest
-Security -->|"Librarian Process / Fulfil"| Checkout
-
-Resource -->|"Build Detail Availability"| Availability
-Availability --> PhysicalItem
-Availability --> DigitalItem
-
-BorrowRequest -->|"Current Reader Identity"| CurrentAccount
-Checkout -->|"Current Librarian Identity"| CurrentAccount
-MyLibrary -->|"Ownership Scope"| CurrentAccount
-
-BorrowRequest -->|"Allocate / Release Exact Item"| PhysicalItem
-Checkout -->|"Reserve to Borrowed"| PhysicalItem
-MyLibrary --> BorrowRequest
-MyLibrary --> Checkout
-
-AccountModule --> Database
-CatalogModule --> Database
-CirculationModule --> Database
-
+    Users --> Discovery
+    Users --> ReaderUI
+    Users --> LibrarianUI
+    Discovery --> Security
+    ReaderUI --> Security
+    LibrarianUI --> Security
+    Security --> Account
+    Security --> Catalog
+    Security --> Circulation
+    Security --> Admin
+    Circulation --> Catalog
+    Admin --> Catalog
+    Account --> Database
+    Catalog --> Database
+    Circulation --> Database
+    Admin --> Database

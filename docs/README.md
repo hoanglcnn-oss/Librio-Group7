@@ -9,10 +9,12 @@
 ### 1. Software Requirements Specification (SRS)
 - 📄 **[Sprint 1 SRS Baseline (`srs/sprint-1-srs.md`)](srs/sprint-1-srs.md)** *(LIB-01 đến LIB-06, User Stories, Acceptance Criteria)*
 - 📄 **[Sprint 2 SRS Specification (`srs/sprint-2-srs.md`)](srs/sprint-2-srs.md)** *(US-07 đến US-09, Reader Identity, Auth & Physical Circulation)*
+- 📄 **[Sprint 3 SRS (`srs/sprint-3-srs.md`)](srs/sprint-3-srs.md)** *(Overdue, Return, Digital Access & Resource Administration)*
 
 ### 2. Database Design
 - 📊 **[Source ERD Mermaid (`database/erd.mmd`)](database/erd.mmd)** *(ERD Diagram-as-Code)*  
 - 📑 **[Schema Specification & Constraints (`database/schema-spec.md`)](database/schema-spec.md)** *(Tables, Columns, Data Types, Constraints)*
+- 🗄️ **[Reviewable SQL Schema (`database/schema.sql`)](database/schema.sql)** *(Đồng bộ với runtime schema)*
 
 ### 3. High-Level Design (HLD)
 - 📄 **[Architecture Specification (`hld/architecture.md`)](hld/architecture.md)** *(Modular Monolith, Security & Transaction Boundaries)*  
@@ -22,8 +24,10 @@
 - 📘 **[Sprint 1 Unified LLD (`lld/sprint-1-lld.md`)](lld/sprint-1-lld.md)** *(Discovery & Availability LLD Baseline)*  
 - 🔒 **[Sprint 2 Auth & Access LLD (`lld/sprint-2-auth-lld.md`)](lld/sprint-2-auth-lld.md)** *(Session, CSRF, Role Authorization & Account Model)*  
 - 📚 **[Sprint 2 Physical Circulation LLD (`lld/sprint-2-borrow-lld.md`)](lld/sprint-2-borrow-lld.md)** *(Borrow Request Lifecycle, Checkouts & My Library)*  
+- 📗 **[Sprint 3 LLD (`lld/sprint-3-lld.md`)](lld/sprint-3-lld.md)** *(Canonical Sprint 3 implementation design và US-13/US-14 boundary)*
 - 🔌 **[Sprint 1 API Contract (`lld/api-contracts/sprint-1-api.md`)](lld/api-contracts/sprint-1-api.md)** *(Public Discovery REST API)*  
 - 🔌 **[Sprint 2 API Contract (`lld/api-contracts/sprint-2-api.md`)](lld/api-contracts/sprint-2-api.md)** *(Auth & Circulation REST API)*
+- 🔌 **[Sprint 3 API Contract (`lld/api-contracts/sprint-3-api.md`)](lld/api-contracts/sprint-3-api.md)** *(Return, Digital Access & Resource Admin)*
 
 ---
 

@@ -1,37 +1,29 @@
 erDiagram
-    RESOURCE ||--o{ PHYSICAL_ITEM : "has copies"
-    RESOURCE ||--o| DIGITAL_ITEM : "has digital item"
-    RESOURCE ||--o{ BORROW_REQUEST : "requested for"
-
-    ACCOUNTS ||--o{ BORROW_REQUEST : "reader submits"
-    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian prepares"
-    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian rejects"
-    ACCOUNTS o|--o{ BORROW_REQUEST : "librarian fulfils"
-
-    PHYSICAL_ITEM ||--o{ BORROW_REQUEST : "allocated to"
-
-    BORROW_REQUEST ||--o| BORROWING : "creates"
-    ACCOUNTS ||--o{ BORROWING : "reader borrows"
-    PHYSICAL_ITEM ||--o{ BORROWING : "loan history"
+    RESOURCE ||--o{ PHYSICAL_ITEM : has
+    RESOURCE ||--o| DIGITAL_ITEM : offers
+    RESOURCE ||--o{ BORROW_REQUEST : requested_for
+    ACCOUNTS ||--o{ BORROW_REQUEST : submits
+    PHYSICAL_ITEM ||--o{ BORROW_REQUEST : allocated_to
+    BORROW_REQUEST ||--o| BORROWING : creates
+    ACCOUNTS ||--o{ BORROWING : borrows
+    PHYSICAL_ITEM ||--o{ BORROWING : loan_history
 
     RESOURCE {
         BIGINT id PK
         VARCHAR title
         VARCHAR authors
         TEXT description
+        VARCHAR category
     }
-
     PHYSICAL_ITEM {
         BIGINT id PK
         BIGINT resource_id FK
         VARCHAR status
     }
-
     DIGITAL_ITEM {
         BIGINT id PK
-        BIGINT resource_id FK, UK
+        BIGINT resource_id FK
     }
-
     ACCOUNTS {
         BIGINT id PK
         VARCHAR email UK
@@ -42,7 +34,6 @@ erDiagram
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
-
     BORROW_REQUEST {
         BIGINT id PK
         BIGINT reader_id FK
@@ -56,17 +47,17 @@ erDiagram
         BIGINT prepared_by FK
         TIMESTAMP rejected_at
         BIGINT rejected_by FK
+        VARCHAR rejection_reason
         TIMESTAMP fulfilled_at
         BIGINT fulfilled_by FK
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
-
     BORROWING {
         BIGINT id PK
         BIGINT physical_item_id FK
         BIGINT reader_id FK
-        BIGINT borrow_request_id FK, UK
+        BIGINT borrow_request_id FK
         TIMESTAMP borrowed_at
         TIMESTAMP due_at
         TIMESTAMP returned_at

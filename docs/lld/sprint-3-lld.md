@@ -1,43 +1,69 @@
-# Librio Sprint 3 Low-Level Design
+# Librio — Sprint 3 Low-Level Design
 
-This LLD closes the Sprint 3 boundaries for overdue presentation, return processing, protected digital access and aggregate resource administration. The implementation-oriented baseline remains linked in [sprint-3-implementation-design.md](sprint-3-implementation-design.md).
+**Scope:** US-10 overdue visibility, US-11 physical return, US-12 protected digital access and US-13 aggregate resource administration. US-14 is a boundary only and remains deferred.
 
-## US-13 / US-14 Boundary
+This is the single canonical Sprint 3 LLD, consolidating the former implementation-design file.
 
-US-13 manages resource metadata and aggregate access composition:
+## 1. Design principles
 
-- Resource metadata: title, authors, description and category.
-- Whether the resource has physical access.
-- Desired total number of physical copies.
-- Whether the resource has a digital-access marker.
-- Increasing or decreasing total copies is reconciled through exact `physical_item` rows.
-- When decreasing copies, only `AVAILABLE` items may be deleted.
-- Items in `RESERVED` or `BORROWED` state must not be deleted because they represent active circulation commitments.
+- Backend time, principal, identifiers and availability are authoritative.
+- State-changing circulation operations are transactional and lock affected rows.
+- Sprint 1 public discovery and Sprint 2 circulation contracts remain compatible.
+- Reader DTOs exclude internal item and ownership identifiers.
 
-US-13 does not provide individual-item administration.
+## 2. Overdue presentation (US-10)
 
-US-14 owns item-level inventory management:
+A borrowing is active while `returned_at IS NULL`. Overdue is derived at response time:
 
-- Barcode or accession number.
-- Shelf/location.
-- Inventory status such as `ACTIVE`, `LOST`, `DAMAGED` or `WITHDRAWN`.
-- Changing the state of each individual physical item.
-- Validation that inventory operations do not break an active request or borrowing.
-- More detailed digital-item management if Sprint 4 expands beyond the current aggregate marker.
+```text
+overdue = returnedAt == null && dueAt < serverNow
+```
 
-US-13 answers: "Which access forms does this resource have, and how many physical copies exist in total?"
+`dueAt == serverNow` is not overdue. Reader and librarian DTOs receive the additive `overdue` boolean. The legacy `OVERDUE` physical-item value remains schema-compatible, but Sprint 3 does not write it.
 
-US-14 answers: "Which exact copy is this, where is it located, and what inventory status does it have?"
+## 3. Physical return (US-11)
 
-Current Sprint 3 implementation follows this distinction: `ResourceAdminService` accepts aggregate `accessTypes`, `physical.totalCopies` and a digital marker, but it does not expose barcode, shelf/location, inventory status or per-item CRUD.
+`POST /librarian/borrowings/{borrowingId}/return` requires `ROLE_LIBRARIAN` and CSRF. In one transaction, `BorrowService` locks the borrowing, rejects a prior return, locks its exact item, verifies `BORROWED`, persists server `returned_at`, then changes the item to `AVAILABLE`.
 
-## Implemented Sprint 3 Entry Points
+| Condition | Result |
+|---|---|
+| Missing borrowing | `404 BORROWING_NOT_FOUND` |
+| Already returned | `409 BORROWING_ALREADY_RETURNED` |
+| Item inconsistent | `409 BORROWING_ITEM_CONFLICT` |
 
-- Overdue and return: `BorrowService`, `ReaderBorrowingController`, `LibrarianBorrowingController`.
-- Protected digital access: `DigitalAccessController`, `DigitalAccessService`, `SecurityConfig`.
-- Aggregate resource administration: `LibrarianResourceController`, `ResourceAdminService`.
-- Frontend pages/services: `MyLibraryPage.jsx`, `LibrarianRequestsPage.jsx`, `ResourceAdminPage.jsx`, `DemoActions.jsx`, `authApi.js`.
+Locking plus persisted `returned_at` gives one-winner semantics. E2E proves successful and repeated return; a simultaneous two-client return remains a test refinement.
 
-## Test Evidence
+## 4. Protected digital access (US-12)
 
-Sprint 3 E2E evidence is produced by Playwright under `frontend/test-results` and `frontend/playwright-report`. The runbook is [Sprint 3 E2E Runbook](../testing/sprint-3-e2e-runbook.md).
+A `digital_item` row marks digital availability. Both endpoints require an active reader session:
+
+- `GET /resources/{id}/digital-access` returns a backend content URL.
+- `GET /resources/{id}/digital-content` re-authorizes and returns `application/pdf`.
+
+Sprint 3 generates a demo PDF to prove access control. Durable storage, upload, signed URLs, DRM and streaming are deferred.
+
+## 5. Aggregate resource administration (US-13)
+
+`ROLE_LIBRARIAN` may create/read/update a resource aggregate: metadata, access types, desired physical total and digital marker. IDs are server-generated. Authors are persisted comma-separated but exposed as a JSON array.
+
+- Increasing `totalCopies` creates `AVAILABLE` item rows.
+- Decreasing it deletes only `AVAILABLE` rows.
+- If insufficient available rows exist, `409 RESOURCE_IN_USE` rolls back the operation.
+- Removing physical access reconciles the desired total to zero.
+- Digital access creates/removes the one-to-one `digital_item` marker.
+
+## 6. US-13 / US-14 boundary
+
+US-13 answers: **what is the resource, which access forms exist, and how many physical copies exist?**
+
+US-14 answers: **which exact copy is this, where is it, and what inventory condition does it have?** Barcode/accession number, shelf/location, `LOST`/`DAMAGED`/`WITHDRAWN`, per-item CRUD and inventory-safe transitions are deferred to US-14.
+
+## 7. Entry points and references
+
+| Slice | Backend | Frontend |
+|---|---|---|
+| Overdue/return | `BorrowService`, borrowing controllers | My Library, librarian circulation |
+| Digital | `DigitalAccessController/Service`, security | Resource detail/demo action |
+| Administration | `LibrarianResourceController`, `ResourceAdminService` | Resource Admin |
+
+Mocks are for isolated UI work only and must be disabled for real-stack E2E and production. See the [Sprint 3 API Contract](api-contracts/sprint-3-api.md) and [E2E Runbook](../testing/sprint-3-e2e-runbook.md).

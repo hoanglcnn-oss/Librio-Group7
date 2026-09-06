@@ -5,7 +5,7 @@ Tài liệu này tóm tắt các vertical slice đang có trong source code đ�
 - [Documentation index](README.md)
 - [High-level architecture](hld/architecture.md)
 - [Sprint 2 borrow LLD](lld/sprint-2-borrow-lld.md)
-- [Sprint 3 implementation design](lld/sprint-3-implementation-design.md)
+- [Sprint 3 LLD](lld/sprint-3-lld.md)
 - [Database schema spec](database/schema-spec.md)
 
 ## 1. Project Scope And Implemented Vertical Slices

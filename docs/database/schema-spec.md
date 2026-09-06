@@ -2,7 +2,7 @@
 
 **Project:** Librio  
 **Document:** Logical Database Schema Specification  
-**Scope:** Sprint 1 discovery and Sprint 2 authentication, borrow requests, checkout and My Library
+**Scope:** Living schema through Sprint 3: discovery, authentication, circulation/return, digital access and aggregate resource administration
 
 ---
 
@@ -18,8 +18,13 @@ Nguồn thiết kế:
 4. `docs/lld/api-contracts/sprint-2-api.md`
 5. `docs/lld/sprint-2-auth-lld.md`
 6. `docs/lld/sprint-2-borrow-lld.md`
+7. `docs/srs/sprint-3-srs.md`
+8. `docs/lld/sprint-3-lld.md`
+9. `backend/src/main/resources/schema.sql`
 
 Database không chứa bảng `availability`. Physical availability được tính từ trạng thái của `physical_item`; digital availability được xác định từ sự tồn tại của `digital_item`.
+
+Identifier generation follows runtime SQL: `resource_id_seq`, `physical_item_id_seq` and `digital_item_id_seq` back catalog entities; account/request/borrowing IDs use identity columns.
 
 ---
 
@@ -35,6 +40,7 @@ Lưu bibliographic information dùng chung cho physical và digital resources.
 | `title` | `VARCHAR(255)` | No |  | Tiêu đề tài liệu |
 | `authors` | `VARCHAR(255)` | No |  | Danh sách tác giả dạng chuỗi |
 | `description` | `TEXT` | Yes |  | Mô tả tài liệu |
+| `category` | `VARCHAR(100)` | Yes | Maximum 100 chars | Phân loại tùy chọn |
 
 Một resource có thể:
 - Không có physical item.
@@ -55,13 +61,15 @@ Allowed values:
 - `AVAILABLE`
 - `RESERVED`
 - `BORROWED`
-- `OVERDUE`
+- `OVERDUE` (legacy/schema compatibility)
 
 Trong Sprint 2, borrow-request flow sử dụng chủ yếu:
 `AVAILABLE` → `RESERVED` → `BORROWED`
 
 Cancel, reject hoặc expire chuyển:
 `RESERVED` → `AVAILABLE`
+
+Sprint 3 không chuyển item sang `OVERDUE`. Overdue được derive từ active borrowing có `due_at < server time`.
 
 ### 2.3 `digital_item`
 
@@ -108,15 +116,16 @@ Lưu request lifecycle và exact physical item được reserve.
 | `id` | `BIGINT` | No | Primary Key, Identity | Định danh request |
 | `reader_id` | `BIGINT` | No | FK → `accounts.id` | Reader gửi request |
 | `resource_id` | `BIGINT` | No | FK → `resource.id` | Resource được request |
-| `physical_item_id` | `BIGINT` | No | FK → `physical_item.id` | Exact reserved copy |
+| `physical_item_id` | `BIGINT` | Yes | FK → `physical_item.id` | Exact reserved copy |
 | `status` | `VARCHAR(32)` | No | Check Constraint | Trạng thái request |
 | `requested_at` | `TIMESTAMP` | No |  | Thời điểm tạo request |
 | `status_updated_at` | `TIMESTAMP` | No |  | Thời điểm status thay đổi gần nhất |
-| `expires_at` | `TIMESTAMP` | No |  | Deadline hiện tại |
+| `expires_at` | `TIMESTAMP` | Yes |  | Deadline hiện tại |
 | `prepared_at` | `TIMESTAMP` | Yes |  | Thời điểm librarian prepare |
 | `prepared_by` | `BIGINT` | Yes | FK → `accounts.id` | Librarian thực hiện prepare |
 | `rejected_at` | `TIMESTAMP` | Yes |  | Thời điểm reject |
 | `rejected_by` | `BIGINT` | Yes | FK → `accounts.id` | Librarian thực hiện reject |
+| `rejection_reason` | `VARCHAR(500)` | Yes |  | Legacy-compatible optional reason |
 | `fulfilled_at` | `TIMESTAMP` | Yes |  | Thời điểm fulfil |
 | `fulfilled_by` | `BIGINT` | Yes | FK → `accounts.id` | Librarian thực hiện fulfil |
 | `created_at` | `TIMESTAMP` | No |  | Thời điểm tạo record |
@@ -249,6 +258,12 @@ Borrowing phải dùng cùng reader và physical item với source borrow reques
 ### DB-I06 — One-winner concurrency
 Competing create, cancel, expire hoặc fulfil operations sử dụng database lock và constraint để chỉ một conflicting transition được commit.
 
+### DB-I07 — Return
+Return locks the borrowing and exact item, persists `returned_at`, then changes `BORROWED → AVAILABLE` in one transaction. A committed return cannot be applied twice.
+
+### DB-I08 — Aggregate copy reconciliation
+US-13 copy reduction deletes only `AVAILABLE` rows. Unsafe reduction fails atomically with no partial metadata/access change.
+
 ---
 
 ## 6. Index Catalogue
@@ -263,6 +278,7 @@ Competing create, cancel, expire hoặc fulfil operations sử dụng database l
 | `idx_borrow_request_reader_outcomes` | Reader, `status_updated_at`, `id` | Recent Outcomes |
 | `idx_borrow_request_expiration` | `expires_at`, `id` trên active requests | Expiration scheduler |
 | `idx_borrowing_reader_active_due` | Reader, due/borrow timestamps | My Borrowings |
+| `idx_borrowing_active_due` | Due/borrow timestamps on active rows | Librarian active/overdue queue |
 
 ---
 
@@ -273,7 +289,7 @@ Không tạo bảng hoặc persisted field availability.
 **Physical availability:**
 - `availableCopies = COUNT(physical_item WHERE resource_id = ? AND status = 'AVAILABLE')`
 - `totalCopies = COUNT(physical_item WHERE resource_id = ?)`
-*Lưu ý: Items ở trạng thái `RESERVED`, `BORROWED` hoặc `OVERDUE` không được tính vào `availableCopies`.*
+*Items ở trạng thái `RESERVED`, `BORROWED` hoặc legacy `OVERDUE` không được tính vào `availableCopies`.*
 
 **Digital availability:**
 - `digitalAvailable = EXISTS(digital_item WHERE resource_id = ?)`
@@ -292,18 +308,19 @@ Database initialization phải bảo toàn circulation state qua backend restart
 - Demo seed không được overwrite request/borrowing state.
 - Production có thể tắt demo seed.
 - Password chỉ được lưu dưới dạng BCrypt hash.
-- `schema.sql` và `data.sql` trong runtime resources phải được đồng bộ với specification này trước khi hoàn thành Sprint 2.
+- `docs/database/schema.sql` là review artifact và phải khớp byte-for-byte với runtime `backend/src/main/resources/schema.sql`.
+- `data.sql` sử dụng idempotent seed và không overwrite circulation state.
 
 ---
 
-## 9. Sprint 2 Out of Scope
+## 9. Scope after Sprint 3
 
-- Return processing.
 - Fine và payment.
 - Renewal.
 - Completed borrowing-history UI.
 - Waitlist.
 - Multiple account roles.
-- Inventory/warehouse management.
+- US-14 per-item barcode, shelf/location, condition và inventory management.
 - Resource deletion lifecycle.
 - Realtime polling, WebSocket hoặc event streaming.
+- Durable digital upload/storage, signed URL, DRM và streaming.
