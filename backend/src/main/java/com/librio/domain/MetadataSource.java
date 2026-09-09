@@ -4,3 +4,4 @@ public enum MetadataSource {
     MANUAL,
     GOOGLE_BOOKS
 }
+
