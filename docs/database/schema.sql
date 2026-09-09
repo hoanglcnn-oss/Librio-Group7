@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS physical_item (
             ON DELETE CASCADE
 );
 
--- Expand: Add new columns if legacy table exists
 -- Expand: Add new columns if legacy table exists, or ensure status column exists for backfill parsing
 ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS status VARCHAR(32);
 ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS barcode VARCHAR(255);
