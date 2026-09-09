@@ -21,7 +21,17 @@ public class PhysicalItem {
     @JoinColumn(name = "resource_id", nullable = false)
     private Resource resource;
 
+    @Column(name = "barcode", nullable = false, unique = true)
+    private String barcode;
+
+    @Column(name = "location", nullable = false)
+    private String location;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PhysicalItemStatus status;
+    @Column(name = "inventory_status", nullable = false)
+    private InventoryStatus inventoryStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "circulation_status", nullable = false)
+    private CirculationStatus circulationStatus;
 }

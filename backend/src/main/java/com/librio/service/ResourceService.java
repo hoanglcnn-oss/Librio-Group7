@@ -1,6 +1,7 @@
 package com.librio.service;
 
-import com.librio.domain.PhysicalItemStatus;
+import com.librio.domain.CirculationStatus;
+import com.librio.domain.InventoryStatus;
 import com.librio.domain.Resource;
 import com.librio.dto.*;
 import com.librio.exception.ResourceNotFoundException;
@@ -48,7 +49,8 @@ public class ResourceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Resource not found"));
 
         long totalCopies = physicalItemRepository.countByResourceId(id);
-        long availableCopies = physicalItemRepository.countByResourceIdAndStatus(id, PhysicalItemStatus.AVAILABLE);
+        long availableCopies = physicalItemRepository.countByResourceIdAndInventoryStatusAndCirculationStatus(
+                id, InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
         boolean digitalAvailable = digitalItemRepository.existsByResourceId(id);
 
         List<String> accessTypes = new ArrayList<>();

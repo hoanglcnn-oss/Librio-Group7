@@ -1,8 +1,8 @@
 package com.librio.domain;
 
-public enum PhysicalItemStatus {
+public enum CirculationStatus {
     AVAILABLE,
     RESERVED,
-    BORROWED,
-    OVERDUE
+    BORROWED
 }
+

@@ -1,6 +1,5 @@
 package com.librio.repository;
 
-import com.librio.domain.PhysicalItemStatus;
 import com.librio.domain.Resource;
 import com.librio.dto.ResourceDetailDto;
 import com.librio.dto.ResourceListResponseDto;

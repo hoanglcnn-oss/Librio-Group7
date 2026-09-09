@@ -47,8 +47,8 @@ class BorrowRequestControllerTest {
                 .andExpect(jsonPath("$.status").value("REQUESTED"))
                 .andExpect(jsonPath("$.physicalItemId").doesNotExist());
 
-        assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.RESERVED);
+        assertThat(physicalItemRepository.findById(101L).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.RESERVED);
     }
 
     @Test

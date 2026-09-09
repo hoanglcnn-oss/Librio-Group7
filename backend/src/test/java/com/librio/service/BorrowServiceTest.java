@@ -44,8 +44,8 @@ class BorrowServiceTest {
         Long physicalItemId = allocatedItemId(requested.getId());
         assertThat(requested.getStatus()).isEqualTo(BorrowRequestStatus.REQUESTED);
         assertThat(physicalItemId).isEqualTo(101L);
-        assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.RESERVED);
+        assertThat(physicalItemRepository.findById(101L).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.RESERVED);
 
         LibrarianBorrowRequestItemDto ready = borrowService.prepare(librarian.getId(), requested.getId(), physicalItemId);
         assertThat(ready.getStatus()).isEqualTo(BorrowRequestStatus.READY_FOR_PICKUP);
@@ -56,8 +56,8 @@ class BorrowServiceTest {
         assertThat(borrowing.getDueDate()).isAfter(borrowing.getBorrowedAt());
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
                 .isEqualTo(BorrowRequestStatus.FULFILLED);
-        assertThat(physicalItemRepository.findById(101L).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.BORROWED);
+        assertThat(physicalItemRepository.findById(101L).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.BORROWED);
         assertThat(borrowingRepository.existsByBorrowRequestId(requested.getId())).isTrue();
     }
 
@@ -89,8 +89,8 @@ class BorrowServiceTest {
         ReaderBorrowRequestItemDto cancelled = borrowService.cancel(reader.getId(), requested.getId());
 
         assertThat(cancelled.getStatus()).isEqualTo(BorrowRequestStatus.CANCELLED);
-        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.AVAILABLE);
     }
 
     @Test
@@ -104,8 +104,8 @@ class BorrowServiceTest {
 
         assertThat(rejected.getStatus()).isEqualTo(BorrowRequestStatus.REJECTED);
         assertThat(rejected.getRejectedAt()).isNotNull();
-        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.AVAILABLE);
     }
 
     @Test
@@ -124,8 +124,8 @@ class BorrowServiceTest {
         assertThat(expired).isEqualTo(1);
         assertThat(borrowRequestRepository.findById(requested.getId()).orElseThrow().getStatus())
                 .isEqualTo(BorrowRequestStatus.EXPIRED);
-        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.AVAILABLE);
     }
 
     @Test
@@ -170,13 +170,13 @@ class BorrowServiceTest {
         firstRequest.setStatus(BorrowRequestStatus.REJECTED);
         firstRequest.setStatusUpdatedAt(sameTime);
         firstRequest.setUpdatedAt(sameTime);
-        firstRequest.getPhysicalItem().setStatus(PhysicalItemStatus.AVAILABLE);
+        firstRequest.getPhysicalItem().setCirculationStatus(CirculationStatus.AVAILABLE);
 
         BorrowRequest secondRequest = borrowRequestRepository.findById(second.getId()).orElseThrow();
         secondRequest.setStatus(BorrowRequestStatus.CANCELLED);
         secondRequest.setStatusUpdatedAt(sameTime);
         secondRequest.setUpdatedAt(sameTime);
-        secondRequest.getPhysicalItem().setStatus(PhysicalItemStatus.AVAILABLE);
+        secondRequest.getPhysicalItem().setCirculationStatus(CirculationStatus.AVAILABLE);
 
         borrowRequestRepository.flush();
 
@@ -207,7 +207,10 @@ class BorrowServiceTest {
         physicalItemRepository.save(PhysicalItem.builder()
                 .id(99011L)
                 .resource(resource)
-                .status(PhysicalItemStatus.AVAILABLE)
+                .barcode("LIB-99011")
+                .location("UNASSIGNED")
+                .inventoryStatus(InventoryStatus.ACTIVE)
+                .circulationStatus(CirculationStatus.AVAILABLE)
                 .build());
 
         Account reader = createAccount("expired-commit-reader@test.local", AccountRole.READER);
@@ -224,8 +227,8 @@ class BorrowServiceTest {
 
         BorrowRequest expired = borrowRequestRepository.findById(requested.getId()).orElseThrow();
         assertThat(expired.getStatus()).isEqualTo(BorrowRequestStatus.EXPIRED);
-        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+        assertThat(physicalItemRepository.findById(physicalItemId).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.AVAILABLE);
         assertThat(borrowingRepository.existsByBorrowRequestId(requested.getId())).isFalse();
     }
 

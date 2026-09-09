@@ -1,12 +1,13 @@
 package com.librio.repository;
 
+import com.librio.domain.CirculationStatus;
+import com.librio.domain.InventoryStatus;
 import com.librio.domain.PhysicalItem;
-import com.librio.domain.PhysicalItemStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import jakarta.persistence.LockModeType;
@@ -21,7 +22,11 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
 
     long countByResourceId(Long resourceId);
 
-    long countByResourceIdAndStatus(Long resourceId, PhysicalItemStatus status);
+    long countByResourceIdAndInventoryStatusAndCirculationStatus(
+            Long resourceId,
+            InventoryStatus inventoryStatus,
+            CirculationStatus circulationStatus
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PhysicalItem p where p.id = :id")
@@ -29,13 +34,17 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
 
     /**
      * Lock các copy ứng viên trước khi reserve/reconcile để các flow cạnh tranh không claim cùng item.
+     * Candidate selection yêu cầu: inventoryStatus = ACTIVE AND circulationStatus = AVAILABLE.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PhysicalItem p where p.resource.id = :resourceId " +
-            "and p.status = :status order by p.id asc")
+            "and p.inventoryStatus = :inventoryStatus " +
+            "and p.circulationStatus = :circulationStatus " +
+            "order by p.id asc")
     List<PhysicalItem> findForUpdate(
             @Param("resourceId") Long resourceId,
-            @Param("status") PhysicalItemStatus status,
+            @Param("inventoryStatus") InventoryStatus inventoryStatus,
+            @Param("circulationStatus") CirculationStatus circulationStatus,
             Pageable pageable
     );
 }

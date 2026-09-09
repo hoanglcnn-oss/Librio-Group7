@@ -8,7 +8,8 @@ import com.librio.domain.BorrowRequestStatus;
 import com.librio.domain.Borrowing;
 import com.librio.domain.DigitalItem;
 import com.librio.domain.PhysicalItem;
-import com.librio.domain.PhysicalItemStatus;
+import com.librio.domain.CirculationStatus;
+import com.librio.domain.InventoryStatus;
 import com.librio.domain.Resource;
 import com.librio.repository.AccountRepository;
 import com.librio.repository.BorrowRequestRepository;
@@ -68,31 +69,31 @@ public class E2eDataSeeder implements CommandLineRunner {
 
         Resource printOnly = resource(9102L, "E2E Print Only Reference",
                 "E2E Print Author", "Physical-only resource for E2E.");
-        physicalItem(91021L, printOnly, PhysicalItemStatus.AVAILABLE);
+        physicalItem(91021L, printOnly, CirculationStatus.AVAILABLE);
 
         Resource overdue = resource(9103L, "E2E Overdue Loan",
                 "E2E Circulation Author", "Borrowing with past due date.");
-        PhysicalItem overdueItem = physicalItem(91031L, overdue, PhysicalItemStatus.BORROWED);
+        PhysicalItem overdueItem = physicalItem(91031L, overdue, CirculationStatus.BORROWED);
         fulfilledBorrowing(readerA, librarian, overdue, overdueItem, now.minusDays(21), now.minusDays(7));
 
         Resource current = resource(9104L, "E2E Current Loan",
                 "E2E Circulation Author", "Borrowing that is not overdue.");
-        PhysicalItem currentItem = physicalItem(91041L, current, PhysicalItemStatus.BORROWED);
+        PhysicalItem currentItem = physicalItem(91041L, current, CirculationStatus.BORROWED);
         fulfilledBorrowing(readerA, librarian, current, currentItem, now.minusDays(1), now.plusDays(13));
 
         Resource privateLoan = resource(9105L, "E2E Reader B Private Loan",
                 "E2E Circulation Author", "Borrowing owned by another reader.");
-        PhysicalItem privateItem = physicalItem(91051L, privateLoan, PhysicalItemStatus.BORROWED);
+        PhysicalItem privateItem = physicalItem(91051L, privateLoan, CirculationStatus.BORROWED);
         fulfilledBorrowing(readerB, librarian, privateLoan, privateItem, now.minusDays(2), now.plusDays(12));
 
         Resource returnJourney = resource(9106L, "E2E Return Journey Book",
                 "E2E Flow Author", "Available copy used for request prepare fulfil return E2E.");
-        physicalItem(91061L, returnJourney, PhysicalItemStatus.AVAILABLE);
+        physicalItem(91061L, returnJourney, CirculationStatus.AVAILABLE);
 
         Resource adminSafety = resource(9107L, "E2E Admin Safety Book",
                 "E2E Admin Author", "Resource with an active reserved copy for reduction safety.");
-        physicalItem(91071L, adminSafety, PhysicalItemStatus.AVAILABLE);
-        PhysicalItem reserved = physicalItem(91072L, adminSafety, PhysicalItemStatus.RESERVED);
+        physicalItem(91071L, adminSafety, CirculationStatus.AVAILABLE);
+        PhysicalItem reserved = physicalItem(91072L, adminSafety, CirculationStatus.RESERVED);
         activeRequest(readerB, adminSafety, reserved, now);
         digitalItem(9107L, adminSafety);
     }
@@ -128,11 +129,14 @@ public class E2eDataSeeder implements CommandLineRunner {
                 .build());
     }
 
-    private PhysicalItem physicalItem(Long id, Resource resource, PhysicalItemStatus status) {
+    private PhysicalItem physicalItem(Long id, Resource resource, CirculationStatus circulationStatus) {
         return physicalItemRepository.save(PhysicalItem.builder()
                 .id(id)
                 .resource(resource)
-                .status(status)
+                .barcode("LIB-" + id)
+                .location("UNASSIGNED")
+                .inventoryStatus(InventoryStatus.ACTIVE)
+                .circulationStatus(circulationStatus)
                 .build());
     }
 

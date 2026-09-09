@@ -2,24 +2,24 @@ INSERT INTO resource (id, title, authors, description)
 SELECT 1, 'Clean Code', 'Robert C. Martin', 'A handbook of agile software craftsmanship.'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 1);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 101, 1, 'AVAILABLE'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 101, 1, 'LIB-101', 'UNASSIGNED', 'ACTIVE', 'AVAILABLE'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 101);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 102, 1, 'AVAILABLE'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 102, 1, 'LIB-102', 'UNASSIGNED', 'ACTIVE', 'AVAILABLE'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 102);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 103, 1, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 103, 1, 'LIB-103', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 103);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 104, 1, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 104, 1, 'LIB-104', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 104);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 105, 1, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 105, 1, 'LIB-105', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 105);
 
 INSERT INTO digital_item (id, resource_id)
@@ -30,16 +30,16 @@ INSERT INTO resource (id, title, authors, description)
 SELECT 2, 'Refactoring', 'Martin Fowler', 'Improving the design of existing code.'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 2);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 201, 2, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 201, 2, 'LIB-201', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 201);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 202, 2, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 202, 2, 'LIB-202', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 202);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 203, 2, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 203, 2, 'LIB-203', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 203);
 
 INSERT INTO resource (id, title, authors, description)
@@ -54,12 +54,12 @@ INSERT INTO resource (id, title, authors, description)
 SELECT 4, 'Structure and Interpretation of Computer Programs', 'Harold Abelson, Gerald Jay Sussman', 'SICP - Fundamental principles of computer programming.'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 4);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 401, 4, 'AVAILABLE'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 401, 4, 'LIB-401', 'UNASSIGNED', 'ACTIVE', 'AVAILABLE'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 401);
 
-INSERT INTO physical_item (id, resource_id, status)
-SELECT 402, 4, 'BORROWED'
+INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
+SELECT 402, 4, 'LIB-402', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 402);
 
 INSERT INTO digital_item (id, resource_id)

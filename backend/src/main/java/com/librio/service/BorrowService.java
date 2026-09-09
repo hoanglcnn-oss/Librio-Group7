@@ -93,7 +93,7 @@ public class BorrowService {
         }
 
         PhysicalItem item = physicalItemRepository.findForUpdate(
-                        resourceId, PhysicalItemStatus.AVAILABLE, PageRequest.of(0, 1))
+                        resourceId, InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE, PageRequest.of(0, 1))
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> conflict(BorrowErrorCode.NO_AVAILABLE_COPY,
@@ -101,7 +101,7 @@ public class BorrowService {
 
         LocalDateTime now = LocalDateTime.now();
         // Reserve là thời điểm availability giảm; các bước sau chỉ chuyển commitment sang state khác.
-        item.setStatus(PhysicalItemStatus.RESERVED);
+        item.setCirculationStatus(CirculationStatus.RESERVED);
 
         BorrowRequest request = BorrowRequest.builder()
                 .reader(reader)
@@ -160,7 +160,7 @@ public class BorrowService {
         request.setFulfilledAt(now);
         request.setFulfilledBy(librarian);
         // Item đã bị loại khỏi availability khi reserve, nên fulfil chỉ consume reservation sang borrowing.
-        request.getPhysicalItem().setStatus(PhysicalItemStatus.BORROWED);
+        request.getPhysicalItem().setCirculationStatus(CirculationStatus.BORROWED);
 
         Borrowing borrowing = Borrowing.builder()
                 .physicalItem(request.getPhysicalItem())
@@ -222,14 +222,14 @@ public class BorrowService {
         PhysicalItem item = physicalItemRepository.findByIdForUpdate(borrowing.getPhysicalItem().getId())
                 .orElseThrow(() -> conflict(BorrowErrorCode.BORROWING_ITEM_CONFLICT,
                         "Borrowed item no longer exists"));
-        if (item.getStatus() != PhysicalItemStatus.BORROWED) {
+        if (item.getCirculationStatus() != CirculationStatus.BORROWED) {
             throw conflict(BorrowErrorCode.BORROWING_ITEM_CONFLICT,
                     "Borrowed item is not in BORROWED state");
         }
 
         LocalDateTime now = LocalDateTime.now();
         borrowing.setReturnedAt(now);
-        item.setStatus(PhysicalItemStatus.AVAILABLE);
+        item.setCirculationStatus(CirculationStatus.AVAILABLE);
         return toLibrarianBorrowingDto(borrowing, now);
     }
 
@@ -360,7 +360,7 @@ public class BorrowService {
 
     private void requireReservedItem(BorrowRequest request) {
         if (request.getPhysicalItem() == null
-                || request.getPhysicalItem().getStatus() != PhysicalItemStatus.RESERVED) {
+                || request.getPhysicalItem().getCirculationStatus() != CirculationStatus.RESERVED) {
             throw conflict(BorrowErrorCode.RESERVATION_CONFLICT, "Physical item must be RESERVED");
         }
     }
@@ -374,7 +374,7 @@ public class BorrowService {
 
     private void releaseReservedItem(BorrowRequest request) {
         requireReservedItem(request);
-        request.getPhysicalItem().setStatus(PhysicalItemStatus.AVAILABLE);
+        request.getPhysicalItem().setCirculationStatus(CirculationStatus.AVAILABLE);
     }
 
     private void touch(BorrowRequest request, LocalDateTime now) {

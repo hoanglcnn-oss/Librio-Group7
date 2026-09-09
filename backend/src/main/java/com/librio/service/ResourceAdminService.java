@@ -2,7 +2,8 @@ package com.librio.service;
 
 import com.librio.domain.DigitalItem;
 import com.librio.domain.PhysicalItem;
-import com.librio.domain.PhysicalItemStatus;
+import com.librio.domain.CirculationStatus;
+import com.librio.domain.InventoryStatus;
 import com.librio.domain.Resource;
 import com.librio.dto.DigitalAvailabilityDto;
 import com.librio.dto.ManagedResourceDto;
@@ -81,10 +82,15 @@ public class ResourceAdminService {
     private void reconcilePhysicalCopies(Resource resource, long current, long desired) {
         if (desired > current) {
             for (long index = current; index < desired; index++) {
-                physicalItemRepository.save(PhysicalItem.builder()
+                PhysicalItem item = physicalItemRepository.save(PhysicalItem.builder()
                         .resource(resource)
-                        .status(PhysicalItemStatus.AVAILABLE)
+                        .barcode("TEMP-" + System.nanoTime() + "-" + index)
+                        .location("UNASSIGNED")
+                        .inventoryStatus(InventoryStatus.ACTIVE)
+                        .circulationStatus(CirculationStatus.AVAILABLE)
                         .build());
+                item.setBarcode("LIB-" + item.getId());
+                physicalItemRepository.save(item);
             }
             return;
         }
@@ -95,7 +101,7 @@ public class ResourceAdminService {
         long removeCount = current - desired;
         // Chỉ xóa copy AVAILABLE; RESERVED/BORROWED/OVERDUE vẫn là commitment lưu thông cần bảo toàn.
         List<PhysicalItem> available = physicalItemRepository.findForUpdate(
-                resource.getId(), PhysicalItemStatus.AVAILABLE,
+                resource.getId(), InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE,
                 PageRequest.of(0, Math.toIntExact(removeCount)));
         if (available.size() < removeCount) {
             throw conflict(BorrowErrorCode.RESOURCE_IN_USE,
@@ -115,8 +121,8 @@ public class ResourceAdminService {
 
     private ManagedResourceDto toDto(Resource resource) {
         long totalCopies = physicalItemRepository.countByResourceId(resource.getId());
-        long availableCopies = physicalItemRepository.countByResourceIdAndStatus(
-                resource.getId(), PhysicalItemStatus.AVAILABLE);
+        long availableCopies = physicalItemRepository.countByResourceIdAndInventoryStatusAndCirculationStatus(
+                resource.getId(), InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
         boolean digital = digitalItemRepository.existsByResourceId(resource.getId());
         List<String> accessTypes = new ArrayList<>();
         if (totalCopies > 0) accessTypes.add("PHYSICAL");

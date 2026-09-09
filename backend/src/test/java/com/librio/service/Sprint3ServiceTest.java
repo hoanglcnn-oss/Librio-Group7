@@ -4,7 +4,7 @@ import com.librio.domain.Account;
 import com.librio.domain.AccountRole;
 import com.librio.domain.AccountStatus;
 import com.librio.domain.Borrowing;
-import com.librio.domain.PhysicalItemStatus;
+import com.librio.domain.CirculationStatus;
 import com.librio.dto.LibrarianBorrowingDto;
 import com.librio.dto.ManagedResourceDto;
 import com.librio.dto.ReaderBorrowRequestItemDto;
@@ -61,8 +61,8 @@ class Sprint3ServiceTest {
         LibrarianBorrowingDto returned = borrowService.returnBorrowing(librarian.getId(), borrowing.getId());
         assertThat(returned.getReturnedAt()).isNotNull();
         assertThat(returned.isOverdue()).isFalse();
-        assertThat(physicalItemRepository.findById(itemId).orElseThrow().getStatus())
-                .isEqualTo(PhysicalItemStatus.AVAILABLE);
+        assertThat(physicalItemRepository.findById(itemId).orElseThrow().getCirculationStatus())
+                .isEqualTo(CirculationStatus.AVAILABLE);
         assertThat(borrowService.getReaderBorrowings(reader.getId()).getActiveBorrowings()).isEmpty();
 
         assertThatThrownBy(() -> borrowService.returnBorrowing(librarian.getId(), borrowing.getId()))

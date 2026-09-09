@@ -15,14 +15,53 @@ ALTER TABLE resource ADD COLUMN IF NOT EXISTS category VARCHAR(100);
 CREATE TABLE IF NOT EXISTS physical_item (
     id BIGINT PRIMARY KEY,
     resource_id BIGINT NOT NULL,
-    status VARCHAR(32) NOT NULL,
+    barcode VARCHAR(255),
+    location VARCHAR(255),
+    inventory_status VARCHAR(32),
+    circulation_status VARCHAR(32),
     CONSTRAINT fk_physical_resource
         FOREIGN KEY (resource_id)
             REFERENCES resource(id)
-            ON DELETE CASCADE,
-    CONSTRAINT chk_physical_item_status
-        CHECK (status IN ('AVAILABLE', 'RESERVED', 'BORROWED', 'OVERDUE'))
+            ON DELETE CASCADE
 );
+
+-- Expand: Add new columns if legacy table exists
+ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS barcode VARCHAR(255);
+ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS inventory_status VARCHAR(32);
+ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS circulation_status VARCHAR(32);
+
+-- Backfill: Populate new columns for legacy data
+UPDATE physical_item SET inventory_status = 'ACTIVE' WHERE inventory_status IS NULL;
+UPDATE physical_item SET circulation_status = CASE
+    WHEN status = 'AVAILABLE' THEN 'AVAILABLE'
+    WHEN status = 'RESERVED' THEN 'RESERVED'
+    WHEN status IN ('BORROWED', 'OVERDUE') THEN 'BORROWED'
+    ELSE 'AVAILABLE'
+END WHERE circulation_status IS NULL AND status IS NOT NULL;
+UPDATE physical_item SET circulation_status = 'AVAILABLE' WHERE circulation_status IS NULL;
+UPDATE physical_item SET barcode = CONCAT('LIB-', id) WHERE barcode IS NULL;
+UPDATE physical_item SET location = 'UNASSIGNED' WHERE location IS NULL;
+
+-- Constrain: Remove legacy status and apply NOT NULL, UNIQUE, and CHECK constraints
+ALTER TABLE physical_item DROP CONSTRAINT IF EXISTS chk_physical_item_status;
+ALTER TABLE physical_item DROP COLUMN IF EXISTS status;
+
+ALTER TABLE physical_item ALTER COLUMN barcode SET NOT NULL;
+ALTER TABLE physical_item ALTER COLUMN location SET NOT NULL;
+ALTER TABLE physical_item ALTER COLUMN inventory_status SET NOT NULL;
+ALTER TABLE physical_item ALTER COLUMN circulation_status SET NOT NULL;
+
+ALTER TABLE physical_item DROP CONSTRAINT IF EXISTS uq_physical_item_barcode;
+ALTER TABLE physical_item ADD CONSTRAINT uq_physical_item_barcode UNIQUE (barcode);
+
+ALTER TABLE physical_item DROP CONSTRAINT IF EXISTS chk_physical_item_inventory_status;
+ALTER TABLE physical_item ADD CONSTRAINT chk_physical_item_inventory_status
+    CHECK (inventory_status IN ('ACTIVE', 'LOST', 'DAMAGED', 'WITHDRAWN'));
+
+ALTER TABLE physical_item DROP CONSTRAINT IF EXISTS chk_physical_item_circulation_status;
+ALTER TABLE physical_item ADD CONSTRAINT chk_physical_item_circulation_status
+    CHECK (circulation_status IN ('AVAILABLE', 'RESERVED', 'BORROWED'));
 
 CREATE TABLE IF NOT EXISTS digital_item (
     id BIGINT PRIMARY KEY,
@@ -155,9 +194,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_active_borrowing_physical_item
     ON borrowing (physical_item_id)
     WHERE returned_at IS NULL;
 
--- Hỗ trợ lock/select copy AVAILABLE theo resource khi reserve hoặc reconcile số lượng.
+-- Hỗ trợ lock/select copy ACTIVE & AVAILABLE theo resource khi reserve hoặc reconcile số lượng.
+DROP INDEX IF EXISTS idx_physical_item_allocation;
 CREATE INDEX IF NOT EXISTS idx_physical_item_allocation
-    ON physical_item (resource_id, status, id);
+    ON physical_item (resource_id, inventory_status, circulation_status, id);
 
 -- Hỗ trợ My Library active query theo reader và trạng thái request.
 CREATE INDEX IF NOT EXISTS idx_borrow_request_reader_active
