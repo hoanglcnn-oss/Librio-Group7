@@ -15,6 +15,7 @@ ALTER TABLE resource ADD COLUMN IF NOT EXISTS category VARCHAR(100);
 CREATE TABLE IF NOT EXISTS physical_item (
     id BIGINT PRIMARY KEY,
     resource_id BIGINT NOT NULL,
+    status VARCHAR(32),
     barcode VARCHAR(255),
     location VARCHAR(255),
     inventory_status VARCHAR(32),
@@ -26,6 +27,8 @@ CREATE TABLE IF NOT EXISTS physical_item (
 );
 
 -- Expand: Add new columns if legacy table exists
+-- Expand: Add new columns if legacy table exists, or ensure status column exists for backfill parsing
+ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS status VARCHAR(32);
 ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS barcode VARCHAR(255);
 ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS location VARCHAR(255);
 ALTER TABLE physical_item ADD COLUMN IF NOT EXISTS inventory_status VARCHAR(32);
