@@ -1,5 +1,6 @@
 package com.librio.repository;
 
+import com.librio.domain.MetadataSource;
 import com.librio.domain.Resource;
 import com.librio.dto.ResourceDetailDto;
 import com.librio.dto.ResourceListResponseDto;
@@ -8,12 +9,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class ResourceRepositoryTest {
 
     @Autowired
@@ -105,5 +111,95 @@ class ResourceRepositoryTest {
     void testSearchEmptyKeyword() {
         ResourceListResponseDto result = resourceService.searchResources("   ");
         assertEquals(4, result.getItems().size());
+    }
+
+    @Test
+    @DisplayName("T-194: Default metadataSource is MANUAL for new resources and seeded items")
+    void testDefaultMetadataSourceIsManual() {
+        Resource seeded = resourceRepository.findById(1L).orElseThrow();
+        assertEquals(MetadataSource.MANUAL, seeded.getMetadataSource());
+
+        Resource newResource = Resource.builder()
+                .title("Test Manual Book")
+                .authors("Author X")
+                .build();
+        Resource saved = resourceRepository.save(newResource);
+
+        assertNotNull(saved.getId());
+        assertEquals(MetadataSource.MANUAL, saved.getMetadataSource());
+        assertNull(saved.getIsbn());
+        assertNull(saved.getCoverImageUrl());
+        assertNull(saved.getExternalSourceId());
+    }
+
+    @Test
+    @DisplayName("T-194: Persist resource with ISBN, coverImageUrl, GOOGLE_BOOKS metadataSource, externalSourceId")
+    void testSaveAndFindByIsbnAndMetadataSource() {
+        String isbn13 = "9780132350884";
+        Resource resource = Resource.builder()
+                .title("Clean Code (Google Books edition)")
+                .authors("Robert C. Martin")
+                .isbn(isbn13)
+                .coverImageUrl("https://books.google.com/books/content?id=vol123&printsec=frontcover")
+                .metadataSource(MetadataSource.GOOGLE_BOOKS)
+                .externalSourceId("vol123")
+                .build();
+
+        Resource saved = resourceRepository.save(resource);
+        assertNotNull(saved.getId());
+
+        Optional<Resource> fetchedOpt = resourceRepository.findByIsbn(isbn13);
+        assertTrue(fetchedOpt.isPresent());
+        Resource fetched = fetchedOpt.get();
+        assertEquals("Clean Code (Google Books edition)", fetched.getTitle());
+        assertEquals(isbn13, fetched.getIsbn());
+        assertEquals("https://books.google.com/books/content?id=vol123&printsec=frontcover", fetched.getCoverImageUrl());
+        assertEquals(MetadataSource.GOOGLE_BOOKS, fetched.getMetadataSource());
+        assertEquals("vol123", fetched.getExternalSourceId());
+
+        assertTrue(resourceRepository.existsByIsbn(isbn13));
+        assertFalse(resourceRepository.existsByIsbnAndIdNot(isbn13, saved.getId()));
+        assertTrue(resourceRepository.existsByIsbnAndIdNot(isbn13, 99999L));
+    }
+
+    @Test
+    @DisplayName("T-194: Enforce UNIQUE constraint on non-null ISBN")
+    void testUniqueIsbnConstraint() {
+        String duplicateIsbn = "9780321356680";
+        Resource r1 = Resource.builder()
+                .title("Effective Java 1st Edition")
+                .authors("Joshua Bloch")
+                .isbn(duplicateIsbn)
+                .build();
+        resourceRepository.saveAndFlush(r1);
+
+        Resource r2 = Resource.builder()
+                .title("Effective Java 2nd Edition")
+                .authors("Joshua Bloch")
+                .isbn(duplicateIsbn)
+                .build();
+
+        assertThrows(DataIntegrityViolationException.class, () -> resourceRepository.saveAndFlush(r2));
+    }
+
+    @Test
+    @DisplayName("T-194: Null ISBNs are allowed for multiple resources")
+    void testMultipleNullIsbnsAllowed() {
+        Resource r1 = Resource.builder()
+                .title("Book Without ISBN 1")
+                .authors("Author A")
+                .isbn(null)
+                .build();
+        Resource r2 = Resource.builder()
+                .title("Book Without ISBN 2")
+                .authors("Author B")
+                .isbn(null)
+                .build();
+
+        assertDoesNotThrow(() -> {
+            resourceRepository.save(r1);
+            resourceRepository.save(r2);
+            resourceRepository.flush();
+        });
     }
 }

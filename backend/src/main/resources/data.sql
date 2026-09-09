@@ -1,5 +1,5 @@
-INSERT INTO resource (id, title, authors, description)
-SELECT 1, 'Clean Code', 'Robert C. Martin', 'A handbook of agile software craftsmanship.'
+INSERT INTO resource (id, title, authors, description, metadata_source)
+SELECT 1, 'Clean Code', 'Robert C. Martin', 'A handbook of agile software craftsmanship.', 'MANUAL'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 1);
 
 INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
@@ -26,8 +26,8 @@ INSERT INTO digital_item (id, resource_id)
 SELECT 301, 1
 WHERE NOT EXISTS (SELECT 1 FROM digital_item WHERE id = 301);
 
-INSERT INTO resource (id, title, authors, description)
-SELECT 2, 'Refactoring', 'Martin Fowler', 'Improving the design of existing code.'
+INSERT INTO resource (id, title, authors, description, metadata_source)
+SELECT 2, 'Refactoring', 'Martin Fowler', 'Improving the design of existing code.', 'MANUAL'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 2);
 
 INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)
@@ -42,16 +42,16 @@ INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status,
 SELECT 203, 2, 'LIB-203', 'UNASSIGNED', 'ACTIVE', 'BORROWED'
 WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 203);
 
-INSERT INTO resource (id, title, authors, description)
-SELECT 3, 'Designing Data-Intensive Applications', 'Martin Kleppmann', 'The big ideas behind reliable, scalable, and maintainable systems.'
+INSERT INTO resource (id, title, authors, description, metadata_source)
+SELECT 3, 'Designing Data-Intensive Applications', 'Martin Kleppmann', 'The big ideas behind reliable, scalable, and maintainable systems.', 'MANUAL'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 3);
 
 INSERT INTO digital_item (id, resource_id)
 SELECT 302, 3
 WHERE NOT EXISTS (SELECT 1 FROM digital_item WHERE id = 302);
 
-INSERT INTO resource (id, title, authors, description)
-SELECT 4, 'Structure and Interpretation of Computer Programs', 'Harold Abelson, Gerald Jay Sussman', 'SICP - Fundamental principles of computer programming.'
+INSERT INTO resource (id, title, authors, description, metadata_source)
+SELECT 4, 'Structure and Interpretation of Computer Programs', 'Harold Abelson, Gerald Jay Sussman', 'SICP - Fundamental principles of computer programming.', 'MANUAL'
 WHERE NOT EXISTS (SELECT 1 FROM resource WHERE id = 4);
 
 INSERT INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status)

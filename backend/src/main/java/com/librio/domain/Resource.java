@@ -32,6 +32,20 @@ public class Resource {
     @Column(length = 100)
     private String category;
 
+    @Column(name = "isbn", unique = true)
+    private String isbn;
+
+    @Column(name = "cover_image_url", columnDefinition = "TEXT")
+    private String coverImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "metadata_source", nullable = false, columnDefinition = "VARCHAR(32) DEFAULT 'MANUAL'")
+    @Builder.Default
+    private MetadataSource metadataSource = MetadataSource.MANUAL;
+
+    @Column(name = "external_source_id")
+    private String externalSourceId;
+
     @OneToMany(mappedBy = "resource", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PhysicalItem> physicalItems = new ArrayList<>();

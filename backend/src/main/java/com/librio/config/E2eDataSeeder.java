@@ -10,6 +10,7 @@ import com.librio.domain.DigitalItem;
 import com.librio.domain.PhysicalItem;
 import com.librio.domain.CirculationStatus;
 import com.librio.domain.InventoryStatus;
+import com.librio.domain.MetadataSource;
 import com.librio.domain.Resource;
 import com.librio.repository.AccountRepository;
 import com.librio.repository.BorrowRequestRepository;
@@ -126,6 +127,7 @@ public class E2eDataSeeder implements CommandLineRunner {
                 .authors(authors)
                 .description(description)
                 .category("E2E")
+                .metadataSource(MetadataSource.MANUAL)
                 .build());
     }
 

@@ -7,10 +7,29 @@ CREATE TABLE IF NOT EXISTS resource (
     title VARCHAR(255) NOT NULL,
     authors VARCHAR(255) NOT NULL,
     description TEXT,
-    category VARCHAR(100)
+    category VARCHAR(100),
+    isbn VARCHAR(255),
+    cover_image_url TEXT,
+    metadata_source VARCHAR(32) NOT NULL DEFAULT 'MANUAL',
+    external_source_id VARCHAR(255)
 );
 
 ALTER TABLE resource ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS isbn VARCHAR(255);
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS metadata_source VARCHAR(32) NOT NULL DEFAULT 'MANUAL';
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS external_source_id VARCHAR(255);
+
+-- Backfill: Populate new columns for legacy data
+UPDATE resource SET metadata_source = 'MANUAL' WHERE metadata_source IS NULL;
+
+-- Constrain: UNIQUE for non-null ISBN, CHECK for metadata_source
+ALTER TABLE resource DROP CONSTRAINT IF EXISTS uq_resource_isbn;
+ALTER TABLE resource ADD CONSTRAINT uq_resource_isbn UNIQUE (isbn);
+
+ALTER TABLE resource DROP CONSTRAINT IF EXISTS chk_resource_metadata_source;
+ALTER TABLE resource ADD CONSTRAINT chk_resource_metadata_source
+    CHECK (metadata_source IN ('MANUAL', 'GOOGLE_BOOKS'));
 
 CREATE TABLE IF NOT EXISTS physical_item (
     id BIGINT PRIMARY KEY,
