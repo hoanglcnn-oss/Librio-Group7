@@ -20,6 +20,12 @@ public class GlobalExceptionHandler {
                 .body(error(ex.getStatus(), ex.getCode(), ex.getMessage()));
     }
 
+    @ExceptionHandler(IsbnLookupException.class)
+    public ResponseEntity<ErrorResponseDto> handleIsbnLookup(IsbnLookupException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(error(ex.getStatus(), ex.getCode(), ex.getMessage()));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleResourceNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

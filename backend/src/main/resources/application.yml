@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 librio:
+  google-books:
+    api-url: https://www.googleapis.com/books/v1/volumes
   cors:
     allowed-origin-patterns: ${LIBRIO_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
   circulation:
