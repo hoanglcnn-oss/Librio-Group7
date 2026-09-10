@@ -25,26 +25,124 @@ Items with active circulation (`RESERVED` or `BORROWED`) cannot transition to `L
 | `409` | `DUPLICATE_ITEM_BARCODE` |
 | `409` | `ACTIVE_CIRCULATION_CONFLICT` / `INVALID_INVENTORY_TRANSITION` |
 
-## Membership subscription
+### Collection Cockpit read semantics
 
-- `GET /membership/plans` — public; returns active plans (`MONTHLY`, `YEARLY`).
-- `GET /me/membership` — reader; returns membership status (`NONE`, `PENDING`, `ACTIVE`, `FAILED`, `EXPIRED`).
-- `POST /me/membership-subscriptions` — reader + CSRF; creates a subscription (`planId`).
-- `POST /me/membership-subscriptions/{id}/mock-payment` — reader + CSRF; processes payment (`outcome`: `SUCCESS` | `FAILED`), transitioning status to `ACTIVE` or `FAILED`.
+Summary semantics:
+
+- `totalCopies` excludes `WITHDRAWN` copies and represents the current collection.
+- `availableCopies` counts only `ACTIVE + AVAILABLE` copies.
+- `reservedCopies` and `borrowedCopies` count the corresponding circulation states among non-withdrawn copies.
+- `attentionCopies` counts distinct non-withdrawn copies that are `LOST`, `DAMAGED`, have location `UNASSIGNED`, have an overdue active borrowing, or have a circulation-data mismatch.
+
+Physical-copy query rules:
+
+- `q` is trimmed; blank means no search filter. It matches barcode, location, resource title, or authors case-insensitively.
+- Supplied filters are combined with `AND`.
+- Pagination defaults to `page=0`, `size=20`; `page` is zero-based and `size` must be `1..100`.
+- Results prioritize records requiring attention and use `physicalItem.id ASC` as the stable final tie-breaker.
+- `needsAttention` uses the same derived predicate as `attentionCopies`.
 
 ```json
 {
+  "items": [
+    {
+      "id": 10003,
+      "barcode": "LIB-10003",
+      "location": "A-04",
+      "inventoryStatus": "ACTIVE",
+      "circulationStatus": "BORROWED",
+      "borrowable": false,
+      "needsAttention": true,
+      "attentionReasons": ["BORROWING_OVERDUE"],
+      "resource": {
+        "id": 1000,
+        "title": "Clean Code",
+        "authors": ["Robert C. Martin"]
+      },
+      "activeOperation": {
+        "type": "BORROWING",
+        "id": 912,
+        "borrowRequestId": 731,
+        "reader": {
+          "id": 45,
+          "displayName": "Reader One"
+        },
+        "borrowedAt": "2026-08-20T09:00:00+07:00",
+        "dueAt": "2026-09-03T09:00:00+07:00",
+        "overdue": true
+      }
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 42,
+  "totalPages": 3
+}
+```
+
+`activeOperation` is `null` when the copy has no active circulation operation.
+
+Otherwise:
+
+- `BORROW_REQUEST`: `id`, `type`, `status`, `reader`, `requestedAt`, `statusUpdatedAt`, `expiresAt`.
+- `BORROWING`: `id`, `type`, `borrowRequestId`, `reader`, `borrowedAt`, `dueAt`, `overdue`.
+
+Stable attention reason codes:
+
+- `INVENTORY_LOST`
+- `INVENTORY_DAMAGED`
+- `LOCATION_UNASSIGNED`
+- `BORROWING_OVERDUE`
+- `CIRCULATION_DATA_MISMATCH`
+
+`borrowable`, `needsAttention`, `attentionReasons`, and `overdue` are server-derived; the client must not recompute them.
+
+## Membership subscription
+
+- `GET /membership/plans` — public; returns active membership plans.
+- `GET /me/membership` — reader; returns effective membership derived from subscription timestamps and latest payment context.
+- `POST /me/membership-payments` — reader + CSRF; performs the Sprint 4 mock payment attempt for a selected plan.
+
+```json
+{
+  "planId": 1,
   "outcome": "SUCCESS"
 }
 ```
 
-Requires account eligibility, valid active plan, and no existing active/pending subscription. `EXPIRED` status is derived server-side from time.
+Payment lifecycle:
 
-| Status | Code |
-|---:|---|
-| `403` | `MEMBERSHIP_NOT_ELIGIBLE` |
-| `404` | `MEMBERSHIP_PLAN_NOT_FOUND` / `SUBSCRIPTION_NOT_FOUND` |
-| `409` | `ACTIVE_MEMBERSHIP_EXISTS` / `PENDING_SUBSCRIPTION_EXISTS` / `INVALID_SUBSCRIPTION_STATE` |
+```text
+FAILED
+→ persist failed PaymentTransaction
+→ no MembershipSubscription
+
+SUCCESS
+→ persist successful PaymentTransaction
+→ create MembershipSubscription
+→ effective membership becomes ACTIVE
+```
+
+A subscription is never created before successful payment.
+
+Effective membership states are:
+
+- `NONE` — no subscription exists.
+- `ACTIVE` — `startsAt <= serverNow < expiresAt`.
+- `EXPIRED` — `expiresAt <= serverNow`.
+
+`PENDING` and `FAILED` are payment lifecycle concerns and are not persisted membership-subscription states.
+
+Requires account eligibility, a valid active plan and no existing active membership.
+
+Membership expiry blocks new membership-gated borrowing but does not mutate an existing active borrowing.
+
+| StatusCode |                                                               |
+| ---------- | ------------------------------------------------------------- |
+| `400`      | `INVALID_PAYMENT_OUTCOME`                                     |
+| `403`      | `MEMBERSHIP_NOT_ELIGIBLE`                                     |
+| `404`      | `MEMBERSHIP_PLAN_NOT_FOUND`                                   |
+| `409`      | `ACTIVE_MEMBERSHIP_EXISTS` / `MEMBERSHIP_ACTIVATION_CONFLICT` |
 
 ## Google Books ISBN lookup & Resource metadata
 
@@ -70,6 +168,7 @@ ISBN is validated, normalized to ISBN-13, and enforced unique when present. Dupl
 |---|---|
 | `physical_item` | `barcode` (VARCHAR, UNIQUE), `location` (VARCHAR), `inventory_status` (`ACTIVE`, `LOST`, `DAMAGED`, `WITHDRAWN`) |
 | `resource` | `isbn` (VARCHAR, UNIQUE nullable), `cover_image_url`, `metadata_source` (`MANUAL` \| `GOOGLE_BOOKS`), `external_source_id` |
-| `accounts` | `membership_eligible` (BOOLEAN DEFAULT false) |
+| `accounts` | `membership_eligible` (BOOLEAN NOT NULL DEFAULT false) |
 | `membership_plan` | `code`, `name`, `duration_months`, `price_amount`, `currency`, `monthly_borrow_quota`, `active` |
-| `membership_subscription` | `account_id`, `plan_id`, `status` (`PENDING`, `ACTIVE`, `FAILED`), `starts_at`, `expires_at` |
+| `payment_transaction` | `account_id`, `plan_id`, `amount`, `currency`, `status` (`SUCCESS` \| `FAILED`), `created_at`, `completed_at` |
+| `membership_subscription` | `account_id`, `plan_id`, `payment_transaction_id` (UNIQUE), `starts_at`, `expires_at` |
