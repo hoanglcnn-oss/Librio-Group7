@@ -20,6 +20,10 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
 
     List<PhysicalItem> findByResourceId(Long resourceId);
 
+    boolean existsByBarcode(String barcode);
+
+    boolean existsByBarcodeAndIdNot(String barcode, Long id);
+
     long countByResourceId(Long resourceId);
 
     long countByResourceIdAndInventoryStatusAndCirculationStatus(
