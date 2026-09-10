@@ -51,4 +51,22 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
             @Param("circulationStatus") CirculationStatus circulationStatus,
             Pageable pageable
     );
+
+    @Query("""
+            select p from PhysicalItem p
+            join fetch p.resource r
+            where (:inventoryStatus is null or p.inventoryStatus = :inventoryStatus)
+              and (:circulationStatus is null or p.circulationStatus = :circulationStatus)
+              and (:q is null or :q = '' or (
+                    lower(p.barcode) like lower(concat('%', :q, '%')) or
+                    lower(p.location) like lower(concat('%', :q, '%')) or
+                    lower(r.title) like lower(concat('%', :q, '%')) or
+                    lower(r.authors) like lower(concat('%', :q, '%'))
+              ))
+            """)
+    List<PhysicalItem> findCockpitItems(
+            @Param("q") String q,
+            @Param("inventoryStatus") InventoryStatus inventoryStatus,
+            @Param("circulationStatus") CirculationStatus circulationStatus
+    );
 }
