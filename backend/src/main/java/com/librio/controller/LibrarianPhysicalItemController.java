@@ -1,7 +1,8 @@
 package com.librio.controller;
 
+import com.librio.dto.CreatePhysicalItemRequestDto;
 import com.librio.dto.PhysicalItemDto;
-import com.librio.dto.PhysicalItemRequestDto;
+import com.librio.dto.UpdatePhysicalItemRequestDto;
 import com.librio.service.PhysicalItemService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ public class LibrarianPhysicalItemController {
     @PostMapping("/librarian/resources/{resourceId}/physical-items")
     public ResponseEntity<PhysicalItemDto> create(
             @PathVariable Long resourceId,
-            @Valid @RequestBody PhysicalItemRequestDto request) {
+            @Valid @RequestBody CreatePhysicalItemRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(physicalItemService.createPhysicalItem(resourceId, request));
     }
@@ -30,7 +31,7 @@ public class LibrarianPhysicalItemController {
     @PutMapping("/librarian/physical-items/{id}")
     public ResponseEntity<PhysicalItemDto> update(
             @PathVariable Long id,
-            @Valid @RequestBody PhysicalItemRequestDto request) {
+            @Valid @RequestBody UpdatePhysicalItemRequestDto request) {
         return ResponseEntity.ok(physicalItemService.updatePhysicalItem(id, request));
     }
 }

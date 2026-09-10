@@ -4,13 +4,15 @@ import com.librio.domain.CirculationStatus;
 import com.librio.domain.InventoryStatus;
 import com.librio.domain.PhysicalItem;
 import com.librio.domain.Resource;
+import com.librio.dto.CreatePhysicalItemRequestDto;
 import com.librio.dto.PhysicalItemDto;
-import com.librio.dto.PhysicalItemRequestDto;
+import com.librio.dto.UpdatePhysicalItemRequestDto;
 import com.librio.exception.BorrowErrorCode;
 import com.librio.exception.BorrowFlowException;
 import com.librio.repository.PhysicalItemRepository;
 import com.librio.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,7 @@ public class PhysicalItemService {
     private final PhysicalItemRepository physicalItemRepository;
 
     @Transactional
-    public PhysicalItemDto createPhysicalItem(Long resourceId, PhysicalItemRequestDto request) {
+    public PhysicalItemDto createPhysicalItem(Long resourceId, CreatePhysicalItemRequestDto request) {
         Resource resource = resourceRepository.findById(resourceId)
                 .orElseThrow(() -> new BorrowFlowException(
                         BorrowErrorCode.RESOURCE_NOT_FOUND.name(),
@@ -40,24 +42,27 @@ public class PhysicalItemService {
                     "Physical item with barcode already exists: " + barcode);
         }
 
-        InventoryStatus inventoryStatus = request.getInventoryStatus() != null
-                ? request.getInventoryStatus()
-                : InventoryStatus.ACTIVE;
-
         PhysicalItem item = PhysicalItem.builder()
                 .resource(resource)
                 .barcode(barcode)
                 .location(location)
-                .inventoryStatus(inventoryStatus)
+                .inventoryStatus(InventoryStatus.ACTIVE)
                 .circulationStatus(CirculationStatus.AVAILABLE)
                 .build();
 
-        return toDto(physicalItemRepository.save(item));
+        try {
+            return toDto(physicalItemRepository.saveAndFlush(item));
+        } catch (DataIntegrityViolationException e) {
+            throw new BorrowFlowException(
+                    "DUPLICATE_ITEM_BARCODE",
+                    HttpStatus.CONFLICT,
+                    "Physical item with barcode already exists: " + barcode);
+        }
     }
 
     @Transactional
-    public PhysicalItemDto updatePhysicalItem(Long id, PhysicalItemRequestDto request) {
-        PhysicalItem item = physicalItemRepository.findById(id)
+    public PhysicalItemDto updatePhysicalItem(Long id, UpdatePhysicalItemRequestDto request) {
+        PhysicalItem item = physicalItemRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BorrowFlowException(
                         "PHYSICAL_ITEM_NOT_FOUND",
                         HttpStatus.NOT_FOUND,
@@ -81,7 +86,14 @@ public class PhysicalItemService {
         item.setBarcode(barcode);
         item.setLocation(location);
 
-        return toDto(physicalItemRepository.save(item));
+        try {
+            return toDto(physicalItemRepository.saveAndFlush(item));
+        } catch (DataIntegrityViolationException e) {
+            throw new BorrowFlowException(
+                    "DUPLICATE_ITEM_BARCODE",
+                    HttpStatus.CONFLICT,
+                    "Physical item with barcode already exists: " + barcode);
+        }
     }
 
     private void validateInventoryStatusTransition(PhysicalItem item, InventoryStatus targetStatus) {

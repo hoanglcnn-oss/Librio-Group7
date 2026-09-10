@@ -13,9 +13,12 @@ import com.librio.repository.ResourceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -45,7 +50,7 @@ class LibrarianPhysicalItemControllerTest {
     @Autowired
     private ResourceRepository resourceRepository;
 
-    @Autowired
+    @SpyBean
     private PhysicalItemRepository physicalItemRepository;
 
     private Resource sampleResource;
@@ -64,7 +69,7 @@ class LibrarianPhysicalItemControllerTest {
     }
 
     @Test
-    @DisplayName("Create physical copy succeeds with default ACTIVE and AVAILABLE statuses")
+    @DisplayName("Create physical copy succeeds with ACTIVE and AVAILABLE statuses and ignores extraneous fields")
     @WithMockUser(username = "librarian@test.local", roles = "LIBRARIAN")
     void testCreatePhysicalCopy_Success() throws Exception {
         mockMvc.perform(post("/librarian/resources/" + sampleResource.getId() + "/physical-items")
@@ -73,7 +78,8 @@ class LibrarianPhysicalItemControllerTest {
                         .content("""
                                 {
                                   "barcode": "LIB-NEW-001",
-                                  "location": "Shelf A-1"
+                                  "location": "Shelf A-1",
+                                  "inventoryStatus": "DAMAGED"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -122,9 +128,9 @@ class LibrarianPhysicalItemControllerTest {
     }
 
     @Test
-    @DisplayName("Update physical copy metadata (barcode and location) succeeds")
+    @DisplayName("Update physical copy uses pessimistic lock findByIdForUpdate and succeeds")
     @WithMockUser(username = "librarian@test.local", roles = "LIBRARIAN")
-    void testUpdatePhysicalCopy_MetadataSuccess() throws Exception {
+    void testUpdatePhysicalCopy_MetadataSuccessAndUsesFindByIdForUpdate() throws Exception {
         PhysicalItem item = createPhysicalCopy("LIB-UPDATE-101", "Old Location", InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
 
         mockMvc.perform(put("/librarian/physical-items/" + item.getId())
@@ -142,6 +148,30 @@ class LibrarianPhysicalItemControllerTest {
                 .andExpect(jsonPath("$.location").value("New Location B-4"))
                 .andExpect(jsonPath("$.inventoryStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.circulationStatus").value("AVAILABLE"));
+
+        verify(physicalItemRepository).findByIdForUpdate(item.getId());
+    }
+
+    @Test
+    @DisplayName("Concurrent duplicate barcode database exception normalizes to 409 DUPLICATE_ITEM_BARCODE")
+    @WithMockUser(username = "librarian@test.local", roles = "LIBRARIAN")
+    void testDuplicateBarcode_DatabaseIntegrityViolationNormalizedTo409() throws Exception {
+        PhysicalItem item = createPhysicalCopy("LIB-RACE-BARCODE", "Loc R", InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
+
+        Mockito.doThrow(new DataIntegrityViolationException("uq_physical_item_barcode violation"))
+                .when(physicalItemRepository).saveAndFlush(any());
+
+        mockMvc.perform(put("/librarian/physical-items/" + item.getId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "barcode": "LIB-RACE-BARCODE-CONCURRENT",
+                                  "location": "Loc R"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ITEM_BARCODE"));
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.librio.dto;
 
-import com.librio.domain.InventoryStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,13 +10,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PhysicalItemRequestDto {
+public class CreatePhysicalItemRequestDto {
 
     @NotBlank(message = "Barcode is required")
     private String barcode;
 
     @NotBlank(message = "Location is required")
     private String location;
-
-    private InventoryStatus inventoryStatus;
 }
