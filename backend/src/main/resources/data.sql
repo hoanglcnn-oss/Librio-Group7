@@ -65,3 +65,11 @@ WHERE NOT EXISTS (SELECT 1 FROM physical_item WHERE id = 402);
 INSERT INTO digital_item (id, resource_id)
 SELECT 303, 4
 WHERE NOT EXISTS (SELECT 1 FROM digital_item WHERE id = 303);
+-- Seed Membership Plans
+INSERT INTO membership_plan (code, name, duration_months, price_amount, currency, monthly_borrow_quota, active) 
+SELECT 'MONTHLY', 'Monthly Plan', 1, 10.00, 'USD', 5, true
+WHERE NOT EXISTS (SELECT 1 FROM membership_plan WHERE code = 'MONTHLY');
+
+INSERT INTO membership_plan (code, name, duration_months, price_amount, currency, monthly_borrow_quota, active) 
+SELECT 'YEARLY', 'Yearly Plan', 12, 100.00, 'USD', 50, true
+WHERE NOT EXISTS (SELECT 1 FROM membership_plan WHERE code = 'YEARLY');
