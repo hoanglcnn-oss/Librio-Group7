@@ -26,6 +26,7 @@ function ResourceAdminPage() {
     }
   }, [])
 
+  // Full hydration for initial load and after a successful resource save.
   const loadResource = useCallback(async () => {
     if (!editing || !id) return
     try {
@@ -44,6 +45,23 @@ function ResourceAdminPage() {
     }
   }, [editing, id])
 
+  // Snapshot refresh after a physical‑item mutation – only updates server‑derived data.
+  const refreshManagedResourceSnapshot = useCallback(async () => {
+    if (!editing || !id) return
+    try {
+      const resource = await getLibrarianResource(id)
+      if (isMountedRef.current) {
+        setManagedResource(resource)
+        // Do NOT modify form or persistedTitle.
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setMessage(error.message)
+        setStatus('error')
+      }
+    }
+  }, [editing, id])
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadResource()
@@ -53,8 +71,8 @@ function ResourceAdminPage() {
 
   function updateField(event) {
     const { name, type, checked, value } = event.target
-    setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }))
-    setErrors((current) => ({ ...current, [name]: undefined, ...(name.startsWith('has') ? { accessTypes: undefined } : {}) }))
+    setForm(current => ({ ...current, [name]: type === 'checkbox' ? checked : value }))
+    setErrors(current => ({ ...current, [name]: undefined, ...(name.startsWith('has') ? { accessTypes: undefined } : {}) }))
     setMessage('')
   }
 
@@ -117,8 +135,12 @@ function ResourceAdminPage() {
 
             <fieldset className="access-type-fieldset">
               <legend>Loại tài liệu <span>*</span></legend>
-              <label className="checkbox-card"><input name="hasPhysical" type="checkbox" checked={form.hasPhysical} onChange={updateField} /><span><strong>Bản vật lý</strong><small>Quản lý số lượng bản sách.</small></span></label>
-              <label className="checkbox-card"><input name="hasDigital" type="checkbox" checked={form.hasDigital} onChange={updateField} /><span><strong>Tài liệu số</strong><small>Cho phép gắn nội dung số được bảo vệ.</small></span></label>
+              <label className="checkbox-card"><input name="hasPhysical" type="checkbox" checked={form.hasPhysical} onChange={updateField} />
+                <span><strong>Bản vật lý</strong><small>Quản lý số lượng bản sách.</small></span>
+              </label>
+              <label className="checkbox-card"><input name="hasDigital" type="checkbox" checked={form.hasDigital} onChange={updateField} />
+                <span><strong>Tài liệu số</strong><small>Cho phép gắn nội dung số được bảo vệ.</small></span>
+              </label>
               {errors.accessTypes && <small className="field-error">{errors.accessTypes}</small>}
             </fieldset>
 
@@ -144,7 +166,7 @@ function ResourceAdminPage() {
         )}
 
         {editing && status !== 'loading' && status !== 'error' && (
-          <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} onItemChange={loadResource} />
+          <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} onItemChange={refreshManagedResourceSnapshot} />
         )}
       </main>
       <Footer />
