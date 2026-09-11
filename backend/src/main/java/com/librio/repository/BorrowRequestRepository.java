@@ -100,6 +100,20 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
             join fetch br.reader
             join fetch br.resource
             join fetch br.physicalItem pi
+            where pi.id in :itemIds
+              and br.status in :statuses
+            order by br.requestedAt asc, br.id asc
+            """)
+    List<BorrowRequest> findActiveByPhysicalItemIds(
+            @Param("itemIds") Collection<Long> itemIds,
+            @Param("statuses") Collection<BorrowRequestStatus> statuses
+    );
+
+    @Query("""
+            select br from BorrowRequest br
+            join fetch br.reader
+            join fetch br.resource
+            join fetch br.physicalItem pi
             where br.status in :statuses
             order by br.statusUpdatedAt desc, br.id desc
             """)

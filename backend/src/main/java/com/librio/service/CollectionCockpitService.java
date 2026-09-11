@@ -16,6 +16,11 @@ import com.librio.repository.BorrowRequestRepository;
 import com.librio.repository.BorrowingRepository;
 import com.librio.repository.PhysicalItemRepository;
 import lombok.RequiredArgsConstructor;
+import com.librio.exception.BorrowFlowException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,40 +48,14 @@ public class CollectionCockpitService {
 
     @Transactional(readOnly = true)
     public InventorySummaryDto getSummary() {
-        List<PhysicalItem> allItems = physicalItemRepository.findCockpitItems(null, null, null);
-        Map<Long, List<BorrowRequest>> activeRequestsMap = fetchActiveRequestsMap();
-        Map<Long, List<Borrowing>> activeBorrowingsMap = fetchActiveBorrowingsMap();
-
         LocalDateTime now = LocalDateTime.now();
+        PhysicalItemRepository.CockpitSummaryProjection proj = physicalItemRepository.findCockpitSummary(now);
 
-        long totalCopies = 0;
-        long availableCopies = 0;
-        long reservedCopies = 0;
-        long borrowedCopies = 0;
-        long attentionCopies = 0;
-
-        for (PhysicalItem item : allItems) {
-            if (item.getInventoryStatus() == InventoryStatus.WITHDRAWN) {
-                continue;
-            }
-
-            totalCopies++;
-
-            if (item.getInventoryStatus() == InventoryStatus.ACTIVE && item.getCirculationStatus() == CirculationStatus.AVAILABLE) {
-                availableCopies++;
-            }
-            if (item.getCirculationStatus() == CirculationStatus.RESERVED) {
-                reservedCopies++;
-            }
-            if (item.getCirculationStatus() == CirculationStatus.BORROWED) {
-                borrowedCopies++;
-            }
-
-            CockpitPhysicalItemDto dto = mapToCockpitDto(item, activeRequestsMap, activeBorrowingsMap, now);
-            if (dto.isNeedsAttention()) {
-                attentionCopies++;
-            }
-        }
+        long totalCopies = proj != null && proj.getTotalCopies() != null ? proj.getTotalCopies() : 0L;
+        long availableCopies = proj != null && proj.getAvailableCopies() != null ? proj.getAvailableCopies() : 0L;
+        long reservedCopies = proj != null && proj.getReservedCopies() != null ? proj.getReservedCopies() : 0L;
+        long borrowedCopies = proj != null && proj.getBorrowedCopies() != null ? proj.getBorrowedCopies() : 0L;
+        long attentionCopies = proj != null && proj.getAttentionCopies() != null ? proj.getAttentionCopies() : 0L;
 
         return InventorySummaryDto.builder()
                 .totalCopies(totalCopies)
@@ -95,65 +75,59 @@ public class CollectionCockpitService {
             int page,
             int size
     ) {
-        int clampedPage = Math.max(0, page);
-        int clampedSize = Math.min(100, Math.max(1, size));
+        if (page < 0 || size < 1 || size > 100) {
+            throw new BorrowFlowException(
+                    "INVALID_PAGINATION_PARAMETER",
+                    HttpStatus.BAD_REQUEST,
+                    "Page index must be >= 0 and size must be between 1 and 100"
+            );
+        }
+
         String trimmedQ = (q != null && !q.isBlank()) ? q.trim() : null;
-
-        List<PhysicalItem> rawItems = physicalItemRepository.findCockpitItems(trimmedQ, inventoryStatus, circulationStatus);
-        Map<Long, List<BorrowRequest>> activeRequestsMap = fetchActiveRequestsMap();
-        Map<Long, List<Borrowing>> activeBorrowingsMap = fetchActiveBorrowingsMap();
-
         LocalDateTime now = LocalDateTime.now();
+        Pageable pageable = PageRequest.of(page, size);
 
-        List<CockpitPhysicalItemDto> dtoList = rawItems.stream()
+        Page<PhysicalItem> itemPage = physicalItemRepository.findCockpitItemsPaged(
+                trimmedQ,
+                inventoryStatus,
+                circulationStatus,
+                needsAttention,
+                now,
+                pageable
+        );
+
+        List<Long> itemIds = itemPage.getContent().stream().map(PhysicalItem::getId).toList();
+
+        Map<Long, List<BorrowRequest>> activeRequestsMap = itemIds.isEmpty()
+                ? Map.of()
+                : fetchActiveRequestsMap(itemIds);
+
+        Map<Long, List<Borrowing>> activeBorrowingsMap = itemIds.isEmpty()
+                ? Map.of()
+                : fetchActiveBorrowingsMap(itemIds);
+
+        List<CockpitPhysicalItemDto> dtoList = itemPage.getContent().stream()
                 .map(item -> mapToCockpitDto(item, activeRequestsMap, activeBorrowingsMap, now))
-                .filter(dto -> needsAttention == null || dto.isNeedsAttention() == needsAttention)
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        // Sort deterministically per cockpit LLD:
-        // 1. needsAttention = true first
-        // 2. operational attention severity
-        // 3. physicalItem.id ASC tie-breaker
-        dtoList.sort((a, b) -> {
-            if (a.isNeedsAttention() != b.isNeedsAttention()) {
-                return a.isNeedsAttention() ? -1 : 1;
-            }
-            if (a.isNeedsAttention()) {
-                int rankA = getAttentionSeverityRank(a.getAttentionReasons());
-                int rankB = getAttentionSeverityRank(b.getAttentionReasons());
-                if (rankA != rankB) {
-                    return Integer.compare(rankA, rankB);
-                }
-            }
-            return Long.compare(a.getId(), b.getId());
-        });
-
-        long totalElements = dtoList.size();
-        int totalPages = (int) Math.ceil((double) totalElements / clampedSize);
-
-        int fromIndex = Math.min(clampedPage * clampedSize, (int) totalElements);
-        int toIndex = Math.min(fromIndex + clampedSize, (int) totalElements);
-
-        List<CockpitPhysicalItemDto> pageItems = dtoList.subList(fromIndex, toIndex);
+                .toList();
 
         return CockpitPageResponseDto.builder()
-                .items(pageItems)
-                .page(clampedPage)
-                .size(clampedSize)
-                .totalElements(totalElements)
-                .totalPages(totalPages)
+                .items(dtoList)
+                .page(itemPage.getNumber())
+                .size(itemPage.getSize())
+                .totalElements(itemPage.getTotalElements())
+                .totalPages(itemPage.getTotalPages())
                 .build();
     }
 
-    private Map<Long, List<BorrowRequest>> fetchActiveRequestsMap() {
-        return borrowRequestRepository.findActiveForLibrarian(ACTIVE_REQUEST_STATUSES)
+    private Map<Long, List<BorrowRequest>> fetchActiveRequestsMap(Collection<Long> itemIds) {
+        return borrowRequestRepository.findActiveByPhysicalItemIds(itemIds, ACTIVE_REQUEST_STATUSES)
                 .stream()
                 .filter(r -> r.getPhysicalItem() != null)
                 .collect(Collectors.groupingBy(r -> r.getPhysicalItem().getId()));
     }
 
-    private Map<Long, List<Borrowing>> fetchActiveBorrowingsMap() {
-        return borrowingRepository.findActiveForLibrarian()
+    private Map<Long, List<Borrowing>> fetchActiveBorrowingsMap(Collection<Long> itemIds) {
+        return borrowingRepository.findActiveByPhysicalItemIds(itemIds)
                 .stream()
                 .filter(b -> b.getPhysicalItem() != null)
                 .collect(Collectors.groupingBy(b -> b.getPhysicalItem().getId()));

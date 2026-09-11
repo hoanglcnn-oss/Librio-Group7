@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,6 +56,18 @@ public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
             order by b.dueAt asc, b.borrowedAt asc, b.id asc
             """)
     List<Borrowing> findActiveForLibrarian();
+
+    @Query("""
+            select b from Borrowing b
+            join fetch b.reader
+            join fetch b.borrowRequest
+            join fetch b.physicalItem pi
+            join fetch pi.resource
+            where pi.id in :itemIds
+              and b.returnedAt is null
+            order by b.dueAt asc, b.borrowedAt asc, b.id asc
+            """)
+    List<Borrowing> findActiveByPhysicalItemIds(@Param("itemIds") Collection<Long> itemIds);
 
     /**
      * Return flow lock borrowing trước khi lock đúng physical item.

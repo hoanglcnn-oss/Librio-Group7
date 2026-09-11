@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -29,8 +30,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,10 +62,10 @@ class LibrarianInventoryControllerTest {
     @Autowired
     private DigitalItemRepository digitalItemRepository;
 
-    @Autowired
+    @SpyBean
     private BorrowRequestRepository borrowRequestRepository;
 
-    @Autowired
+    @SpyBean
     private BorrowingRepository borrowingRepository;
 
     private Resource resourceA;
@@ -269,6 +275,46 @@ class LibrarianInventoryControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.items[0].attentionReasons", hasItems("CIRCULATION_DATA_MISMATCH")))
                 .andExpect(jsonPath("$.items[1].attentionReasons", hasItems("CIRCULATION_DATA_MISMATCH")));
+    }
+
+    @Test
+    @DisplayName("Bounded active operation query verification: repository only queries page IDs")
+    @WithMockUser(username = "librarian@cockpit.test", roles = "LIBRARIAN")
+    void testBoundedActiveOperationsQuery() throws Exception {
+        PhysicalItem item1 = createPhysicalCopy(resourceA, "LIB-BND-1", "Shelf B1", InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
+        PhysicalItem item2 = createPhysicalCopy(resourceA, "LIB-BND-2", "Shelf B2", InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
+        PhysicalItem item3 = createPhysicalCopy(resourceA, "LIB-BND-3", "Shelf B3", InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
+
+        // Request page 0 size 2 -> should return item1 and item2 (sorted by id ASC for healthy items)
+        mockMvc.perform(get("/librarian/physical-items?page=0&size=2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2));
+
+        // Verify unbounded queries were NEVER called
+        verify(borrowRequestRepository, never()).findActiveForLibrarian(any());
+        verify(borrowingRepository, never()).findActiveForLibrarian();
+
+        // Verify bounded queries were called with item1 and item2 IDs only
+        List<Long> expectedPageIds = List.of(item1.getId(), item2.getId());
+        verify(borrowRequestRepository).findActiveByPhysicalItemIds(argThat(ids -> ids.containsAll(expectedPageIds) && !ids.contains(item3.getId())), any());
+        verify(borrowingRepository).findActiveByPhysicalItemIds(argThat(ids -> ids.containsAll(expectedPageIds) && !ids.contains(item3.getId())));
+    }
+
+    @Test
+    @DisplayName("Invalid pagination parameters return 400 Bad Request")
+    @WithMockUser(username = "librarian@cockpit.test", roles = "LIBRARIAN")
+    void testInvalidPaginationParameters() throws Exception {
+        mockMvc.perform(get("/librarian/physical-items?page=-1&size=20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGINATION_PARAMETER"));
+
+        mockMvc.perform(get("/librarian/physical-items?page=0&size=0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGINATION_PARAMETER"));
+
+        mockMvc.perform(get("/librarian/physical-items?page=0&size=101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGINATION_PARAMETER"));
     }
 
     @Test
