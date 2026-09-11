@@ -200,3 +200,27 @@ export function fulfilBorrowRequest(requestId, physicalItemId) {
 export function rejectBorrowRequest(requestId) {
   return csrfPost(`/librarian/borrow-requests/${encodeURIComponent(requestId)}/reject`)
 }
+
+export function getLibrarianInventorySummary() {
+  return authenticatedGet('/librarian/inventory/summary')
+}
+
+export function getLibrarianPhysicalItems(params = {}) {
+  const query = new URLSearchParams()
+  if (params.q && params.q.trim()) query.set('q', params.q.trim())
+  if (params.inventoryStatus) query.set('inventoryStatus', params.inventoryStatus)
+  if (params.circulationStatus) query.set('circulationStatus', params.circulationStatus)
+  if (params.needsAttention !== undefined && params.needsAttention !== null && params.needsAttention !== '') {
+    query.set('needsAttention', params.needsAttention.toString())
+  }
+  if (params.page !== undefined && params.page !== null && params.page !== '') {
+    query.set('page', params.page.toString())
+  }
+  if (params.size !== undefined && params.size !== null && params.size !== '') {
+    query.set('size', params.size.toString())
+  }
+
+  const queryString = query.toString()
+  return authenticatedGet(`/librarian/physical-items${queryString ? `?${queryString}` : ''}`)
+}
+
