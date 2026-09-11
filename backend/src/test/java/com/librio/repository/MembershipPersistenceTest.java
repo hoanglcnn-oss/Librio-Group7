@@ -101,6 +101,7 @@ public class MembershipPersistenceTest {
                 .currency(plan.getCurrency())
                 .status(PaymentStatus.SUCCESS)
                 .createdAt(LocalDateTime.now())
+                .completedAt(LocalDateTime.now())
                 .build();
         payment = paymentTransactionRepository.saveAndFlush(payment);
 
@@ -145,6 +146,7 @@ public class MembershipPersistenceTest {
                 .currency(plan.getCurrency())
                 .status(PaymentStatus.SUCCESS)
                 .createdAt(LocalDateTime.now())
+                .completedAt(LocalDateTime.now())
                 .build();
         payment = paymentTransactionRepository.saveAndFlush(payment);
 

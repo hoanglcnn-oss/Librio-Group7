@@ -40,6 +40,6 @@ public class PaymentTransaction {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "completed_at")
+    @Column(name = "completed_at", nullable = false)
     private LocalDateTime completedAt;
 }
