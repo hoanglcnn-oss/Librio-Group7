@@ -53,10 +53,14 @@ public class PhysicalItemService {
         try {
             return toDto(physicalItemRepository.saveAndFlush(item));
         } catch (DataIntegrityViolationException e) {
-            throw new BorrowFlowException(
-                    "DUPLICATE_ITEM_BARCODE",
-                    HttpStatus.CONFLICT,
-                    "Physical item with barcode already exists: " + barcode);
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("uq_physical_item_barcode") || msg.contains("barcode")) {
+                throw new BorrowFlowException(
+                        "DUPLICATE_ITEM_BARCODE",
+                        HttpStatus.CONFLICT,
+                        "Physical item with barcode already exists: " + barcode);
+            }
+            throw e;
         }
     }
 
@@ -89,10 +93,14 @@ public class PhysicalItemService {
         try {
             return toDto(physicalItemRepository.saveAndFlush(item));
         } catch (DataIntegrityViolationException e) {
-            throw new BorrowFlowException(
-                    "DUPLICATE_ITEM_BARCODE",
-                    HttpStatus.CONFLICT,
-                    "Physical item with barcode already exists: " + barcode);
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("uq_physical_item_barcode") || msg.contains("barcode")) {
+                throw new BorrowFlowException(
+                        "DUPLICATE_ITEM_BARCODE",
+                        HttpStatus.CONFLICT,
+                        "Physical item with barcode already exists: " + barcode);
+            }
+            throw e;
         }
     }
 

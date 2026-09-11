@@ -46,6 +46,7 @@ export const ERROR_MESSAGES = {
   ACTIVE_MEMBERSHIP_EXISTS: 'Bạn đã có gói thành viên đang hoạt động.',
   MEMBERSHIP_ACTIVATION_CONFLICT: 'Có lỗi khi kích hoạt gói thành viên.',
   INVALID_PAYMENT_OUTCOME: 'Kết quả thanh toán không hợp lệ.',
+  RESOURCE_ISBN_EXISTS: 'M� ISBN n�y d� t?n t?i trong h? th?ng.',
 }
 
 async function parseError(response) {

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * T-146 regression: physical-item refresh must not overwrite unsaved resource form fields.
  *
  * Tests exercise the refresh-ownership contract at the helper level using

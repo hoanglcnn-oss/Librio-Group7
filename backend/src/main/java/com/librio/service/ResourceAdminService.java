@@ -33,11 +33,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Quản trị metadata resource và reconcile access records của librarian.
+ * Quan tri metadata resource va reconcile access records cua librarian.
  *
- * <p>Physical copies được quản lý theo exact item rows. Giảm số lượng chỉ được xóa item AVAILABLE;
- * RESERVED, BORROWED hoặc OVERDUE là circulation commitment đang hoạt động nên phải giữ lại.
- * Authors hiện đi qua API dạng JSON array nhưng vẫn persist dạng comma-separated để tương thích schema.
+ * <p>Physical copies duoc quan ly theo exact item rows. Giam so luong chi duoc xoa item AVAILABLE;
+ * RESERVED, BORROWED hoac OVERDUE la circulation commitment dang hoat dong nen phai giu lai.
+ * Authors hien di qua API dang JSON array nhung van persist dang comma-separated de tuong thich schema.
  */
 @Service
 @RequiredArgsConstructor
@@ -72,9 +72,13 @@ public class ResourceAdminService {
         try {
             resource = resourceRepository.saveAndFlush(resource);
         } catch (DataIntegrityViolationException e) {
-            throw new ResourceIsbnExistsException("ISBN already exists");
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("uq_resource_isbn") || msg.contains("isbn")) {
+                throw new ResourceIsbnExistsException("ISBN already exists");
+            }
+            throw e;
         }
-        // Reconcile physical/digital access nm trong cA1ng transaction v>i metadata resource.
+        // Reconcile physical/digital access cung transaction voi metadata resource.
         reconcilePhysicalCopies(resource, 0, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         return toDto(resource);
@@ -97,13 +101,17 @@ public class ResourceAdminService {
         resource.setExternalSourceId(input.externalSourceId());
 
         long currentCopies = physicalItemRepository.countByResourceId(resourceId);
-        // Atomic boundary: metadata update vA reconcile copy/access cA1ng commit hoc cA1ng rollback.
+        // Atomic boundary: metadata update va reconcile copy/access cung commit hoac rollback.
         reconcilePhysicalCopies(resource, currentCopies, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         try {
             resourceRepository.saveAndFlush(resource);
         } catch (DataIntegrityViolationException e) {
-            throw new ResourceIsbnExistsException("ISBN already exists");
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("uq_resource_isbn") || msg.contains("isbn")) {
+                throw new ResourceIsbnExistsException("ISBN already exists");
+            }
+            throw e;
         }
         return toDto(resource);
     }
@@ -128,7 +136,7 @@ public class ResourceAdminService {
         }
 
         long removeCount = current - desired;
-        // Chỉ xóa copy AVAILABLE; RESERVED/BORROWED/OVERDUE vẫn là commitment lưu thông cần bảo toàn.
+        // Chá»‰ xÃ³a copy AVAILABLE; RESERVED/BORROWED/OVERDUE váº«n lÃ  commitment lÆ°u thÃ´ng cáº§n báº£o toÃ n.
         List<PhysicalItem> available = physicalItemRepository.findForUpdate(
                 resource.getId(), InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE,
                 PageRequest.of(0, Math.toIntExact(removeCount)));
@@ -183,7 +191,7 @@ public class ResourceAdminService {
             throw validation("Unsupported access type");
         }
 
-        // Ranh giới tương thích hiện tại: API nhận authors dạng array, database lưu chuỗi phân tách bằng dấu phẩy.
+        // Ranh giá»›i tÆ°Æ¡ng thÃ­ch hiá»‡n táº¡i: API nháº­n authors dáº¡ng array, database lÆ°u chuá»—i phÃ¢n tÃ¡ch báº±ng dáº¥u pháº©y.
         String authors = request.getAuthors().stream()
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
@@ -267,3 +275,5 @@ public class ResourceAdminService {
             String externalSourceId) {
     }
 }
+
+

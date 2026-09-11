@@ -99,8 +99,7 @@ function ResourceAdminPage() {
       }
     } catch (error) {
       if (isMountedRef.current) {
-        setMessage(error.message)
-        setStatus('error')
+        setMessage('Cảnh báo: Không thể cập nhật trạng thái mới nhất (' + (error.message || 'Lỗi mạng') + ')')
       }
     }
   }, [editing, id])
@@ -143,10 +142,7 @@ function ResourceAdminPage() {
     } catch (error) {
       if (isMountedRef.current) {
         setStatus('error')
-        const friendlyMessage = error.message === 'RESOURCE_ISBN_EXISTS'
-          ? 'Mã ISBN này đã tồn tại trong hệ thống.'
-          : error.message
-        setMessage(friendlyMessage)
+        setMessage(error.message)
       }
     }
   }

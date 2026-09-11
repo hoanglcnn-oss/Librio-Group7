@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import Header from '../components/Header'
+import Footer from '../components/Footer'
 import { getMembershipPlans, getCurrentMembership, simulateMembershipPayment } from '../services/authApi'
 import './MembershipPage.css'
 
@@ -83,23 +85,37 @@ export default function MembershipPage() {
     }
   }
 
-  if (loading) return <main className="membership-page"><p>Đang tải...</p></main>
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <Header />
+        <main className="membership-page"><p>Đang tải...</p></main>
+        <Footer />
+      </div>
+    )
+  }
   if (error) {
     return (
-      <main className="membership-page">
-        <div className="error-box">
-          <p>{error}</p>
-          <button onClick={loadData}>Thử lại</button>
-        </div>
-      </main>
+      <div className="app-shell">
+        <Header />
+        <main className="membership-page">
+          <div className="error-box">
+            <p>{error}</p>
+            <button onClick={loadData}>Thử lại</button>
+          </div>
+        </main>
+        <Footer />
+      </div>
     )
   }
 
   const { status, plan, startsAt, expiresAt, latestPayment } = membership || {}
 
   return (
-    <main className="membership-page">
-      <h1>Quản lý gói thành viên</h1>
+    <div className="app-shell">
+      <Header />
+      <main className="membership-page">
+        <h1>Quản lý gói thành viên</h1>
       
       {paymentError && (
         <div className="error-box">
@@ -171,5 +187,7 @@ export default function MembershipPage() {
         </div>
       </section>
     </main>
+      <Footer />
+    </div>
   )
 }

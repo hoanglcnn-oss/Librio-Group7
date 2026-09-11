@@ -264,19 +264,4 @@ public class CollectionCockpitService {
                 .toList();
     }
 
-    private int getAttentionSeverityRank(List<String> reasons) {
-        if (reasons == null || reasons.isEmpty()) {
-            return 5;
-        }
-        if (reasons.contains("BORROWING_OVERDUE")) {
-            return 1;
-        }
-        if (reasons.contains("INVENTORY_LOST") || reasons.contains("INVENTORY_DAMAGED")) {
-            return 2;
-        }
-        if (reasons.contains("LOCATION_UNASSIGNED")) {
-            return 3;
-        }
-        return 4;
-    }
 }
