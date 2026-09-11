@@ -112,6 +112,7 @@ public class SecurityConfig {
                                 "/resources/*/digital-access",
                                 "/resources/*/digital-content").hasRole("READER")
                         .requestMatchers("/resources/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/membership/plans").permitAll()
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/auth/csrf").permitAll()
                         .requestMatchers("/auth/me").authenticated()
