@@ -140,9 +140,68 @@ Librarian updates may modify `barcode`, `location`, `inventoryStatus`, but never
 - **D142-07 — Reject conflicting transitions**: Rejects state changes on items with active circulation (`409 ACTIVE_CIRCULATION_CONFLICT`).
 - **D142-08 — Soft withdrawal**: Uses `WITHDRAWN` instead of hard deletion to protect history.
 
-## 13. Implementation Impact & Completion Criteria
+## 13. Implementation Status & Verification
 
-T-143 updates `PhysicalItem` entity, status enums, `schema.sql`, seed data, repositories, availability logic, and API tests.
+US-14 physical inventory implementation is complete through T-147.
 
-T-142 criteria: Defined schema, backfill strategy, barcode/location rules, inventory transitions, conflict rules, and derived borrowability.
+### 13.1 Implemented
+
+- **T-143 — Schema & migration**
+  - `PhysicalItem` now separates `inventoryStatus` and `circulationStatus`.
+  - `barcode` and `location` are persisted and constrained.
+  - Existing rows are migrated using deterministic barcode backfill and `UNASSIGNED` location.
+  - Legacy `OVERDUE` circulation state is normalized to `BORROWED`; overdue remains derived from borrowing timestamps.
+
+- **T-144 — Physical-copy backend**
+  - Librarian create/update APIs enforce copy identity and inventory transition rules.
+  - Create defaults to `inventoryStatus = ACTIVE` and `circulationStatus = AVAILABLE`.
+  - `circulationStatus` remains server-managed.
+  - Duplicate barcode and active-circulation conflicts are normalized to stable API errors.
+  - Update operations use the backend concurrency/locking boundary defined for physical-copy mutation.
+
+- **T-145 — Physical-copy administration UI**
+  - Librarians can create physical copies and edit barcode, location, and inventory status.
+  - Circulation status is display-only.
+  - The UI guards obvious invalid inventory changes while retaining the backend as the source of truth.
+  - Physical-copy loading follows the Cockpit pagination contract (`size <= 100`) and resolves copies by persisted resource identity.
+
+- **T-146 — Resource / availability refresh integration**
+  - Successful physical-copy mutation refreshes the physical-copy list from the server.
+  - Managed resource / availability data is refreshed from the backend rather than patched client-side.
+  - Physical-item refresh does not overwrite unsaved Resource Admin form edits.
+  - Editable resource form hydration and server-derived availability snapshot refresh are intentionally separated.
+
+### 13.2 Automated Verification — T-147
+
+Automated inventory verification covers:
+
+- allowed transitions:
+  - `ACTIVE -> LOST / DAMAGED / WITHDRAWN`
+  - `LOST / DAMAGED / WITHDRAWN -> ACTIVE`
+  - same-state idempotent transitions
+- rejection of unsupported non-ACTIVE -> non-ACTIVE transitions
+- `RESERVED` and `BORROWED` active-circulation conflict handling
+- derived availability where only `ACTIVE + AVAILABLE` is borrowable
+- required barcode and location
+- server defaults `ACTIVE + AVAILABLE`
+- server ownership of `circulationStatus`
+- physical-copy history / circulation integrity
+- managed-resource availability refresh after inventory mutation
+
+Manual end-to-end verification remains part of the deployed Sprint 4 validation flow.
+
+### 13.3 Completion Criteria
+
+US-14 inventory implementation is considered complete when:
+
+- physical copies have stable unique identity and location;
+- inventory state is separated from circulation state;
+- borrowability and overdue remain server-derived;
+- active circulation cannot be invalidated by inventory administration;
+- withdrawn copies retain historical references instead of being hard-deleted;
+- librarian create/edit workflow reflects persisted server state;
+- resource availability refreshes after inventory mutation without discarding unrelated unsaved form edits;
+- automated verification covers the transition and conflict rules above.
+
+Final Sprint 4 evidence / deployed E2E results may be appended after deployment.
 

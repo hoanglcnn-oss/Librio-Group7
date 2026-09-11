@@ -97,6 +97,22 @@ Stable attention reason codes:
 
 `borrowable`, `needsAttention`, `attentionReasons`, and `overdue` are server-derived; the client must not recompute them.
 
+### Inventory implementation / verification note
+
+US-14 inventory API implementation is complete through T-147.
+
+Verified invariants include:
+
+- physical-copy create defaults to `ACTIVE + AVAILABLE`;
+- `circulationStatus` cannot be modified through the librarian inventory update API;
+- only `ACTIVE + AVAILABLE` copies are borrowable / counted as available;
+- `ACTIVE -> LOST / DAMAGED / WITHDRAWN` is rejected while circulation is `RESERVED` or `BORROWED`;
+- unsupported non-ACTIVE -> non-ACTIVE transitions return `INVALID_INVENTORY_TRANSITION`;
+- barcode and location remain required copy-identity fields;
+- inventory mutations are followed by server-backed resource / availability refresh in the librarian workflow.
+
+Automated verification is covered by the T-147 inventory regression suite. Deployed end-to-end verification is recorded separately as Sprint 4 evidence.
+
 ## Membership subscription
 
 - `GET /membership/plans` — public; returns active membership plans.
@@ -137,7 +153,7 @@ Requires account eligibility, a valid active plan and no existing active members
 
 Membership expiry blocks new membership-gated borrowing but does not mutate an existing active borrowing.
 
-| StatusCode |                                                               |
+| Status     | Code                                                          |
 | ---------- | ------------------------------------------------------------- |
 | `400`      | `INVALID_PAYMENT_OUTCOME`                                     |
 | `403`      | `MEMBERSHIP_NOT_ELIGIBLE`                                     |
