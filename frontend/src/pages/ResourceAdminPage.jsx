@@ -4,6 +4,7 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 import { createLibrarianResource, getLibrarianResource, updateLibrarianResource } from '../services/authApi'
 import { emptyResourceForm, resourceFormToPayload, resourceToForm, validateResourceForm } from '../utils/resourceForm'
+import PhysicalItemAdmin from '../components/PhysicalItemAdmin'
 
 function ResourceAdminPage() {
   const { id } = useParams()
@@ -96,9 +97,13 @@ function ResourceAdminPage() {
             {message && status !== 'error' && <div className="demo-success" role="status"><strong>{message}</strong></div>}
             <div className="resource-form-actions">
               <Link className="text-action" to="/resources">Hủy</Link>
-              <button className="primary-action" type="submit" disabled={status === 'saving'}>{status === 'saving' ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Tạo tài liệu'}</button>
+              <button className="primary-action" type="submit" disabled={status === 'saving'}>{status === 'saving' ? 'Đang lưu...' : editing ? 'Lưu thay đổi' : 'Tạo tài liệu'}</button>
             </div>
           </form>
+        )}
+
+        {editing && status !== 'loading' && status !== 'error' && (
+          <PhysicalItemAdmin resource={{ id: Number(id), title: form.title }} />
         )}
       </main>
       <Footer />

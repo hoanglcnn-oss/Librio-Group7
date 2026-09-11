@@ -13,7 +13,7 @@ let csrf = null
 let currentAccountPromise = null
 const SESSION_MARKER = 'librio.hasSession'
 
-const ERROR_MESSAGES = {
+export const ERROR_MESSAGES = {
   RESOURCE_NOT_FOUND: 'Không tìm thấy tài liệu.',
   REQUEST_NOT_FOUND: 'Không tìm thấy yêu cầu mượn.',
   NO_PHYSICAL_COPY: 'Tài liệu này không có bản vật lý.',
@@ -37,6 +37,10 @@ const ERROR_MESSAGES = {
   BORROWING_ITEM_CONFLICT: 'Trạng thái bản sách không phù hợp với lượt mượn.',
   DIGITAL_CONTENT_NOT_FOUND: 'Tài liệu này không có nội dung số.',
   RESOURCE_IN_USE: 'Không thể giảm các bản sách đang được giữ hoặc đang cho mượn.',
+  DUPLICATE_ITEM_BARCODE: 'Mã vạch này đã tồn tại trong hệ thống.',
+  ACTIVE_CIRCULATION_CONFLICT: 'Không thể thay đổi trạng thái khi sách đang được mượn hoặc giữ.',
+  INVALID_INVENTORY_TRANSITION: 'Không thể chuyển sang trạng thái tồn kho này.',
+  PHYSICAL_ITEM_NOT_FOUND: 'Không tìm thấy bản sách vật lý.',
 }
 
 async function parseError(response) {
@@ -222,5 +226,15 @@ export function getLibrarianPhysicalItems(params = {}) {
 
   const queryString = query.toString()
   return authenticatedGet(`/librarian/physical-items${queryString ? `?${queryString}` : ''}`)
+}
+
+
+
+export function createPhysicalItem(resourceId, payload) {
+  return csrfPost(`/librarian/resources/${encodeURIComponent(resourceId)}/physical-items`, payload)
+}
+
+export function updatePhysicalItem(id, payload) {
+  return csrfPost(`/librarian/physical-items/${encodeURIComponent(id)}`, payload, 'PUT')
 }
 
