@@ -13,6 +13,7 @@ import {
   formatInventoryStatus,
   formatOperationStatus,
 } from '../utils/cockpitStatus'
+import { parseCockpitPage, parseCockpitSize } from '../utils/cockpitFilters'
 
 function LibrarianCockpitPage() {
   const [summary, setSummary] = useState(null)
@@ -28,10 +29,16 @@ function LibrarianCockpitPage() {
   const inventoryStatusFilter = searchParams.get('inventoryStatus') || ''
   const circulationStatusFilter = searchParams.get('circulationStatus') || ''
   const needsAttentionFilter = searchParams.get('needsAttention') || ''
-  const page = Number(searchParams.get('page')) || 0
-  const size = Number(searchParams.get('size')) || 20
+  const page = parseCockpitPage(searchParams.get('page'))
+  const size = parseCockpitSize(searchParams.get('size'))
 
   const [filterQ, setFilterQ] = useState(appliedQ)
+
+  // Keep search input synced with URL state if user navigates back/forward
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilterQ(appliedQ)
+  }, [appliedQ])
 
   const [itemsStatus, setItemsStatus] = useState('loading')
   const [itemsError, setItemsError] = useState('')
