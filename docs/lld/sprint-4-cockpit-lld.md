@@ -111,8 +111,65 @@ No new mutation endpoint is introduced by T-152.
 - **D152-02 — Server-derived attention**: Backend derives attention reasons to maintain consistency across summary, filtering, and UI.
 - **D152-03 — Stable operational ordering**: Attention records appear before healthy records with `physicalItem.id ASC` as the final tie-breaker for deterministic pagination.
 
-## 7. Implementation boundary and completion criteria
+## 7. Implementation Status & Verification
 
-- **T-153**: implements inventory summary query, physical-copy paginated search/filter query, active operation projection, attention derivation, and backend tests.
-- **T-154**: implements the responsive UI using this read model.
-- **T-152**: complete when summary semantics, filters, pagination, ordering, active-operation projection, attention derivation and N+1 avoidance strategy are defined.
+US-15 Collection Cockpit implementation is complete through T-156.
+
+### 7.1 Implemented
+
+- **T-153 — Cockpit backend**
+  - Implements inventory summary aggregation.
+  - Implements database-paginated physical-copy search and filtering.
+  - Applies `q`, `inventoryStatus`, `circulationStatus`, and `needsAttention` before pagination.
+  - Uses stable attention-first ordering with `physicalItem.id ASC` as the final tie-breaker.
+  - Loads active borrow requests / borrowings for the current page using bounded queries rather than per-item lookups.
+  - Derives `borrowable`, `needsAttention`, `attentionReasons`, `overdue`, and active-operation projection on the server.
+
+- **T-154 — Responsive Cockpit UI**
+  - Adds the librarian Collection Cockpit route and navigation entry.
+  - Renders server-provided summary metrics and paginated physical-copy results.
+  - Displays resource identity, inventory / circulation state, borrowability, attention reasons, and active-operation context.
+  - Provides responsive loading, error, empty, retry, and refresh states.
+  - Does not recompute backend-owned business state.
+
+- **T-155 — Query / navigation / refresh integration**
+  - Persists Cockpit query state through URL search parameters.
+  - Supports `q`, inventory status, circulation status, attention filter, page, and page size.
+  - Resets pagination when filter criteria change.
+  - Manual refresh reloads both inventory summary and the current result page without client-side count patching.
+  - Barcode navigation links the librarian to the existing resource / physical-copy administration workflow.
+  - Active-operation context links to the existing librarian circulation workflow.
+  - BORROW_REQUEST displays `statusUpdatedAt`; BORROWING displays `borrowRequestId`.
+  - Invalid final pages are recovered by moving to the nearest valid server page.
+
+### 7.2 Automated Verification — T-156
+
+Automated Cockpit verification covers:
+
+- URL page normalization;
+- invalid / negative page fallback to page `0`;
+- supported page-size normalization (`20`, `50`, `100`);
+- rejection / normalization of invalid or unsupported page sizes;
+- synchronization of the search input with URL `q` state for browser back / forward navigation.
+
+T-156 also closes the query-state robustness issues identified during T-155 review by:
+
+- keeping `filterQ` synchronized with `appliedQ`;
+- preventing malformed `page` / `size` URL values from producing avoidable invalid backend requests.
+
+Manual end-to-end verification remains part of the deployed Sprint 4 validation flow.
+
+### 7.3 Completion Criteria
+
+US-15 Collection Cockpit is considered complete when:
+
+- summary metrics and physical-copy result data are server-derived;
+- filtering and pagination are executed by the backend rather than over an in-memory client dataset;
+- attention state, overdue state, borrowability, and active-operation precedence remain server-owned;
+- query state survives reload / browser navigation consistently;
+- manual refresh reloads the current Cockpit state from the server;
+- invalid pagination state is normalized or recovered safely;
+- librarians can navigate from the Cockpit into existing inventory / circulation workflows;
+- automated verification covers the query-state robustness rules above.
+
+Final Sprint 4 evidence / deployed E2E results may be appended after deployment.
