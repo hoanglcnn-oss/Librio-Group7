@@ -6,6 +6,10 @@ export const emptyResourceForm = {
   hasPhysical: false,
   physicalCopies: '1',
   hasDigital: false,
+  isbn: '',
+  coverImageUrl: '',
+  metadataSource: 'MANUAL',
+  externalSourceId: '',
 }
 
 export function resourceToForm(resource) {
@@ -17,6 +21,10 @@ export function resourceToForm(resource) {
     hasPhysical: resource?.accessTypes?.includes('PHYSICAL') || Boolean(resource?.physical),
     physicalCopies: String(resource?.physical?.totalCopies ?? 1),
     hasDigital: resource?.accessTypes?.includes('DIGITAL') || Boolean(resource?.digital),
+    isbn: resource?.isbn || '',
+    coverImageUrl: resource?.coverImageUrl || '',
+    metadataSource: resource?.metadataSource || 'MANUAL',
+    externalSourceId: resource?.externalSourceId || '',
   }
 }
 
@@ -47,5 +55,9 @@ export function resourceFormToPayload(form) {
     accessTypes,
     physical: form.hasPhysical ? { totalCopies: Number(form.physicalCopies) } : null,
     digital: form.hasDigital ? { available: true } : null,
+    isbn: form.isbn?.trim() || null,
+    coverImageUrl: form.coverImageUrl?.trim() || null,
+    metadataSource: form.metadataSource || 'MANUAL',
+    externalSourceId: form.externalSourceId?.trim() || null,
   }
 }

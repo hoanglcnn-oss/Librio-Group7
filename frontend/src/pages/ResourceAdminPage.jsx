@@ -4,7 +4,9 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 import PhysicalItemAdmin from '../components/PhysicalItemAdmin'
 import { createLibrarianResource, getLibrarianResource, updateLibrarianResource } from '../services/authApi'
+import { lookupBookMetadata } from '../services/bookMetadataApi'
 import { emptyResourceForm, resourceFormToPayload, resourceToForm, validateResourceForm } from '../utils/resourceForm'
+import './BookMetadataLookup.css'
 
 function ResourceAdminPage() {
   const { id } = useParams()
@@ -17,6 +19,9 @@ function ResourceAdminPage() {
   const [status, setStatus] = useState(editing ? 'loading' : 'ready')
   const [message, setMessage] = useState('')
 
+  const [lookupStatus, setLookupStatus] = useState('idle')
+  const [lookupError, setLookupError] = useState('')
+
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -25,6 +30,44 @@ function ResourceAdminPage() {
       isMountedRef.current = false
     }
   }, [])
+
+  async function handleLookup(event) {
+    event.preventDefault()
+    if (!form.isbn) {
+      setLookupError('Vui lòng nhập ISBN để tra cứu.')
+      setLookupStatus('error')
+      return
+    }
+    setLookupStatus('loading')
+    setLookupError('')
+    try {
+      const meta = await lookupBookMetadata(form.isbn.trim())
+      if (isMountedRef.current) {
+        setForm(current => ({
+          ...current,
+          title: meta.title || current.title,
+          authors: (meta.authors && meta.authors.length > 0) ? meta.authors.join(', ') : current.authors,
+          description: meta.description || current.description,
+          isbn: meta.isbn || current.isbn,
+          coverImageUrl: meta.coverImageUrl || current.coverImageUrl,
+          externalSourceId: meta.externalSourceId || current.externalSourceId,
+          metadataSource: 'GOOGLE_BOOKS'
+        }))
+        setLookupStatus('success')
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setLookupStatus('error')
+        const msgMap = {
+          'INVALID_ISBN': 'Mã ISBN không hợp lệ.',
+          'BOOK_METADATA_NOT_FOUND': 'Không tìm thấy thông tin sách.',
+          'BOOK_METADATA_LOOKUP_TIMEOUT': 'Quá thời gian tra cứu, vui lòng thử lại.',
+          'BOOK_METADATA_PROVIDER_ERROR': 'Lỗi từ dịch vụ cung cấp metadata.'
+        }
+        setLookupError(msgMap[err.message] || 'Lỗi tra cứu không xác định.')
+      }
+    }
+  }
 
   // Full hydration for initial load and after a successful resource save.
   const loadResource = useCallback(async () => {
@@ -100,7 +143,10 @@ function ResourceAdminPage() {
     } catch (error) {
       if (isMountedRef.current) {
         setStatus('error')
-        setMessage(error.message)
+        const friendlyMessage = error.message === 'RESOURCE_ISBN_EXISTS'
+          ? 'Mã ISBN này đã tồn tại trong hệ thống.'
+          : error.message
+        setMessage(friendlyMessage)
       }
     }
   }
@@ -120,6 +166,33 @@ function ResourceAdminPage() {
         {status === 'error' && message && <div className="demo-error" role="alert">{message}</div>}
         {status !== 'loading' && (
           <form className="resource-admin-form" noValidate onSubmit={submit}>
+            {form.metadataSource === 'GOOGLE_BOOKS' && (
+              <div style={{ marginBottom: '16px' }}>
+                <span className="metadata-source-badge">Nguồn: GOOGLE_BOOKS</span>
+              </div>
+            )}
+
+            <FormField label="ISBN (Tùy chọn)" hint="Tra cứu thông tin tự động từ Google Books bằng mã ISBN" error={errors.isbn}>
+              <div className="isbn-lookup-group">
+                <input name="isbn" value={form.isbn || ''} maxLength={20} onChange={updateField} aria-invalid={Boolean(errors.isbn)} />
+                <button type="button" className="secondary-action" onClick={handleLookup} disabled={lookupStatus === 'loading'}>
+                  {lookupStatus === 'loading' ? 'Đang tra...' : 'Tra cứu'}
+                </button>
+              </div>
+              {lookupStatus === 'error' && <div className="isbn-lookup-status error">{lookupError}</div>}
+              {lookupStatus === 'success' && <div className="isbn-lookup-status success">Tra cứu thành công! Dữ liệu đã được điền.</div>}
+            </FormField>
+
+            <FormField label="URL Ảnh bìa (Tùy chọn)" error={errors.coverImageUrl}>
+              <input name="coverImageUrl" value={form.coverImageUrl || ''} maxLength={1000} onChange={updateField} aria-invalid={Boolean(errors.coverImageUrl)} />
+              {form.coverImageUrl && (
+                <div className="cover-preview">
+                  <span className="cover-preview-label">Ảnh bìa:</span>
+                  <img src={form.coverImageUrl} alt="Cover preview" onError={(e) => e.target.style.display = 'none'} />
+                </div>
+              )}
+            </FormField>
+
             <FormField label="Tên tài liệu" error={errors.title} required>
               <input name="title" value={form.title} maxLength={200} onChange={updateField} aria-invalid={Boolean(errors.title)} />
             </FormField>
