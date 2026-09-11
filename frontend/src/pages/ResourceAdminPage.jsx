@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
+import PhysicalItemAdmin from '../components/PhysicalItemAdmin'
 import { createLibrarianResource, getLibrarianResource, updateLibrarianResource } from '../services/authApi'
 import { emptyResourceForm, resourceFormToPayload, resourceToForm, validateResourceForm } from '../utils/resourceForm'
-import PhysicalItemAdmin from '../components/PhysicalItemAdmin'
 
 function ResourceAdminPage() {
   const { id } = useParams()
@@ -12,18 +12,44 @@ function ResourceAdminPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState(emptyResourceForm)
   const [persistedTitle, setPersistedTitle] = useState('')
+  const [managedResource, setManagedResource] = useState(null)
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState(editing ? 'loading' : 'ready')
   const [message, setMessage] = useState('')
 
+  const isMountedRef = useRef(true)
+
   useEffect(() => {
-    if (!editing) return undefined
-    let active = true
-    getLibrarianResource(id)
-      .then((resource) => { if (active) { setForm(resourceToForm(resource)); setPersistedTitle(resource.title); setStatus('ready') } })
-      .catch((error) => { if (active) { setMessage(error.message); setStatus('error') } })
-    return () => { active = false }
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const loadResource = useCallback(async () => {
+    if (!editing || !id) return
+    try {
+      const resource = await getLibrarianResource(id)
+      if (isMountedRef.current) {
+        setManagedResource(resource)
+        setForm(resourceToForm(resource))
+        setPersistedTitle(resource.title)
+        setStatus('ready')
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setMessage(error.message)
+        setStatus('error')
+      }
+    }
   }, [editing, id])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadResource()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadResource])
 
   function updateField(event) {
     const { name, type, checked, value } = event.target
@@ -45,13 +71,19 @@ function ResourceAdminPage() {
       const saved = editing
         ? await updateLibrarianResource(id, payload)
         : await createLibrarianResource(payload)
-      setStatus('saved')
-      setPersistedTitle(saved.title)
-      setMessage(editing ? 'Đã lưu thay đổi tài liệu.' : `Đã tạo tài liệu #${saved.id}.`)
+      if (isMountedRef.current) {
+        setManagedResource(saved)
+        setForm(resourceToForm(saved))
+        setPersistedTitle(saved.title)
+        setStatus('saved')
+        setMessage(editing ? 'Đã lưu thay đổi tài liệu.' : `Đã tạo tài liệu #${saved.id}.`)
+      }
       if (!editing) navigate(`/librarian/resources/${saved.id}/edit`, { replace: true })
     } catch (error) {
-      setStatus('error')
-      setMessage(error.message)
+      if (isMountedRef.current) {
+        setStatus('error')
+        setMessage(error.message)
+      }
     }
   }
 
@@ -91,9 +123,16 @@ function ResourceAdminPage() {
             </fieldset>
 
             {form.hasPhysical && (
-              <FormField label="Tổng số bản vật lý" error={errors.physicalCopies} required>
-                <input name="physicalCopies" type="number" min="1" max="9999" step="1" value={form.physicalCopies} onChange={updateField} aria-invalid={Boolean(errors.physicalCopies)} />
-              </FormField>
+              <>
+                <FormField label="Tổng số bản vật lý" error={errors.physicalCopies} required>
+                  <input name="physicalCopies" type="number" min="1" max="9999" step="1" value={form.physicalCopies} onChange={updateField} aria-invalid={Boolean(errors.physicalCopies)} />
+                </FormField>
+                {managedResource?.physical && (
+                  <div className="availability-summary-info" style={{ marginTop: '0.25rem', marginBottom: '1rem', color: 'var(--text-secondary, #4a5568)' }}>
+                    <small>Trạng thái khả dụng (từ hệ thống): <strong>{managedResource.physical.availableCopies} / {managedResource.physical.totalCopies}</strong> bản có thể mượn</small>
+                  </div>
+                )}
+              </>
             )}
 
             {message && status !== 'error' && <div className="demo-success" role="status"><strong>{message}</strong></div>}
@@ -105,7 +144,7 @@ function ResourceAdminPage() {
         )}
 
         {editing && status !== 'loading' && status !== 'error' && (
-          <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} />
+          <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} onItemChange={loadResource} />
         )}
       </main>
       <Footer />

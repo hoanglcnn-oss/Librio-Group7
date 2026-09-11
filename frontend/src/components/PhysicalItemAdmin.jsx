@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
-import { getLibrarianPhysicalItems, createPhysicalItem, updatePhysicalItem, ERROR_MESSAGES } from '../services/authApi'
-import { fetchResourcePhysicalItems } from '../utils/physicalItemUtils'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ERROR_MESSAGES, createPhysicalItem, getLibrarianPhysicalItems, updatePhysicalItem } from '../services/authApi'
+import { fetchResourcePhysicalItems, handlePhysicalItemMutation } from '../utils/physicalItemUtils'
 
-export default function PhysicalItemAdmin({ resource }) {
+export default function PhysicalItemAdmin({ resource, onItemChange }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -18,25 +18,43 @@ export default function PhysicalItemAdmin({ resource }) {
   const [formStatus, setFormStatus] = useState('ready') // ready, saving, saved
   const [successMsg, setSuccessMsg] = useState('')
 
-  const loadItems = useCallback(async (active = true) => {
-    if (!resource?.title) return
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const resourceId = resource?.id
+  const resourceTitle = resource?.title
+
+  const loadItems = useCallback(async () => {
+    if (!resourceTitle) return
     setLoading(true)
     setLoadError('')
     try {
-      const allMatches = await fetchResourcePhysicalItems(resource, getLibrarianPhysicalItems)
-      if (active) setItems(allMatches)
+      const allMatches = await fetchResourcePhysicalItems({ id: resourceId, title: resourceTitle }, getLibrarianPhysicalItems)
+      if (isMountedRef.current) {
+        setItems(allMatches)
+      }
     } catch (e) {
-      if (active) setLoadError(e.message)
+      if (isMountedRef.current) {
+        setLoadError(e.message)
+      }
     } finally {
-      if (active) setLoading(false)
+      if (isMountedRef.current) {
+        setLoading(false)
+      }
     }
-  }, [resource])
+  }, [resourceId, resourceTitle])
 
   useEffect(() => {
-    let active = true
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadItems(active)
-    return () => { active = false }
+    const timer = window.setTimeout(() => {
+      loadItems()
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [loadItems])
 
   function openCreate() {
@@ -81,24 +99,33 @@ export default function PhysicalItemAdmin({ resource }) {
 
     setFormStatus('saving')
     try {
-      if (editingItem) {
-        await updatePhysicalItem(editingItem.id, { barcode, location, inventoryStatus })
-        setSuccessMsg(`Đã lưu thay đổi cho bản sách ${barcode}`)
-      } else {
-        await createPhysicalItem(resource.id, { barcode, location })
-        setSuccessMsg(`Đã tạo bản sách ${barcode}`)
+      const isEdit = Boolean(editingItem)
+      const barcodeValue = barcode.trim()
+      const locationValue = location.trim()
+
+      await handlePhysicalItemMutation({
+        mutationFn: () =>
+          isEdit
+            ? updatePhysicalItem(editingItem.id, { barcode: barcodeValue, location: locationValue, inventoryStatus })
+            : createPhysicalItem(resourceId, { barcode: barcodeValue, location: locationValue }),
+        refreshPhysicalItems: loadItems,
+        refreshManagedResource: onItemChange,
+      })
+
+      if (isMountedRef.current) {
+        setSuccessMsg(isEdit ? `Đã lưu thay đổi cho bản sách ${barcodeValue}` : `Đã tạo bản sách ${barcodeValue}`)
+        setFormStatus('saved')
+        setFormVisible(false)
       }
-      setFormStatus('saved')
-      setFormVisible(false)
-      loadItems() // refresh list
     } catch (err) {
-      setFormStatus('error')
-      // Extract specific backend errors if needed
-      let msg = err.message
-      if (err.code && ERROR_MESSAGES[err.code]) {
-        msg = ERROR_MESSAGES[err.code]
+      if (isMountedRef.current) {
+        setFormStatus('error')
+        let msg = err.message
+        if (err.code && ERROR_MESSAGES[err.code]) {
+          msg = ERROR_MESSAGES[err.code]
+        }
+        setFormError(msg)
       }
-      setFormError(msg)
     }
   }
 

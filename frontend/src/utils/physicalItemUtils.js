@@ -14,6 +14,21 @@ export async function fetchResourcePhysicalItems(resource, fetchPageFn) {
     totalPages = res.totalPages || 1
     currentPage += 1
   }
-  
   return allMatches
 }
+
+export async function handlePhysicalItemMutation({
+  mutationFn,
+  refreshPhysicalItems,
+  refreshManagedResource,
+}) {
+  const result = await mutationFn()
+  if (typeof refreshPhysicalItems === 'function') {
+    await refreshPhysicalItems()
+  }
+  if (typeof refreshManagedResource === 'function') {
+    await refreshManagedResource()
+  }
+  return result
+}
+
