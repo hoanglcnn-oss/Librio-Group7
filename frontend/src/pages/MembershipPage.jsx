@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getMembershipPlans, getCurrentMembership, simulateMembershipPayment } from '../services/authApi'
 import './MembershipPage.css'
 
@@ -10,7 +10,18 @@ export default function MembershipPage() {
   const [paymentError, setPaymentError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const isMountedRef = useRef(true)
+  const fetchSeqRef = useRef(0)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const loadData = async () => {
+    const seq = ++fetchSeqRef.current
     setLoading(true)
     setError(null)
     setPaymentError(null)
@@ -19,21 +30,32 @@ export default function MembershipPage() {
         getCurrentMembership(),
         getMembershipPlans()
       ])
-      setMembership(membershipRes)
-      setPlans(plansRes)
+      if (isMountedRef.current && seq === fetchSeqRef.current) {
+        setMembership(membershipRes)
+        setPlans(plansRes)
+      }
     } catch (err) {
-      setError(err.message || 'Không thể tải dữ liệu thành viên.')
+      if (isMountedRef.current && seq === fetchSeqRef.current) {
+        setError(err.message || 'Không thể tải dữ liệu thành viên.')
+      }
     } finally {
-      setLoading(false)
+      if (isMountedRef.current && seq === fetchSeqRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   const fetchMembershipOnly = async () => {
+    const seq = ++fetchSeqRef.current
     try {
       const res = await getCurrentMembership()
-      setMembership(res)
+      if (isMountedRef.current && seq === fetchSeqRef.current) {
+        setMembership(res)
+      }
     } catch {
-      setPaymentError('Lỗi khi tải lại trạng thái thành viên.')
+      if (isMountedRef.current && seq === fetchSeqRef.current) {
+        setPaymentError('Lỗi khi tải lại trạng thái thành viên.')
+      }
     }
   }
 
@@ -50,10 +72,14 @@ export default function MembershipPage() {
       await simulateMembershipPayment(planId, outcome)
       await fetchMembershipOnly()
     } catch (err) {
-      setPaymentError(err.message || 'Có lỗi xảy ra khi thanh toán.')
+      if (isMountedRef.current) {
+        setPaymentError(err.message || 'Có lỗi xảy ra khi thanh toán.')
+      }
       await fetchMembershipOnly()
     } finally {
-      setSubmitting(false)
+      if (isMountedRef.current) {
+        setSubmitting(false)
+      }
     }
   }
 
@@ -111,6 +137,11 @@ export default function MembershipPage() {
 
       <section className="available-plans">
         <h2>Các gói thành viên</h2>
+        {status === 'ACTIVE' && (
+          <p style={{ color: '#047857', marginBottom: '16px' }}>
+            Bạn đang có gói thành viên hoạt động. Việc mua thêm gói mới không cần thiết vào lúc này.
+          </p>
+        )}
         <div className="plans-grid">
           {plans.map(p => (
             <div key={p.id} className="plan-card">
@@ -121,14 +152,14 @@ export default function MembershipPage() {
               <div className="plan-actions">
                 <button 
                   className="btn-success" 
-                  disabled={submitting}
+                  disabled={submitting || status === 'ACTIVE'}
                   onClick={() => handlePayment(p.id, 'SUCCESS')}
                 >
                   Mô phỏng thanh toán (THÀNH CÔNG)
                 </button>
                 <button 
                   className="btn-danger" 
-                  disabled={submitting}
+                  disabled={submitting || status === 'ACTIVE'}
                   onClick={() => handlePayment(p.id, 'FAILED')}
                 >
                   Mô phỏng thanh toán (THẤT BẠI)
