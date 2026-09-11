@@ -9,6 +9,7 @@ import MyLibraryPage from './pages/MyLibraryPage'
 import ForbiddenPage from './pages/ForbiddenPage'
 import ResourceAdminPage from './pages/ResourceAdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import MembershipPage from './pages/MembershipPage'
 import './App.css'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/my-library" element={<ProtectedRoute role="READER"><MyLibraryPage /></ProtectedRoute>} />
+        <Route path="/membership" element={<ProtectedRoute role="READER"><MembershipPage /></ProtectedRoute>} />
         <Route path="/librarian/requests" element={<ProtectedRoute role="LIBRARIAN"><LibrarianRequestsPage /></ProtectedRoute>} />
         <Route path="/librarian/cockpit" element={<ProtectedRoute role="LIBRARIAN"><LibrarianCockpitPage /></ProtectedRoute>} />
         <Route path="/librarian/resources/new" element={<ProtectedRoute role="LIBRARIAN"><ResourceAdminPage /></ProtectedRoute>} />

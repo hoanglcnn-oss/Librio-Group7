@@ -20,6 +20,7 @@ function Header() {
         <nav aria-label="Điều hướng chính">
           <NavLink to="/resources">Kho tài liệu</NavLink>
           {auth.isReader && <NavLink to="/my-library">Thư viện của tôi</NavLink>}
+          {auth.isReader && <NavLink to="/membership">Gói thành viên</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/cockpit">Cockpit kho sách</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/requests">Xử lý mượn</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/resources/new">Quản lý tài liệu</NavLink>}

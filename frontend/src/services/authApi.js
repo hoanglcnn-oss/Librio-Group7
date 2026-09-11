@@ -41,6 +41,11 @@ export const ERROR_MESSAGES = {
   ACTIVE_CIRCULATION_CONFLICT: 'Không thể thay đổi trạng thái khi sách đang được mượn hoặc giữ.',
   INVALID_INVENTORY_TRANSITION: 'Không thể chuyển sang trạng thái tồn kho này.',
   PHYSICAL_ITEM_NOT_FOUND: 'Không tìm thấy bản sách vật lý.',
+  MEMBERSHIP_NOT_ELIGIBLE: 'Không đủ điều kiện đăng ký gói thành viên này.',
+  MEMBERSHIP_PLAN_NOT_FOUND: 'Không tìm thấy gói thành viên.',
+  ACTIVE_MEMBERSHIP_EXISTS: 'Bạn đã có gói thành viên đang hoạt động.',
+  MEMBERSHIP_ACTIVATION_CONFLICT: 'Có lỗi khi kích hoạt gói thành viên.',
+  INVALID_PAYMENT_OUTCOME: 'Kết quả thanh toán không hợp lệ.',
 }
 
 async function parseError(response) {
@@ -238,3 +243,15 @@ export function updatePhysicalItem(id, payload) {
   return csrfPost(`/librarian/physical-items/${encodeURIComponent(id)}`, payload, 'PUT')
 }
 
+
+export function getMembershipPlans() {
+  return authenticatedGet('/membership/plans')
+}
+
+export function getCurrentMembership() {
+  return authenticatedGet('/me/membership')
+}
+
+export function simulateMembershipPayment(planId, outcome) {
+  return csrfPost('/me/membership-payments', { planId, outcome })
+}
