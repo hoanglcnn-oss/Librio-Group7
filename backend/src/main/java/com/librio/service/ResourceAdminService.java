@@ -18,6 +18,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
+import com.librio.domain.MetadataSource;
+import com.librio.util.IsbnUtils;
+import com.librio.exception.InvalidIsbnException;
+import com.librio.exception.ResourceIsbnExistsException;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -48,34 +54,57 @@ public class ResourceAdminService {
     }
 
     @Transactional
-    public ManagedResourceDto create(ResourceAdminRequestDto request) {
+        public ManagedResourceDto create(ResourceAdminRequestDto request) {
         ValidatedInput input = validate(request);
+        if (input.isbn() != null && resourceRepository.existsByIsbn(input.isbn())) {
+            throw new ResourceIsbnExistsException("ISBN already exists");
+        }
         Resource resource = Resource.builder()
                 .title(input.title())
                 .authors(input.authors())
                 .description(input.description())
                 .category(input.category())
+                .isbn(input.isbn())
+                .coverImageUrl(input.coverImageUrl())
+                .metadataSource(input.metadataSource())
+                .externalSourceId(input.externalSourceId())
                 .build();
-        resource = resourceRepository.save(resource);
-        // Reconcile physical/digital access nằm trong cùng transaction với metadata resource.
+        try {
+            resource = resourceRepository.saveAndFlush(resource);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResourceIsbnExistsException("ISBN already exists");
+        }
+        // Reconcile physical/digital access nm trong cA1ng transaction v>i metadata resource.
         reconcilePhysicalCopies(resource, 0, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         return toDto(resource);
     }
 
     @Transactional
-    public ManagedResourceDto update(Long resourceId, ResourceAdminRequestDto request) {
+        public ManagedResourceDto update(Long resourceId, ResourceAdminRequestDto request) {
         Resource resource = findResource(resourceId);
         ValidatedInput input = validate(request);
+        if (input.isbn() != null && resourceRepository.existsByIsbnAndIdNot(input.isbn(), resourceId)) {
+            throw new ResourceIsbnExistsException("ISBN already exists");
+        }
         resource.setTitle(input.title());
         resource.setAuthors(input.authors());
         resource.setDescription(input.description());
         resource.setCategory(input.category());
+        resource.setIsbn(input.isbn());
+        resource.setCoverImageUrl(input.coverImageUrl());
+        resource.setMetadataSource(input.metadataSource());
+        resource.setExternalSourceId(input.externalSourceId());
 
         long currentCopies = physicalItemRepository.countByResourceId(resourceId);
-        // Atomic boundary: metadata update và reconcile copy/access cùng commit hoặc cùng rollback.
+        // Atomic boundary: metadata update vA reconcile copy/access cA1ng commit hoc cA1ng rollback.
         reconcilePhysicalCopies(resource, currentCopies, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
+        try {
+            resourceRepository.saveAndFlush(resource);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResourceIsbnExistsException("ISBN already exists");
+        }
         return toDto(resource);
     }
 
@@ -140,6 +169,10 @@ public class ResourceAdminService {
                         .availableCopies(availableCopies)
                         .build() : null)
                 .digital(digital ? DigitalAvailabilityDto.builder().available(true).build() : null)
+                .isbn(resource.getIsbn())
+                .coverImageUrl(resource.getCoverImageUrl())
+                .metadataSource(resource.getMetadataSource())
+                .externalSourceId(resource.getExternalSourceId())
                 .build();
     }
 
@@ -170,13 +203,27 @@ public class ResourceAdminService {
             throw validation("Physical access requires at least one copy");
         }
 
+        String isbn = blankToNull(request.getIsbn());
+        if (isbn != null) {
+            try {
+                isbn = IsbnUtils.normalizeToIsbn13(isbn);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidIsbnException("Invalid ISBN format");
+            }
+        }
+        MetadataSource metadataSource = request.getMetadataSource() != null ? request.getMetadataSource() : MetadataSource.MANUAL;
+
         return new ValidatedInput(
                 request.getTitle().trim(),
                 authors,
                 blankToNull(request.getDescription()),
                 blankToNull(request.getCategory()),
                 physicalCopies,
-                accessTypes.contains("DIGITAL"));
+                accessTypes.contains("DIGITAL"),
+                isbn,
+                blankToNull(request.getCoverImageUrl()),
+                metadataSource,
+                blankToNull(request.getExternalSourceId()));
     }
 
     private Resource findResource(Long resourceId) {
@@ -213,6 +260,10 @@ public class ResourceAdminService {
             String description,
             String category,
             long physicalCopies,
-            boolean digital) {
+            boolean digital,
+            String isbn,
+            String coverImageUrl,
+            MetadataSource metadataSource,
+            String externalSourceId) {
     }
 }

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import com.librio.domain.MetadataSource;
 
 import java.util.List;
 
@@ -27,6 +28,11 @@ public class ResourceAdminRequestDto {
 
     @NotEmpty
     private List<String> accessTypes;
+
+    private String isbn;
+    private String coverImageUrl;
+    private MetadataSource metadataSource;
+    private String externalSourceId;
 
     @Valid
     private PhysicalInput physical;

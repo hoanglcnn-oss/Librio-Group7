@@ -16,4 +16,8 @@ public class ManagedResourceDto {
     private List<String> accessTypes;
     private PhysicalAvailabilityDto physical;
     private DigitalAvailabilityDto digital;
+    private String isbn;
+    private String coverImageUrl;
+    private com.librio.domain.MetadataSource metadataSource;
+    private String externalSourceId;
 }

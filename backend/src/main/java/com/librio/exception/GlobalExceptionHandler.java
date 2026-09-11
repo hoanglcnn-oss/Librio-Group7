@@ -26,6 +26,18 @@ public class GlobalExceptionHandler {
                 .body(error(ex.getStatus(), ex.getCode(), ex.getMessage()));
     }
 
+    @ExceptionHandler(ResourceIsbnExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceIsbnExists(ResourceIsbnExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(error(HttpStatus.CONFLICT, "RESOURCE_ISBN_EXISTS", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidIsbnException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidIsbn(InvalidIsbnException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(error(HttpStatus.BAD_REQUEST, "INVALID_ISBN", ex.getMessage()));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleResourceNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
