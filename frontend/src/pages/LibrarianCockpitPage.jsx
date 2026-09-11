@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import {
@@ -19,16 +20,18 @@ function LibrarianCockpitPage() {
   const [summaryError, setSummaryError] = useState('')
 
   const [items, setItems] = useState([])
-  const [page, setPage] = useState(0)
-  const [size, setSize] = useState(20)
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
 
-  const [filterQ, setFilterQ] = useState('')
-  const [appliedQ, setAppliedQ] = useState('')
-  const [inventoryStatusFilter, setInventoryStatusFilter] = useState('')
-  const [circulationStatusFilter, setCirculationStatusFilter] = useState('')
-  const [needsAttentionFilter, setNeedsAttentionFilter] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const appliedQ = searchParams.get('q') || ''
+  const inventoryStatusFilter = searchParams.get('inventoryStatus') || ''
+  const circulationStatusFilter = searchParams.get('circulationStatus') || ''
+  const needsAttentionFilter = searchParams.get('needsAttention') || ''
+  const page = Number(searchParams.get('page')) || 0
+  const size = Number(searchParams.get('size')) || 20
+
+  const [filterQ, setFilterQ] = useState(appliedQ)
 
   const [itemsStatus, setItemsStatus] = useState('loading')
   const [itemsError, setItemsError] = useState('')
@@ -59,9 +62,16 @@ function LibrarianCockpitPage() {
         size,
       }
       const data = await getLibrarianPhysicalItems(params)
+      
+      if (data.page >= data.totalPages && data.totalPages > 0) {
+        setSearchParams(prev => {
+          prev.set('page', String(data.totalPages - 1))
+          return prev
+        }, { replace: true })
+        return
+      }
+
       setItems(data.items || [])
-      setPage(data.page ?? 0)
-      setSize(data.size ?? 20)
       setTotalElements(data.totalElements ?? 0)
       setTotalPages(data.totalPages ?? 0)
       setItemsStatus('success')
@@ -69,7 +79,7 @@ function LibrarianCockpitPage() {
       setItemsError(err.message || 'Không thể tải danh sách bản sách.')
       setItemsStatus('error')
     }
-  }, [appliedQ, inventoryStatusFilter, circulationStatusFilter, needsAttentionFilter, page, size])
+  }, [appliedQ, inventoryStatusFilter, circulationStatusFilter, needsAttentionFilter, page, size, setSearchParams])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -87,17 +97,17 @@ function LibrarianCockpitPage() {
 
   function handleSearchSubmit(e) {
     e.preventDefault()
-    setPage(0)
-    setAppliedQ(filterQ.trim())
+    setSearchParams(prev => {
+      prev.set('page', '0')
+      if (filterQ.trim()) prev.set('q', filterQ.trim())
+      else prev.delete('q')
+      return prev
+    })
   }
 
   function handleResetFilters() {
     setFilterQ('')
-    setAppliedQ('')
-    setInventoryStatusFilter('')
-    setCirculationStatusFilter('')
-    setNeedsAttentionFilter('')
-    setPage(0)
+    setSearchParams(new URLSearchParams())
   }
 
   function handleRefreshAll() {
@@ -192,8 +202,12 @@ function LibrarianCockpitPage() {
                 id="inventory-status-select"
                 value={inventoryStatusFilter}
                 onChange={(e) => {
-                  setInventoryStatusFilter(e.target.value)
-                  setPage(0)
+                  setSearchParams(prev => {
+                    prev.set('page', '0')
+                    if (e.target.value) prev.set('inventoryStatus', e.target.value)
+                    else prev.delete('inventoryStatus')
+                    return prev
+                  })
                 }}
               >
                 <option value="">Tất cả</option>
@@ -210,8 +224,12 @@ function LibrarianCockpitPage() {
                 id="circulation-status-select"
                 value={circulationStatusFilter}
                 onChange={(e) => {
-                  setCirculationStatusFilter(e.target.value)
-                  setPage(0)
+                  setSearchParams(prev => {
+                    prev.set('page', '0')
+                    if (e.target.value) prev.set('circulationStatus', e.target.value)
+                    else prev.delete('circulationStatus')
+                    return prev
+                  })
                 }}
               >
                 <option value="">Tất cả</option>
@@ -227,8 +245,12 @@ function LibrarianCockpitPage() {
                 id="attention-select"
                 value={needsAttentionFilter}
                 onChange={(e) => {
-                  setNeedsAttentionFilter(e.target.value)
-                  setPage(0)
+                  setSearchParams(prev => {
+                    prev.set('page', '0')
+                    if (e.target.value) prev.set('needsAttention', e.target.value)
+                    else prev.delete('needsAttention')
+                    return prev
+                  })
                 }}
               >
                 <option value="">Tất cả</option>
@@ -284,7 +306,9 @@ function LibrarianCockpitPage() {
                         {/* Barcode & Location */}
                         <td>
                           <div className="item-identity">
-                            <strong className="item-barcode">{item.barcode}</strong>
+                            <Link to={`/librarian/resources/${item.resource?.id}/edit`} className="item-barcode">
+                              <strong>{item.barcode}</strong>
+                            </Link>
                             <span className="item-location">
                               Vị trí: {item.location || <em className="text-muted">Chưa gán</em>}
                             </span>
@@ -347,9 +371,9 @@ function LibrarianCockpitPage() {
                           {item.activeOperation ? (
                             <div className="active-op-card">
                               <div className="active-op-header">
-                                <span className={`op-type-badge op-${item.activeOperation.type?.toLowerCase()}`}>
+                                <Link to="/librarian/requests" className={`op-type-badge op-${item.activeOperation.type?.toLowerCase()}`}>
                                   {item.activeOperation.type === 'BORROWING' ? 'LƯỢT MƯỢN' : 'YÊU CẦU MƯỢN'}
-                                </span>
+                                </Link>
                                 {item.activeOperation.overdue && (
                                   <span className="op-overdue-tag">QUÁ HẠN</span>
                                 )}
@@ -363,6 +387,7 @@ function LibrarianCockpitPage() {
                                 </div>
                                 {item.activeOperation.type === 'BORROWING' ? (
                                   <>
+                                    <div><strong>Mã phiếu mượn:</strong> #{item.activeOperation.borrowRequestId}</div>
                                     <div><strong>Ngày mượn:</strong> {formatDate(item.activeOperation.borrowedAt)}</div>
                                     <div>
                                       <strong>Hạn trả:</strong>{' '}
@@ -374,6 +399,7 @@ function LibrarianCockpitPage() {
                                 ) : (
                                   <>
                                     <div><strong>Trạng thái:</strong> {formatOperationStatus(item.activeOperation.status)}</div>
+                                    <div><strong>Ngày cập nhật:</strong> {formatDate(item.activeOperation.statusUpdatedAt)}</div>
                                     <div><strong>Ngày yêu cầu:</strong> {formatDate(item.activeOperation.requestedAt)}</div>
                                     {item.activeOperation.expiresAt && (
                                       <div><strong>Hạn nhận:</strong> {formatDate(item.activeOperation.expiresAt)}</div>
@@ -402,7 +428,7 @@ function LibrarianCockpitPage() {
                     type="button"
                     className="text-action"
                     disabled={page <= 0}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    onClick={() => setSearchParams(prev => { prev.set('page', String(Math.max(0, page - 1))); return prev })}
                   >
                     Trang trước
                   </button>
@@ -410,15 +436,18 @@ function LibrarianCockpitPage() {
                     type="button"
                     className="text-action"
                     disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => p + 1)}
+                    onClick={() => setSearchParams(prev => { prev.set('page', String(page + 1)); return prev })}
                   >
                     Trang sau
                   </button>
                   <select
                     value={size}
                     onChange={(e) => {
-                      setSize(Number(e.target.value))
-                      setPage(0)
+                      setSearchParams(prev => {
+                        prev.set('size', e.target.value)
+                        prev.set('page', '0')
+                        return prev
+                      })
                     }}
                     aria-label="Số bản sách mỗi trang"
                   >
