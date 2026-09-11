@@ -97,6 +97,22 @@ Stable attention reason codes:
 
 `borrowable`, `needsAttention`, `attentionReasons`, and `overdue` are server-derived; the client must not recompute them.
 
+### Collection Cockpit implementation / verification note
+
+US-15 Collection Cockpit implementation is complete through T-156.
+
+Verified integration behavior includes:
+
+- Cockpit filters and pagination remain server-driven;
+- URL query state covers `q`, `inventoryStatus`, `circulationStatus`, `needsAttention`, `page`, and `size`;
+- changing filter criteria resets pagination appropriately;
+- malformed / unsupported page and page-size URL values are normalized before backend requests;
+- manual refresh reloads both summary and the current physical-item page;
+- active-operation display includes `statusUpdatedAt` for borrow requests and `borrowRequestId` for borrowings;
+- Cockpit navigation reuses existing librarian resource / circulation workflows rather than introducing duplicate mutation APIs.
+
+Automated verification is covered by the T-156 Cockpit regression tests. Deployed end-to-end verification is recorded separately as Sprint 4 evidence.
+
 ### Inventory implementation / verification note
 
 US-14 inventory API implementation is complete through T-147.
