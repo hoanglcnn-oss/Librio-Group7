@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getLibrarianPhysicalItems, createPhysicalItem, updatePhysicalItem, ERROR_MESSAGES } from '../services/authApi'
+import { fetchResourcePhysicalItems } from '../utils/physicalItemUtils'
 
 export default function PhysicalItemAdmin({ resource }) {
   const [items, setItems] = useState([])
@@ -17,24 +18,26 @@ export default function PhysicalItemAdmin({ resource }) {
   const [formStatus, setFormStatus] = useState('ready') // ready, saving, saved
   const [successMsg, setSuccessMsg] = useState('')
 
-  async function loadItems() {
+  const loadItems = useCallback(async (active = true) => {
     if (!resource?.title) return
     setLoading(true)
     setLoadError('')
     try {
-      const res = await getLibrarianPhysicalItems({ q: resource.title, size: 500 })
-      const matches = (res.items || res.content || []).filter(item => item.resource?.id === resource.id)
-      setItems(matches)
+      const allMatches = await fetchResourcePhysicalItems(resource, getLibrarianPhysicalItems)
+      if (active) setItems(allMatches)
     } catch (e) {
-      setLoadError(e.message)
+      if (active) setLoadError(e.message)
     } finally {
-      setLoading(false)
+      if (active) setLoading(false)
     }
-  }
+  }, [resource])
 
   useEffect(() => {
-    loadItems()
-  }, [resource.id, resource.title])
+    let active = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadItems(active)
+    return () => { active = false }
+  }, [loadItems])
 
   function openCreate() {
     setEditingItem(null)

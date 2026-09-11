@@ -11,6 +11,7 @@ function ResourceAdminPage() {
   const editing = Boolean(id)
   const navigate = useNavigate()
   const [form, setForm] = useState(emptyResourceForm)
+  const [persistedTitle, setPersistedTitle] = useState('')
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState(editing ? 'loading' : 'ready')
   const [message, setMessage] = useState('')
@@ -19,7 +20,7 @@ function ResourceAdminPage() {
     if (!editing) return undefined
     let active = true
     getLibrarianResource(id)
-      .then((resource) => { if (active) { setForm(resourceToForm(resource)); setStatus('ready') } })
+      .then((resource) => { if (active) { setForm(resourceToForm(resource)); setPersistedTitle(resource.title); setStatus('ready') } })
       .catch((error) => { if (active) { setMessage(error.message); setStatus('error') } })
     return () => { active = false }
   }, [editing, id])
@@ -45,6 +46,7 @@ function ResourceAdminPage() {
         ? await updateLibrarianResource(id, payload)
         : await createLibrarianResource(payload)
       setStatus('saved')
+      setPersistedTitle(saved.title)
       setMessage(editing ? 'Đã lưu thay đổi tài liệu.' : `Đã tạo tài liệu #${saved.id}.`)
       if (!editing) navigate(`/librarian/resources/${saved.id}/edit`, { replace: true })
     } catch (error) {
@@ -103,7 +105,7 @@ function ResourceAdminPage() {
         )}
 
         {editing && status !== 'loading' && status !== 'error' && (
-          <PhysicalItemAdmin resource={{ id: Number(id), title: form.title }} />
+          <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} />
         )}
       </main>
       <Footer />
