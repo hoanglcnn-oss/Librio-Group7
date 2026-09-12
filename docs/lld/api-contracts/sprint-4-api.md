@@ -199,6 +199,92 @@ Verification coverage added in T-167 includes:
 
 Backend verification tests have been added but are not execution-proven in the current local environment because Maven and Maven Wrapper are unavailable. Deployed end-to-end verification is recorded separately.
 
+## Membership borrowing quota
+
+- `GET /me/borrowing-quota` — reader; returns the authoritative borrowing-quota snapshot for the authenticated reader.
+- Reader identity is derived from the current authenticated principal.
+- The client does not provide a `readerId`.
+
+Example response:
+
+```json
+{
+  "planQuota": 20,
+  "usedBorrowings": 7,
+  "activeCommitments": 2,
+  "remainingQuota": 11,
+  "periodStart": "2026-09-20T00:00:00",
+  "periodEnd": "2026-10-20T00:00:00"
+}
+````
+
+Field semantics:
+
+* `planQuota` — borrowing quota configured on the active membership plan.
+* `usedBorrowings` — successful borrowings whose `borrowedAt` falls within the current membership cycle. Returned borrowings still count.
+* `activeCommitments` — active borrow requests in `REQUESTED` or `READY_FOR_PICKUP`.
+* `remainingQuota` — server-derived remaining quota, clamped at zero.
+* `periodStart`, `periodEnd` — current membership-cycle boundaries derived from the active subscription.
+
+Quota rules:
+
+* Quota is calculated by membership cycle, not by calendar month.
+* No unused quota is carried into the next cycle.
+* Returned borrowings still consume quota for the cycle in which they were borrowed.
+* `REQUESTED` and `READY_FOR_PICKUP` requests reserve quota.
+* `CANCELLED`, `REJECTED`, and `EXPIRED` requests do not consume quota.
+* Fulfilment converts an active commitment into borrowing usage without consuming an additional quota slot.
+* Membership expiry blocks new borrowing but does not mutate an existing active borrowing.
+* The backend remains authoritative for both quota calculation and borrow authorization.
+* The frontend displays server-provided quota values and does not derive authoritative `remainingQuota` locally.
+
+Quota-related borrow errors:
+
+| Status | Code                         | Meaning                                                |
+| -----: | ---------------------------- | ------------------------------------------------------ |
+|  `403` | `ACTIVE_MEMBERSHIP_REQUIRED` | Reader has no active membership                        |
+|  `409` | `BORROW_QUOTA_EXCEEDED`      | Current membership-cycle quota is exhausted            |
+|  `500` | `INVALID_PLAN_QUOTA`         | Active membership plan has invalid quota configuration |
+
+`BORROWING_LIMIT_REACHED` remains a separate circulation-policy limit and is not equivalent to membership quota exhaustion.
+
+Quota endpoint errors:
+
+| Status | Code                                                 |
+| -----: | ---------------------------------------------------- |
+|  `401` | `AUTHENTICATION_REQUIRED`                            |
+|  `403` | `ACTIVE_MEMBERSHIP_REQUIRED` / `OPERATION_FORBIDDEN` |
+|  `500` | `INVALID_PLAN_QUOTA`                                 |
+
+### Borrowing quota implementation / verification note
+
+US-17 quota implementation is complete through T-176.
+
+Implemented behavior includes:
+
+* quota calculation through the server-side `BorrowingQuotaPolicy`;
+* membership-cycle usage derived from persisted borrowings and active borrow-request commitments;
+* quota enforcement during borrow-request creation;
+* authenticated reader quota snapshot via `GET /me/borrowing-quota`;
+* reader UI displaying plan quota, consumed usage and remaining quota;
+* backend enforcement remaining authoritative even if the displayed UI state becomes stale.
+
+Verification coverage added through T-176 includes:
+
+* current-cycle and previous-cycle borrowing calculations;
+* returned borrowing remaining counted in current-cycle usage;
+* `REQUESTED` and `READY_FOR_PICKUP` commitments;
+* exclusion of `CANCELLED`, `REJECTED`, and `EXPIRED` requests;
+* invalid/null plan quota handling;
+* remaining quota clamped at zero;
+* same-reader concurrent borrow requests under a quota of one;
+* preservation of the existing physical-item locking boundary.
+
+Frontend verification passed with 39 Node tests, lint and production build.
+
+Backend integration and concurrency tests have been added and aligned with the current domain model, but were not executed in the current local environment because Maven and Maven Wrapper are unavailable.
+
+
 ## Membership-aware digital access
 
 - `GET /resources/{id}/digital-access` — public; returns server-derived digital capability.
