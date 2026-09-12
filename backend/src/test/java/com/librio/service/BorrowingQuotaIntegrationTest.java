@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,6 +28,9 @@ public class BorrowingQuotaIntegrationTest {
 
     @Autowired
     private MembershipPlanRepository planRepository;
+
+    @Autowired
+    private PaymentTransactionRepository paymentTransactionRepository;
 
     @Autowired
     private MembershipSubscriptionRepository subscriptionRepository;
@@ -47,35 +51,37 @@ public class BorrowingQuotaIntegrationTest {
     private MembershipPlan plan;
     private Resource resource;
     private PhysicalItem item;
+    private int counter = 0;
 
     @BeforeEach
     void setUp() {
         cleanUp();
         reader = accountRepository.save(Account.builder()
-                .email("quota_integ_reader@example.com")
+                .email("quota_integ_reader" + UUID.randomUUID() + "@example.com")
                 .passwordHash("hash")
                 .role(AccountRole.READER)
                 .accountStatus(AccountStatus.ACTIVE)
                 .build());
 
         plan = planRepository.save(MembershipPlan.builder()
+                .code("QUOTA_INTEG_PLAN_" + UUID.randomUUID())
                 .name("Integ Plan")
                 .durationMonths(1)
                 .priceAmount(BigDecimal.TEN)
                 .currency("USD")
                 .monthlyBorrowQuota(5)
-                .isActive(true)
+                .active(true)
                 .build());
 
         resource = resourceRepository.save(Resource.builder()
                 .title("Resource")
-                .author("Author")
-                .accessType(AccessType.PHYSICAL_ONLY)
+                .authors("Author")
                 .build());
 
         item = physicalItemRepository.save(PhysicalItem.builder()
                 .resource(resource)
-                .barcode("BC-INTEG-1")
+                .barcode("BC-INTEG-" + UUID.randomUUID())
+                .location("A1")
                 .inventoryStatus(InventoryStatus.ACTIVE)
                 .circulationStatus(CirculationStatus.AVAILABLE)
                 .build());
@@ -86,6 +92,7 @@ public class BorrowingQuotaIntegrationTest {
         borrowingRepository.deleteAll();
         borrowRequestRepository.deleteAll();
         subscriptionRepository.deleteAll();
+        paymentTransactionRepository.deleteAll();
         physicalItemRepository.deleteAll();
         resourceRepository.deleteAll();
         planRepository.deleteAll();
@@ -93,29 +100,39 @@ public class BorrowingQuotaIntegrationTest {
     }
 
     private MembershipSubscription createSubscription(LocalDateTime startsAt) {
+        PaymentTransaction tx = paymentTransactionRepository.save(PaymentTransaction.builder()
+                .account(reader)
+                .plan(plan)
+                .amount(plan.getPriceAmount())
+                .currency(plan.getCurrency())
+                .status(PaymentStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .build());
+
         return subscriptionRepository.save(MembershipSubscription.builder()
                 .account(reader)
                 .plan(plan)
+                .paymentTransaction(tx)
                 .startsAt(startsAt)
                 .expiresAt(startsAt.plusMonths(12))
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build());
     }
 
     private void createBorrowing(LocalDateTime borrowedAt, LocalDateTime returnedAt) {
+        BorrowRequest req = createBorrowRequest(returnedAt != null ? BorrowRequestStatus.FULFILLED : BorrowRequestStatus.FULFILLED);
+
         Borrowing borrowing = Borrowing.builder()
                 .reader(reader)
                 .physicalItem(item)
+                .borrowRequest(req)
                 .borrowedAt(borrowedAt)
+                .dueAt(borrowedAt.plusDays(14))
                 .returnedAt(returnedAt)
-                .status(returnedAt != null ? BorrowingStatus.RETURNED : BorrowingStatus.BORROWED)
-                .dueDate(borrowedAt.plusDays(14))
                 .build();
         borrowingRepository.save(borrowing);
     }
 
-    private void createBorrowRequest(BorrowRequestStatus status) {
+    private BorrowRequest createBorrowRequest(BorrowRequestStatus status) {
         BorrowRequest req = BorrowRequest.builder()
                 .reader(reader)
                 .resource(resource)
@@ -124,7 +141,7 @@ public class BorrowingQuotaIntegrationTest {
                 .requestedAt(LocalDateTime.now())
                 .statusUpdatedAt(LocalDateTime.now())
                 .build();
-        borrowRequestRepository.save(req);
+        return borrowRequestRepository.save(req);
     }
 
     @Test
