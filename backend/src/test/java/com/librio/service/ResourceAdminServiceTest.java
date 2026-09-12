@@ -1,4 +1,4 @@
-package com.librio.service;
+﻿package com.librio.service;
 
 import com.librio.domain.MetadataSource;
 import com.librio.domain.Resource;
@@ -158,4 +158,95 @@ public class ResourceAdminServiceTest {
                 .isInstanceOf(ResourceIsbnExistsException.class)
                 .hasMessageContaining("ISBN already exists");
     }
+
+    @Autowired
+    private com.librio.repository.PhysicalItemRepository physicalItemRepository;
+
+    @Test
+    void update_quantityDecrease_withdrawsEligibleCopies() {
+        ResourceAdminRequestDto request = new ResourceAdminRequestDto();
+        request.setTitle("Withdraw Test");
+        request.setAuthors(List.of("Author"));
+        request.setAccessTypes(List.of("PHYSICAL"));
+        ResourceAdminRequestDto.PhysicalInput physical = new ResourceAdminRequestDto.PhysicalInput();
+        physical.setTotalCopies(3);
+        request.setPhysical(physical);
+        ManagedResourceDto created = resourceAdminService.create(request);
+
+        assertThat(created.getPhysical().getTotalCopies()).isEqualTo(3);
+        
+        // Decrease to 1
+        physical.setTotalCopies(1);
+        ManagedResourceDto updated = resourceAdminService.update(created.getId(), request);
+
+        assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(1);
+        
+        // Database should still contain 3 rows (1 ACTIVE, 2 WITHDRAWN)
+        long totalRows = physicalItemRepository.countByResourceId(created.getId());
+        assertThat(totalRows).isEqualTo(3);
+        
+        long withdrawnRows = physicalItemRepository.countByResourceIdAndInventoryStatusNot(created.getId(), com.librio.domain.InventoryStatus.WITHDRAWN);
+        assertThat(withdrawnRows).isEqualTo(1);
+    }
+
+    @Test
+    void update_secondReconciliation_createsCorrectDelta() {
+        ResourceAdminRequestDto request = new ResourceAdminRequestDto();
+        request.setTitle("Delta Test");
+        request.setAuthors(List.of("Author"));
+        request.setAccessTypes(List.of("PHYSICAL"));
+        ResourceAdminRequestDto.PhysicalInput physical = new ResourceAdminRequestDto.PhysicalInput();
+        physical.setTotalCopies(2);
+        request.setPhysical(physical);
+        ManagedResourceDto created = resourceAdminService.create(request);
+
+        // Withdraw 1 copy
+        physical.setTotalCopies(1);
+        resourceAdminService.update(created.getId(), request);
+
+        // Increase back to 2 copies
+        physical.setTotalCopies(2);
+        ManagedResourceDto updated = resourceAdminService.update(created.getId(), request);
+
+        assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(2);
+        
+        // Total rows should be 3 (2 ACTIVE, 1 WITHDRAWN)
+        long totalRows = physicalItemRepository.countByResourceId(created.getId());
+        assertThat(totalRows).isEqualTo(3);
+    }
+
+    @Test
+    void update_activeCirculation_isNotWithdrawn() {
+        ResourceAdminRequestDto request = new ResourceAdminRequestDto();
+        request.setTitle("Circulation Test");
+        request.setAuthors(List.of("Author"));
+        request.setAccessTypes(List.of("PHYSICAL"));
+        ResourceAdminRequestDto.PhysicalInput physical = new ResourceAdminRequestDto.PhysicalInput();
+        physical.setTotalCopies(2);
+        request.setPhysical(physical);
+        ManagedResourceDto created = resourceAdminService.create(request);
+
+        // Manually set one to BORROWED
+        List<com.librio.domain.PhysicalItem> items = physicalItemRepository.findByResourceId(created.getId());
+        com.librio.domain.PhysicalItem first = items.get(0);
+        first.setCirculationStatus(com.librio.domain.CirculationStatus.BORROWED);
+        physicalItemRepository.save(first);
+
+        // Try to decrease to 0
+        physical.setTotalCopies(0);
+        assertThatThrownBy(() -> resourceAdminService.update(created.getId(), request))
+                .isInstanceOf(com.librio.exception.BorrowFlowException.class)
+                .hasMessageContaining("Cannot remove reserved, borrowed or overdue physical items");
+
+        // Try to decrease to 1 (should withdraw the AVAILABLE one)
+        physical.setTotalCopies(1);
+        ManagedResourceDto updated = resourceAdminService.update(created.getId(), request);
+        assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(1);
+        
+        // The borrowed item should still be ACTIVE
+        com.librio.domain.PhysicalItem updatedFirst = physicalItemRepository.findById(first.getId()).orElseThrow();
+        assertThat(updatedFirst.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.ACTIVE);
+        assertThat(updatedFirst.getCirculationStatus()).isEqualTo(com.librio.domain.CirculationStatus.BORROWED);
+    }
 }
+

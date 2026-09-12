@@ -26,6 +26,8 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
 
     long countByResourceId(Long resourceId);
 
+    long countByResourceIdAndInventoryStatusNot(Long resourceId, InventoryStatus status);
+
     long countByResourceIdAndInventoryStatusAndCirculationStatus(
             Long resourceId,
             InventoryStatus inventoryStatus,

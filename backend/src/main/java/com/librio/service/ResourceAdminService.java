@@ -33,11 +33,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Quan tri metadata resource va reconcile access records cua librarian.
+ * Manages resource metadata and reconciles access records for the librarian.
  *
- * <p>Physical copies duoc quan ly theo exact item rows. Giam so luong chi duoc xoa item AVAILABLE;
+ * <p>Physical copies are managed as exact item rows. Reducing quantity only withdraws AVAILABLE items.
  * RESERVED, BORROWED hoac OVERDUE la circulation commitment dang hoat dong nen phai giu lai.
- * Authors hien di qua API dang JSON array nhung van persist dang comma-separated de tuong thich schema.
+ * Authors are accepted as JSON array via API but persisted as comma-separated string for schema compatibility.
  */
 @Service
 @RequiredArgsConstructor
@@ -72,13 +72,13 @@ public class ResourceAdminService {
         try {
             resource = resourceRepository.saveAndFlush(resource);
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("uq_resource_isbn") || msg.contains("isbn")) {
+            String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage().toLowerCase() : (e.getMessage() != null ? e.getMessage().toLowerCase() : "");
+            if (msg.contains("uq_resource_isbn")) {
                 throw new ResourceIsbnExistsException("ISBN already exists");
             }
             throw e;
         }
-        // Reconcile physical/digital access cung transaction voi metadata resource.
+        // Reconcile physical/digital access in the same transaction as metadata resource.
         reconcilePhysicalCopies(resource, 0, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         return toDto(resource);
@@ -100,15 +100,15 @@ public class ResourceAdminService {
         resource.setMetadataSource(input.metadataSource());
         resource.setExternalSourceId(input.externalSourceId());
 
-        long currentCopies = physicalItemRepository.countByResourceId(resourceId);
-        // Atomic boundary: metadata update va reconcile copy/access cung commit hoac rollback.
+        long currentCopies = physicalItemRepository.countByResourceIdAndInventoryStatusNot(resourceId, InventoryStatus.WITHDRAWN);
+        // Atomic boundary: metadata update and copy/access reconciliation happen in the same transaction.
         reconcilePhysicalCopies(resource, currentCopies, input.physicalCopies());
         reconcileDigitalItem(resource, input.digital());
         try {
             resourceRepository.saveAndFlush(resource);
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("uq_resource_isbn") || msg.contains("isbn")) {
+            String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage().toLowerCase() : (e.getMessage() != null ? e.getMessage().toLowerCase() : "");
+            if (msg.contains("uq_resource_isbn")) {
                 throw new ResourceIsbnExistsException("ISBN already exists");
             }
             throw e;
@@ -136,7 +136,7 @@ public class ResourceAdminService {
         }
 
         long removeCount = current - desired;
-        // Chá»‰ xÃ³a copy AVAILABLE; RESERVED/BORROWED/OVERDUE váº«n lÃ  commitment lÆ°u thÃ´ng cáº§n báº£o toÃ n.
+        // Only withdraw AVAILABLE copies; RESERVED/BORROWED/OVERDUE are active commitments that must be preserved.
         List<PhysicalItem> available = physicalItemRepository.findForUpdate(
                 resource.getId(), InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE,
                 PageRequest.of(0, Math.toIntExact(removeCount)));
@@ -144,7 +144,11 @@ public class ResourceAdminService {
             throw conflict(BorrowErrorCode.RESOURCE_IN_USE,
                     "Cannot remove reserved, borrowed or overdue physical items");
         }
-        physicalItemRepository.deleteAll(available.subList(0, Math.toIntExact(removeCount)));
+        List<PhysicalItem> toWithdraw = available.subList(0, Math.toIntExact(removeCount));
+        for (PhysicalItem item : toWithdraw) {
+            item.setInventoryStatus(InventoryStatus.WITHDRAWN);
+        }
+        physicalItemRepository.saveAll(toWithdraw);
     }
 
     private void reconcileDigitalItem(Resource resource, boolean desired) {
@@ -157,7 +161,7 @@ public class ResourceAdminService {
     }
 
     private ManagedResourceDto toDto(Resource resource) {
-        long totalCopies = physicalItemRepository.countByResourceId(resource.getId());
+        long totalCopies = physicalItemRepository.countByResourceIdAndInventoryStatusNot(resource.getId(), InventoryStatus.WITHDRAWN);
         long availableCopies = physicalItemRepository.countByResourceIdAndInventoryStatusAndCirculationStatus(
                 resource.getId(), InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE);
         boolean digital = digitalItemRepository.existsByResourceId(resource.getId());

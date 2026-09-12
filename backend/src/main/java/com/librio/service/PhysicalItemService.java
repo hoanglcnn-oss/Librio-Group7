@@ -53,8 +53,8 @@ public class PhysicalItemService {
         try {
             return toDto(physicalItemRepository.saveAndFlush(item));
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("uq_physical_item_barcode") || msg.contains("barcode")) {
+            String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage().toLowerCase() : (e.getMessage() != null ? e.getMessage().toLowerCase() : "");
+            if (msg.contains("uq_physical_item_barcode")) {
                 throw new BorrowFlowException(
                         "DUPLICATE_ITEM_BARCODE",
                         HttpStatus.CONFLICT,
@@ -93,8 +93,8 @@ public class PhysicalItemService {
         try {
             return toDto(physicalItemRepository.saveAndFlush(item));
         } catch (DataIntegrityViolationException e) {
-            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            if (msg.contains("uq_physical_item_barcode") || msg.contains("barcode")) {
+            String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage().toLowerCase() : (e.getMessage() != null ? e.getMessage().toLowerCase() : "");
+            if (msg.contains("uq_physical_item_barcode")) {
                 throw new BorrowFlowException(
                         "DUPLICATE_ITEM_BARCODE",
                         HttpStatus.CONFLICT,
