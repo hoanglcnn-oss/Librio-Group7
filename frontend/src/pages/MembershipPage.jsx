@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { getMembershipPlans, getCurrentMembership, simulateMembershipPayment } from '../services/authApi'
+import { getMembershipPlans, getCurrentMembership, simulateMembershipPayment, getBorrowingQuota } from '../services/authApi'
 import './MembershipPage.css'
 
 export default function MembershipPage() {
   const [membership, setMembership] = useState(null)
+  const [quota, setQuota] = useState(null)
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -32,8 +33,17 @@ export default function MembershipPage() {
         getCurrentMembership(),
         getMembershipPlans()
       ])
+      let quotaRes = null
+      if (membershipRes.status === 'ACTIVE') {
+        try {
+          quotaRes = await getBorrowingQuota()
+        } catch (e) {
+          console.error("Failed to load quota", e)
+        }
+      }
       if (isMountedRef.current && seq === fetchSeqRef.current) {
         setMembership(membershipRes)
+        setQuota(quotaRes)
         setPlans(plansRes)
       }
     } catch (err) {
@@ -51,8 +61,17 @@ export default function MembershipPage() {
     const seq = ++fetchSeqRef.current
     try {
       const res = await getCurrentMembership()
+      let quotaRes = null
+      if (res.status === 'ACTIVE') {
+        try {
+          quotaRes = await getBorrowingQuota()
+        } catch (e) {
+          console.error("Failed to load quota", e)
+        }
+      }
       if (isMountedRef.current && seq === fetchSeqRef.current) {
         setMembership(res)
+        setQuota(quotaRes)
       }
     } catch {
       if (isMountedRef.current && seq === fetchSeqRef.current) {
@@ -135,6 +154,14 @@ export default function MembershipPage() {
               <p>Gói: {plan.name}</p>
               <p>Ngày bắt đầu: {new Date(startsAt).toLocaleString()}</p>
               <p>Ngày hết hạn: {new Date(expiresAt).toLocaleString()}</p>
+              {quota && (
+                <div className="quota-summary" style={{ marginTop: '16px', padding: '12px', background: '#f3f4f6', borderRadius: '4px' }}>
+                  <p>Hạn mức mượn: {quota.planQuota} lượt / chu kỳ</p>
+                  <p>Đã sử dụng: {quota.usedBorrowings + quota.activeCommitments} / {quota.planQuota} lượt</p>
+                  <p>Còn lại: {quota.remainingQuota} lượt</p>
+                  <p>Chu kỳ hiện tại: {new Date(quota.periodStart).toLocaleDateString()} – {new Date(quota.periodEnd).toLocaleDateString()}</p>
+                </div>
+              )}
             </>
           )}
           {status === 'EXPIRED' && expiresAt && (

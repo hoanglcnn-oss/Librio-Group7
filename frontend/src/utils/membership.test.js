@@ -101,3 +101,19 @@ test('T-165: double-submit guard prevents multiple concurrent requests', async (
   
   assert.equal(simulateCalled, 1, 'Simulate should only be called once due to double-submit guard')
 })
+test('T-175: stable error mapping exists for borrow quota failures', () => {
+  const authApiContent = fs.readFileSync(path.join(__dirname, '../services/authApi.js'), 'utf-8')
+  
+  assert.ok(authApiContent.includes("ACTIVE_MEMBERSHIP_REQUIRED: 'Bạn cần gói thành viên đang hoạt động để mượn sách.'"))
+  assert.ok(authApiContent.includes("BORROW_QUOTA_EXCEEDED: 'Bạn đã sử dụng hết hạn mức mượn của chu kỳ hiện tại.'"))
+  assert.ok(authApiContent.includes("INVALID_PLAN_QUOTA: 'Hạn mức mượn của gói thành viên hiện không hợp lệ. Vui lòng thử lại sau.'"))
+})
+
+test('T-175: MembershipPage renders quota display values', () => {
+  const pageContent = fs.readFileSync(path.join(__dirname, '../pages/MembershipPage.jsx'), 'utf-8')
+  
+  assert.ok(pageContent.includes("Hạn mức mượn: {quota.planQuota} lượt / chu kỳ"))
+  assert.ok(pageContent.includes("Đã sử dụng: {quota.usedBorrowings + quota.activeCommitments} / {quota.planQuota} lượt"))
+  assert.ok(pageContent.includes("Còn lại: {quota.remainingQuota} lượt"))
+  assert.ok(pageContent.includes("getBorrowingQuota"))
+})

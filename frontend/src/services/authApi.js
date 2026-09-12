@@ -46,6 +46,9 @@ export const ERROR_MESSAGES = {
   ACTIVE_MEMBERSHIP_EXISTS: 'Bạn đã có gói thành viên đang hoạt động.',
   MEMBERSHIP_ACTIVATION_CONFLICT: 'Có lỗi khi kích hoạt gói thành viên.',
   INVALID_PAYMENT_OUTCOME: 'Kết quả thanh toán không hợp lệ.',
+  ACTIVE_MEMBERSHIP_REQUIRED: 'Bạn cần gói thành viên đang hoạt động để mượn sách.',
+  BORROW_QUOTA_EXCEEDED: 'Bạn đã sử dụng hết hạn mức mượn của chu kỳ hiện tại.',
+  INVALID_PLAN_QUOTA: 'Hạn mức mượn của gói thành viên hiện không hợp lệ. Vui lòng thử lại sau.',
   RESOURCE_ISBN_EXISTS: 'Mã ISBN này đã tồn tại trong hệ thống.',
 }
 
@@ -255,4 +258,8 @@ export function getCurrentMembership() {
 
 export function simulateMembershipPayment(planId, outcome) {
   return csrfPost('/me/membership-payments', { planId, outcome })
+}
+
+export function getBorrowingQuota() {
+  return authenticatedGet('/me/borrowing-quota')
 }
