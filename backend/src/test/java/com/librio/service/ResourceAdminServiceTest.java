@@ -1,4 +1,4 @@
-﻿package com.librio.service;
+package com.librio.service;
 
 import com.librio.domain.MetadataSource;
 import com.librio.domain.Resource;
@@ -185,8 +185,8 @@ public class ResourceAdminServiceTest {
         long totalRows = physicalItemRepository.countByResourceId(created.getId());
         assertThat(totalRows).isEqualTo(3);
         
-        long withdrawnRows = physicalItemRepository.countByResourceIdAndInventoryStatusNot(created.getId(), com.librio.domain.InventoryStatus.WITHDRAWN);
-        assertThat(withdrawnRows).isEqualTo(1);
+        long nonWithdrawnRows = physicalItemRepository.countByResourceIdAndInventoryStatusNot(created.getId(), com.librio.domain.InventoryStatus.WITHDRAWN);
+        assertThat(nonWithdrawnRows).isEqualTo(1);
     }
 
     @Test
@@ -222,31 +222,51 @@ public class ResourceAdminServiceTest {
         request.setAuthors(List.of("Author"));
         request.setAccessTypes(List.of("PHYSICAL"));
         ResourceAdminRequestDto.PhysicalInput physical = new ResourceAdminRequestDto.PhysicalInput();
-        physical.setTotalCopies(2);
+        physical.setTotalCopies(3);
         request.setPhysical(physical);
         ManagedResourceDto created = resourceAdminService.create(request);
 
-        // Manually set one to BORROWED
+        // Manually set 2 to BORROWED and RESERVED
         List<com.librio.domain.PhysicalItem> items = physicalItemRepository.findByResourceId(created.getId());
         com.librio.domain.PhysicalItem first = items.get(0);
         first.setCirculationStatus(com.librio.domain.CirculationStatus.BORROWED);
         physicalItemRepository.save(first);
+        
+        com.librio.domain.PhysicalItem second = items.get(1);
+        second.setCirculationStatus(com.librio.domain.CirculationStatus.RESERVED);
+        physicalItemRepository.save(second);
 
-        // Try to decrease to 0
-        physical.setTotalCopies(0);
+        // Try to decrease from 3 to 1 (needs 2 AVAILABLE, but only 1 exists)
+        physical.setTotalCopies(1);
         assertThatThrownBy(() -> resourceAdminService.update(created.getId(), request))
                 .isInstanceOf(com.librio.exception.BorrowFlowException.class)
                 .hasMessageContaining("Cannot remove reserved, borrowed or overdue physical items");
-
-        // Try to decrease to 1 (should withdraw the AVAILABLE one)
-        physical.setTotalCopies(1);
-        ManagedResourceDto updated = resourceAdminService.update(created.getId(), request);
-        assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(1);
-        
-        // The borrowed item should still be ACTIVE
+                
+        // Assert BORROWED/RESERVED copies remain ACTIVE and keep their circulation status
         com.librio.domain.PhysicalItem updatedFirst = physicalItemRepository.findById(first.getId()).orElseThrow();
         assertThat(updatedFirst.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.ACTIVE);
         assertThat(updatedFirst.getCirculationStatus()).isEqualTo(com.librio.domain.CirculationStatus.BORROWED);
+        
+        com.librio.domain.PhysicalItem updatedSecond = physicalItemRepository.findById(second.getId()).orElseThrow();
+        assertThat(updatedSecond.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.ACTIVE);
+        assertThat(updatedSecond.getCirculationStatus()).isEqualTo(com.librio.domain.CirculationStatus.RESERVED);
+
+        // Try to decrease from 3 to 2 (needs 1 AVAILABLE, which exists)
+        physical.setTotalCopies(2);
+        ManagedResourceDto updated = resourceAdminService.update(created.getId(), request);
+        assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(2);
+        
+        // The third item (the one that was AVAILABLE) should now be WITHDRAWN
+        com.librio.domain.PhysicalItem third = items.get(2);
+        com.librio.domain.PhysicalItem updatedThird = physicalItemRepository.findById(third.getId()).orElseThrow();
+        assertThat(updatedThird.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.WITHDRAWN);
+        
+        // Active-circulation copies remain ACTIVE
+        updatedFirst = physicalItemRepository.findById(first.getId()).orElseThrow();
+        assertThat(updatedFirst.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.ACTIVE);
+        
+        updatedSecond = physicalItemRepository.findById(second.getId()).orElseThrow();
+        assertThat(updatedSecond.getInventoryStatus()).isEqualTo(com.librio.domain.InventoryStatus.ACTIVE);
     }
 }
 
