@@ -79,13 +79,15 @@ public class BorrowingQuotaConcurrencyTest {
                 .active(true)
                 .build());
 
+        LocalDateTime now = LocalDateTime.now();
         PaymentTransaction tx = paymentTransactionRepository.save(PaymentTransaction.builder()
                 .account(reader)
                 .plan(plan)
                 .amount(plan.getPriceAmount())
                 .currency(plan.getCurrency())
                 .status(PaymentStatus.SUCCESS)
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
+                .completedAt(now)
                 .build());
 
         subscriptionRepository.save(MembershipSubscription.builder()

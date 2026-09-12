@@ -100,13 +100,15 @@ public class BorrowingQuotaIntegrationTest {
     }
 
     private MembershipSubscription createSubscription(LocalDateTime startsAt) {
+        LocalDateTime now = LocalDateTime.now();
         PaymentTransaction tx = paymentTransactionRepository.save(PaymentTransaction.builder()
                 .account(reader)
                 .plan(plan)
                 .amount(plan.getPriceAmount())
                 .currency(plan.getCurrency())
                 .status(PaymentStatus.SUCCESS)
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
+                .completedAt(now)
                 .build());
 
         return subscriptionRepository.save(MembershipSubscription.builder()
@@ -133,13 +135,16 @@ public class BorrowingQuotaIntegrationTest {
     }
 
     private BorrowRequest createBorrowRequest(BorrowRequestStatus status) {
+        LocalDateTime now = LocalDateTime.now();
         BorrowRequest req = BorrowRequest.builder()
                 .reader(reader)
                 .resource(resource)
                 .physicalItem(item)
                 .status(status)
-                .requestedAt(LocalDateTime.now())
-                .statusUpdatedAt(LocalDateTime.now())
+                .requestedAt(now)
+                .statusUpdatedAt(now)
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
         return borrowRequestRepository.save(req);
     }
