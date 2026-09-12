@@ -1,4 +1,4 @@
-﻿package com.librio.service;
+package com.librio.service;
 
 import com.librio.domain.DigitalItem;
 import com.librio.domain.Resource;
@@ -86,7 +86,7 @@ public class DigitalAccessService {
                 .isPresent();
 
         if (!isActiveMember) {
-            throw new BorrowFlowException("DIGITAL_MEMBERSHIP_REQUIRED", HttpStatus.FORBIDDEN, "Active membership required for full content");
+            throw new BorrowFlowException(BorrowErrorCode.DIGITAL_MEMBERSHIP_REQUIRED.name(), HttpStatus.FORBIDDEN, "Active membership required for full content");
         }
 
         if (digitalItem.getFullContentKey() == null) {

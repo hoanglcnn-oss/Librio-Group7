@@ -23,10 +23,10 @@ import java.time.OffsetDateTime;
 import org.springframework.http.HttpMethod;
 
 /**
- * Cấu hình bảo mật dựa trên session, CSRF và phân quyền route của Librio.
+ * Configuration for session-based security, CSRF, and routing rules in Librio.
  *
- * <p>Discovery resource vẫn public, nhưng digital access/content là capability chỉ dành cho reader.
- * Thứ tự matcher vì vậy là một phần của security model.
+ * <p>Discovery resource is public, but digital content is a capability restricted to members.
+ * The route matchers enforce this security model.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -107,7 +107,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
-                        // Digital content lA protected
+                        // Digital content is protected
                         .requestMatchers(HttpMethod.GET,
                                 "/resources/*/digital-content").hasRole("READER")
                         .requestMatchers("/resources/**").permitAll()
