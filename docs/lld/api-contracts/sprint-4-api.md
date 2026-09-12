@@ -199,6 +199,64 @@ Verification coverage added in T-167 includes:
 
 Backend verification tests have been added but are not execution-proven in the current local environment because Maven and Maven Wrapper are unavailable. Deployed end-to-end verification is recorded separately.
 
+## Membership-aware digital access
+
+- `GET /resources/{id}/digital-access` — public; returns server-derived digital capability.
+- `GET /resources/{id}/digital-preview` — public; returns configured preview PDF.
+- `GET /resources/{id}/digital-content` — `ROLE_READER`; rechecks active membership before returning full PDF.
+
+### Capability
+
+Visitor, non-member or expired member:
+
+{
+  "resourceId": 1000,
+  "accessLevel": "PREVIEW",
+  "previewUrl": "/resources/1000/digital-preview",
+  "contentUrl": null
+}
+
+Active member:
+
+{
+  "resourceId": 1000,
+  "accessLevel": "FULL",
+  "previewUrl": "/resources/1000/digital-preview",
+  "contentUrl": "/resources/1000/digital-content"
+}
+
+Rules:
+- Capability and entitlement are derived server-side.
+- The frontend does not infer FULL access from local membership state.
+- `previewContentKey` and `fullContentKey` are server-owned opaque references and are never exposed to clients.
+- Full-content authorization is rechecked on every request.
+- A stale client-side FULL capability cannot bypass an expired membership.
+- Membership/auth changes trigger capability refresh on the frontend.
+
+| Status | Code |
+|---:|---|
+| `401` | unauthenticated direct full-content request |
+| `403` | `DIGITAL_MEMBERSHIP_REQUIRED` |
+| `404` | `DIGITAL_CONTENT_NOT_FOUND` |
+
+### Implementation / verification note
+
+US-18 implementation is complete through T-187.
+
+Verification includes:
+- visitor/non-member/expired-member preview semantics;
+- active-member FULL capability and protected delivery;
+- raw content references are not exposed;
+- membership/auth changes refresh the server-derived frontend capability;
+- stale FULL access remains protected by backend membership revalidation.
+
+Frontend verification:
+- Node tests passed 37/37;
+- lint passed;
+- production build passed.
+
+Backend regression tests are present but were not executed in the current local environment because Maven and Maven Wrapper are unavailable.
+
 ## Google Books ISBN lookup & Resource metadata
 
 - `GET /librarian/book-metadata/lookup?isbn={isbn}` — librarian; normalizes ISBN-10/13 and fetches metadata from Google Books. Read-only.
