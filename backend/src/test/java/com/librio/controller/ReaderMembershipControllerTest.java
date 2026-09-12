@@ -124,17 +124,70 @@ class ReaderMembershipControllerTest {
                 .andExpect(jsonPath("$.plan.code").value("STANDARD_1M"));
     }
 
+    @Autowired
+    private com.librio.repository.ResourceRepository resourceRepository;
+
+    @Autowired
+    private com.librio.repository.PhysicalItemRepository physicalItemRepository;
+
+    @Autowired
+    private com.librio.repository.BorrowRequestRepository borrowRequestRepository;
+
+    @Autowired
+    private com.librio.repository.BorrowingRepository borrowingRepository;
+
     @Test
-    @DisplayName("GET /me/membership returns EXPIRED when subscription has expired")
+    @DisplayName("GET /me/membership returns EXPIRED when subscription has expired and borrowing remains unchanged")
     @WithMockUser(username = "eligible.reader@test.local", roles = "READER")
     void testGetCurrentMembership_Expired() throws Exception {
         LocalDateTime now = LocalDateTime.now();
-        createSubscription(eligibleReader, activePlan, now.minusDays(40), now.minusDays(10));
+        MembershipSubscription sub = createSubscription(eligibleReader, activePlan, now.minusDays(40), now.minusDays(10));
+
+        // Create active borrowing to verify it's unaffected
+        com.librio.domain.Resource resource = resourceRepository.save(com.librio.domain.Resource.builder()
+                .title("Test Resource")
+                .authors("Author")
+                .metadataSource(com.librio.domain.MetadataSource.MANUAL)
+                .build());
+                
+        com.librio.domain.PhysicalItem physicalItem = physicalItemRepository.save(com.librio.domain.PhysicalItem.builder()
+                .resource(resource)
+                .barcode("EXP-TEST-001")
+                .inventoryStatus(com.librio.domain.InventoryStatus.ACTIVE)
+                .circulationStatus(com.librio.domain.CirculationStatus.BORROWED)
+                .build());
+                
+        com.librio.domain.BorrowRequest request = borrowRequestRepository.save(com.librio.domain.BorrowRequest.builder()
+                .reader(eligibleReader)
+                .resource(resource)
+                .physicalItem(physicalItem)
+                .status(com.librio.domain.BorrowRequestStatus.BORROWED)
+                .requestedAt(now.minusDays(20))
+                .statusUpdatedAt(now.minusDays(19))
+                .build());
+                
+        com.librio.domain.Borrowing borrowing = borrowingRepository.save(com.librio.domain.Borrowing.builder()
+                .borrowRequest(request)
+                .physicalItem(physicalItem)
+                .reader(eligibleReader)
+                .borrowedAt(now.minusDays(19))
+                .dueAt(now.plusDays(10)) // still active
+                .build());
 
         mockMvc.perform(get("/me/membership"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("EXPIRED"))
                 .andExpect(jsonPath("$.plan.code").value("STANDARD_1M"));
+                
+        // Assert historical subscription remains unchanged
+        MembershipSubscription dbSub = membershipSubscriptionRepository.findById(sub.getId()).orElseThrow();
+        assertEquals(sub.getStartsAt(), dbSub.getStartsAt());
+        assertEquals(sub.getExpiresAt(), dbSub.getExpiresAt());
+        
+        // Assert borrowing remains unchanged
+        com.librio.domain.Borrowing dbBorrowing = borrowingRepository.findById(borrowing.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertNull(dbBorrowing.getReturnedAt());
+        assertEquals(borrowing.getBorrowedAt(), dbBorrowing.getBorrowedAt());
     }
 
     @Test
@@ -269,6 +322,45 @@ class ReaderMembershipControllerTest {
                                 """.formatted(activePlan.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ACTIVE_MEMBERSHIP_EXISTS"));
+    }
+
+    @Test
+    @DisplayName("POST /me/membership-payments FAILED can be retried with SUCCESS")
+    @WithMockUser(username = "eligible.reader@test.local", roles = "READER")
+    void testPayment_Retry() throws Exception {
+        // First attempt: FAILED
+        mockMvc.perform(post("/me/membership-payments")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "planId": %d,
+                                  "outcome": "FAILED"
+                                }
+                                """.formatted(activePlan.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NONE"));
+
+        assertEquals(1, paymentTransactionRepository.count());
+        assertEquals(0, membershipSubscriptionRepository.count());
+
+        // Retry: SUCCESS
+        mockMvc.perform(post("/me/membership-payments")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "planId": %d,
+                                  "outcome": "SUCCESS"
+                                }
+                                """.formatted(activePlan.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.latestPayment.status").value("SUCCESS"));
+
+        // Exactly one valid subscription, but 2 payment attempts
+        assertEquals(2, paymentTransactionRepository.count());
+        assertEquals(1, membershipSubscriptionRepository.count());
     }
 
     private Account createAccount(String email, boolean membershipEligible) {
