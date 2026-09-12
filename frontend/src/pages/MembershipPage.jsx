@@ -73,6 +73,9 @@ export default function MembershipPage() {
     try {
       await simulateMembershipPayment(planId, outcome)
       await fetchMembershipOnly()
+      if (outcome === 'SUCCESS') {
+        window.dispatchEvent(new CustomEvent('librio:membership-changed'))
+      }
     } catch (err) {
       if (isMountedRef.current) {
         setPaymentError(err.message || 'Có lỗi xảy ra khi thanh toán.')

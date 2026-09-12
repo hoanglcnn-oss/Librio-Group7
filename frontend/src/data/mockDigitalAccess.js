@@ -1,4 +1,4 @@
-﻿function byteLength(value) {
+function byteLength(value) {
   return new TextEncoder().encode(value).length
 }
 

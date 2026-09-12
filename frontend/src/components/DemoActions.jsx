@@ -23,27 +23,39 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
     let active = true
     if (!canRead) return () => { active = false }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCapabilityLoading(true)
-    getDigitalReadCapability(resource.id)
-      .then((capability) => {
-        if (active) {
-          setDigitalCapabilityState({
-            resourceId: resource.id,
-            capability: capability.accessLevel ? capability : null,
-          })
-          setCapabilityLoading(false)
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setDigitalCapabilityState({ resourceId: resource.id, capability: null })
-          setCapabilityLoading(false)
-        }
-      })
+    const loadCapability = () => {
+      setCapabilityLoading(true)
+      getDigitalReadCapability(resource.id)
+        .then((capability) => {
+          if (active) {
+            setDigitalCapabilityState({
+              resourceId: resource.id,
+              capability: capability.accessLevel ? capability : null,
+            })
+            setCapabilityLoading(false)
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setDigitalCapabilityState({ resourceId: resource.id, capability: null })
+            setCapabilityLoading(false)
+          }
+        })
+    }
 
-    return () => { active = false }
-  }, [canRead, resource.id])
+    loadCapability()
+
+    const onMembershipChanged = () => {
+      if (active) loadCapability()
+    }
+
+    window.addEventListener('librio:membership-changed', onMembershipChanged)
+
+    return () => {
+      active = false
+      window.removeEventListener('librio:membership-changed', onMembershipChanged)
+    }
+  }, [canRead, resource.id, auth.account])
 
   function beginBorrow() {
     setError('')
