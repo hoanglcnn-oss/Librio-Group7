@@ -68,8 +68,57 @@ Lookup failures must not block manual resource administration:
 
 Provider requests use bounded timeouts without blocking manual resource entry.
 
-## 8. Verification & Completion Criteria
+## 8. Implementation & Verification Status
 
-- **T-192 Spike cases**: Valid ISBN with exact match, valid ISBN with no match, malformed ISBN, provider timeout/failure. Runtime smoke test verifies real Google Books lookup.
-- **T-193 Completion criteria**: Defined ISBN canonicalization, backend adapter boundary, exact candidate matching, metadata mapping, provenance tracking, error handling, and manual fallback.
+- **T-192 — Provider spike**
+  - Established lookup behavior for valid ISBN, no exact match, malformed ISBN, timeout and provider failure scenarios.
+  - Confirmed the Google Books integration direction before implementation.
+
+- **T-193 — Lookup design**
+  - Defines canonical ISBN normalization.
+  - Defines the backend provider adapter boundary.
+  - Requires exact ISBN candidate matching.
+  - Defines metadata mapping, provenance tracking, provider failure handling and manual fallback.
+
+- **T-194 — Resource metadata persistence**
+  - Extends `Resource` persistence with:
+    - `isbn`
+    - `coverImageUrl`
+    - `metadataSource`
+    - `externalSourceId`
+  - Persists canonical ISBN-13 and enforces uniqueness when ISBN is present.
+
+- **T-195 — Google Books backend integration**
+  - Implements `GoogleBooksClient` and provider adapter integration.
+  - Implements librarian ISBN metadata lookup through the Librio backend.
+  - Verifies exact normalized ISBN against provider `industryIdentifiers`.
+  - Maps provider timeout and provider failure into stable Librio API errors.
+
+- **T-196 — Resource persistence integration**
+  - Persists imported metadata through librarian Resource create/update flows.
+  - Preserves `MANUAL` / `GOOGLE_BOOKS` metadata provenance.
+  - Rejects duplicate canonical ISBN with `RESOURCE_ISBN_EXISTS`.
+  - Allows a Resource to keep its own existing ISBN during update.
+
+- **T-197 — Librarian metadata prefill UI**
+  - Adds ISBN lookup to the librarian Resource administration flow.
+  - Lookup results are editable prefill only and never trigger automatic Resource persistence.
+  - Prefills provider-backed metadata while preserving unrelated Resource form state.
+  - Supports cover preview and manual fallback when lookup fails.
+
+- **T-198 — Verification coverage**
+  - Covers exact ISBN provider matches.
+  - Covers mismatched candidates and empty provider results as `BOOK_METADATA_NOT_FOUND`.
+  - Covers provider timeout as `BOOK_METADATA_LOOKUP_TIMEOUT`.
+  - Covers provider failure as `BOOK_METADATA_PROVIDER_ERROR`.
+  - Covers metadata mapping and missing optional provider fields.
+  - Adds Spring Security filter-chain coverage for the librarian lookup endpoint:
+    - unauthenticated request → `401`
+    - `READER` → `403`
+    - `LIBRARIAN` → allowed
+  - Adds frontend verification for metadata prefill transformation and preservation of unrelated form fields.
+
+Automated backend verification coverage has been added for the provider and security scenarios above. Backend test execution is not currently proven in the local environment because neither a Maven wrapper nor a globally available Maven executable was available.
+
+Google Books lookup remains an editable prefill workflow. Manual Resource administration remains available if provider lookup fails.
 

@@ -176,6 +176,29 @@ Membership expiry blocks new membership-gated borrowing but does not mutate an e
 | `404`      | `MEMBERSHIP_PLAN_NOT_FOUND`                                   |
 | `409`      | `ACTIVE_MEMBERSHIP_EXISTS` / `MEMBERSHIP_ACTIVATION_CONFLICT` |
 
+### Membership implementation / verification note
+
+US-16 membership implementation is complete through T-167.
+
+Implemented behavior includes:
+
+- effective membership state is derived server-side as `NONE`, `ACTIVE`, or `EXPIRED`;
+- failed payment persists a failed `PaymentTransaction` and creates no subscription;
+- successful payment persists the transaction and creates a `MembershipSubscription`;
+- membership ownership is derived from the authenticated principal;
+- membership activation is protected by a backend transactional/account-lock boundary;
+- expiry does not mutate an already active borrowing;
+- the reader UI refreshes authoritative membership state after payment and protects against stale async responses.
+
+Verification coverage added in T-167 includes:
+
+- failed-payment retry followed by successful activation;
+- expired membership while an existing borrowing remains unchanged;
+- competing activation using two concurrent worker threads against the same account and plan;
+- persisted final-state verification that competing activation does not create multiple membership subscriptions.
+
+Backend verification tests have been added but are not execution-proven in the current local environment because Maven and Maven Wrapper are unavailable. Deployed end-to-end verification is recorded separately.
+
 ## Google Books ISBN lookup & Resource metadata
 
 - `GET /librarian/book-metadata/lookup?isbn={isbn}` — librarian; normalizes ISBN-10/13 and fetches metadata from Google Books. Read-only.
@@ -192,7 +215,40 @@ Membership expiry blocks new membership-gated borrowing but does not mutate an e
 }
 ```
 
-ISBN is validated, normalized to ISBN-13, and enforced unique when present. Duplicate ISBN returns `409 RESOURCE_ISBN_EXISTS`; invalid ISBN returns `400 INVALID_ISBN`; lookup timeout returns `504 BOOK_METADATA_LOOKUP_TIMEOUT`.
+ISBN is validated, normalized to ISBN-13, and enforced unique when present.
+
+| Status | Code |
+|---:|---|
+| `400` | `INVALID_ISBN` |
+| `404` | `BOOK_METADATA_NOT_FOUND` |
+| `409` | `RESOURCE_ISBN_EXISTS` |
+| `502` | `BOOK_METADATA_PROVIDER_ERROR` |
+| `504` | `BOOK_METADATA_LOOKUP_TIMEOUT` |
+
+### Google Books implementation / verification note
+
+US-19 Google Books metadata integration is complete through T-198.
+
+Implemented behavior includes:
+
+- the browser calls the Librio backend and never calls Google Books directly;
+- ISBN-10/13 input is normalized to canonical ISBN-13;
+- provider candidates must contain the exact normalized ISBN before metadata is accepted;
+- lookup returns editable prefill only and never auto-saves a Resource;
+- manual Resource entry remains available when lookup fails;
+- persisted Resource metadata supports `isbn`, `coverImageUrl`, `metadataSource`, and `externalSourceId`;
+- duplicate canonical ISBN returns `RESOURCE_ISBN_EXISTS`.
+
+Verification coverage added in T-198 includes:
+
+- exact provider match;
+- mismatched candidate and empty result handling;
+- timeout and provider-error mapping;
+- metadata mapping with optional provider fields;
+- Spring Security filter-chain coverage for unauthenticated, reader, and librarian access;
+- frontend metadata-prefill transformation while preserving unrelated form fields.
+
+Backend verification tests have been added but are not execution-proven in the current local environment because Maven and Maven Wrapper are unavailable.
 
 ## Data schema updates
 

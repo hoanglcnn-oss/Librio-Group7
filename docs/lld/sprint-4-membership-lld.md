@@ -83,7 +83,39 @@ A simulated failed payment is a normal business outcome rather than a server fai
 
 ## 7. Implementation boundary and completion criteria
 
-- **T-163**: implements membership schema, constraints and seed data.
-- **T-164**: implements plans, current membership and mock-payment APIs.
-- **T-165**: implements reader membership UI.
-- **T-162**: complete when payment ownership, subscription creation, expiry derivation, borrowing-expiry behavior and concurrent activation handling are unambiguous.
+- **T-163 — Membership persistence foundation**
+  - Adds membership eligibility to `Account`.
+  - Defines membership plans, payment transactions and membership subscriptions.
+  - Enforces payment/subscription constraints and seed data.
+
+- **T-164 — Membership backend APIs**
+  - Implements `GET /membership/plans`.
+  - Implements `GET /me/membership`.
+  - Implements `POST /me/membership-payments`.
+  - Membership ownership is derived from the authenticated principal.
+  - Membership activation is enforced inside a backend transaction using an account-level locking boundary.
+  - Failed payment persists only `PaymentTransaction`; successful payment creates the subscription.
+
+- **T-165 — Reader membership UI**
+  - Adds the protected reader `/membership` page.
+  - Displays membership plans and effective `NONE`, `ACTIVE`, or `EXPIRED` status.
+  - Supports Sprint 4 mock `SUCCESS` / `FAILED` payment outcomes.
+  - Uses stable backend membership error mappings.
+
+- **T-166 — Membership lifecycle integration**
+  - Refreshes membership state from the backend after payment attempts rather than deriving activation locally.
+  - Preserves server authority over `NONE`, `ACTIVE`, and `EXPIRED`.
+  - Adds stale-response and unmount protection for membership requests.
+  - Prevents redundant activation attempts in the UI while membership is already `ACTIVE`; this is only a UX guard and not a concurrency boundary.
+  - Re-entry and direct navigation reload authoritative server state.
+
+- **T-167 — Membership verification coverage**
+  - Covers failed-payment retry followed by successful activation.
+  - Covers `EXPIRED` state derivation without mutating the historical subscription.
+  - Covers the invariant that membership expiry does not alter an already active borrowing.
+  - Adds concurrent activation regression coverage using two worker threads targeting the same reader and plan.
+  - The concurrency verification asserts the persisted invariant that only one membership subscription exists after competing activation attempts.
+
+Automated backend verification coverage has been added for the membership lifecycle and concurrency invariants above. Backend test execution is not currently proven in the local environment because neither a Maven wrapper nor a globally available Maven executable was available.
+
+Deployed end-to-end verification remains separate Sprint 4 evidence.
