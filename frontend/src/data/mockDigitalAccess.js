@@ -1,4 +1,4 @@
-function byteLength(value) {
+﻿function byteLength(value) {
   return new TextEncoder().encode(value).length
 }
 
@@ -27,8 +27,8 @@ export function createMockPdfBlob() {
 export function getMockDigitalCapability(resourceId) {
   return {
     resourceId: Number(resourceId),
-    canRead: true,
-    contentUrl: URL.createObjectURL(createMockPdfBlob()),
-    temporaryUrl: true,
+    accessLevel: "FULL",
+    previewUrl: URL.createObjectURL(createMockPdfBlob()),
+    contentUrl: URL.createObjectURL(createMockPdfBlob())
   }
 }

@@ -5,8 +5,8 @@ import { createBorrowRequest, getDigitalReadCapability } from '../services/authA
 
 function DemoActions({ resource, onBorrowRequestCreated }) {
   const [dialog, setDialog] = useState(null)
-  const [openingDigital, setOpeningDigital] = useState(false)
   const [digitalCapabilityState, setDigitalCapabilityState] = useState({ resourceId: null, capability: null })
+  const [capabilityLoading, setCapabilityLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [borrowRequest, setBorrowRequest] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -21,21 +21,29 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
 
   useEffect(() => {
     let active = true
-    if (!canRead || !auth.isReader) return () => { active = false }
+    if (!canRead) return () => { active = false }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCapabilityLoading(true)
     getDigitalReadCapability(resource.id)
       .then((capability) => {
-        if (active) setDigitalCapabilityState({
-          resourceId: resource.id,
-          capability: capability.canRead === true && capability.contentUrl ? capability : null,
-        })
+        if (active) {
+          setDigitalCapabilityState({
+            resourceId: resource.id,
+            capability: capability.accessLevel ? capability : null,
+          })
+          setCapabilityLoading(false)
+        }
       })
       .catch(() => {
-        if (active) setDigitalCapabilityState({ resourceId: resource.id, capability: null })
+        if (active) {
+          setDigitalCapabilityState({ resourceId: resource.id, capability: null })
+          setCapabilityLoading(false)
+        }
       })
 
     return () => { active = false }
-  }, [auth.isReader, canRead, resource.id])
+  }, [canRead, resource.id])
 
   function beginBorrow() {
     setError('')
@@ -70,40 +78,6 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
     }
   }
 
-  async function openDigitalResource() {
-    setError('')
-    if (!auth.account) {
-      navigate('/login', { state: { from: location.pathname } })
-      return
-    }
-    if (!auth.isReader) {
-      setError('Chỉ tài khoản bạn đọc được phép mở tài liệu số.')
-      return
-    }
-
-    setOpeningDigital(true)
-    try {
-      const capability = await getDigitalReadCapability(resource.id)
-      if (capability.canRead !== true || !capability.contentUrl) {
-        const accessError = new Error('Bạn chưa được cấp quyền đọc tài liệu số này.')
-        accessError.status = 403
-        throw accessError
-      }
-      setDigitalCapabilityState({ resourceId: resource.id, capability })
-      if (capability.temporaryUrl) {
-        window.setTimeout(() => URL.revokeObjectURL(capability.contentUrl), 60_000)
-      }
-    } catch (requestError) {
-      if (requestError.status === 401) {
-        navigate('/login', { state: { from: location.pathname } })
-      } else {
-        setError(requestError.message)
-      }
-    } finally {
-      setOpeningDigital(false)
-    }
-  }
-
   return (
     <section className="demo-actions" aria-labelledby="demo-actions-title">
       <div className="demo-heading">
@@ -117,9 +91,19 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
         <button className="primary-action" type="button" onClick={beginBorrow} disabled={!canBorrow || borrowRequest || submitting}>
           {borrowRequest ? 'Đã gửi yêu cầu' : canBorrow ? 'Mượn bản vật lý' : 'Tạm hết sách'}
         </button>
-        {canRead && auth.isReader && digitalCapability?.contentUrl
-          ? <a className="secondary-action" href={digitalCapability.contentUrl}>Đọc tài liệu số</a>
-          : canRead && <button className="secondary-action" type="button" disabled={openingDigital} onClick={openDigitalResource}>{openingDigital ? 'Đang mở PDF…' : 'Đọc tài liệu số'}</button>}
+        {canRead && capabilityLoading && (
+          <button className="secondary-action" type="button" disabled>Đang kiểm tra quyền đọc...</button>
+        )}
+        {canRead && !capabilityLoading && digitalCapability && (
+          <>
+            {digitalCapability.previewUrl && (
+              <a className="secondary-action" href={digitalCapability.previewUrl} target="_blank" rel="noopener noreferrer">Xem bản xem trước</a>
+            )}
+            {digitalCapability.accessLevel === 'FULL' && digitalCapability.contentUrl && (
+              <a className="secondary-action" href={digitalCapability.contentUrl} target="_blank" rel="noopener noreferrer">Đọc toàn bộ</a>
+            )}
+          </>
+        )}
         <button className="text-action" type="button" onClick={() => setSaved((value) => !value)}>{saved ? '✓ Đã lưu' : '+ Lưu vào danh sách'}</button>
       </div>
 
