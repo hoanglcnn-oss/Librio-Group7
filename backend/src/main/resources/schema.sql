@@ -280,3 +280,6 @@ CREATE TABLE IF NOT EXISTS membership_subscription (
     CONSTRAINT chk_expires_after_starts CHECK (expires_at > starts_at)
 );
 
+
+ALTER TABLE digital_item ADD COLUMN IF NOT EXISTS preview_content_key VARCHAR(512);
+ALTER TABLE digital_item ADD COLUMN IF NOT EXISTS full_content_key VARCHAR(512);

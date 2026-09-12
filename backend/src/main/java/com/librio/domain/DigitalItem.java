@@ -20,4 +20,10 @@ public class DigitalItem {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resource_id", nullable = false)
     private Resource resource;
+
+    @Column(name = "preview_content_key", length = 512)
+    private String previewContentKey;
+
+    @Column(name = "full_content_key", length = 512)
+    private String fullContentKey;
 }
