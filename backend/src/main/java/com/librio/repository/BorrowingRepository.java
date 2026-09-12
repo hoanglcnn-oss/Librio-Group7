@@ -15,6 +15,19 @@ import java.util.Optional;
 public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
     boolean existsByBorrowRequestId(Long borrowRequestId);
 
+    @Query("\"
+            select count(b)
+            from Borrowing b
+            where b.reader.id = :readerId
+              and b.borrowedAt >= :periodStart
+              and b.borrowedAt < :periodEnd
+            "\")
+    long countBorrowingsByReaderIdAndPeriod(
+            @Param("readerId") Long readerId,
+            @Param("periodStart") java.time.LocalDateTime periodStart,
+            @Param("periodEnd") java.time.LocalDateTime periodEnd
+    );
+
     @Query("""
             select case when count(b) > 0 then true else false end
             from Borrowing b
