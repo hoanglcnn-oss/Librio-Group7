@@ -1,10 +1,14 @@
-package com.librio.service;
+﻿package com.librio.service;
 
+import com.librio.domain.DigitalItem;
 import com.librio.domain.Resource;
 import com.librio.dto.DigitalAccessDto;
+import com.librio.dto.DigitalAccessLevel;
 import com.librio.exception.BorrowErrorCode;
 import com.librio.exception.BorrowFlowException;
+import com.librio.repository.AccountRepository;
 import com.librio.repository.DigitalItemRepository;
+import com.librio.repository.MembershipSubscriptionRepository;
 import com.librio.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,53 +18,99 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Cấp capability đọc nội dung số đã được bảo vệ bởi Spring Security.
- *
- * <p>Sprint 3 chỉ xác minh vertical slice phân quyền bằng PDF generate tại server.
- * Object storage, signed URL và DRM chưa nằm trong scope implementation hiện tại.
- */
 @Service
 @RequiredArgsConstructor
 public class DigitalAccessService {
     private final ResourceRepository resourceRepository;
     private final DigitalItemRepository digitalItemRepository;
+    private final AccountRepository accountRepository;
+    private final MembershipSubscriptionRepository membershipSubscriptionRepository;
 
     @Transactional(readOnly = true)
-    public DigitalAccessDto getCapability(Long resourceId) {
-        requireDigitalResource(resourceId);
-        String contentUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/resources/{id}/digital-content")
-                .buildAndExpand(resourceId)
-                .toUriString();
+    public DigitalAccessDto getCapability(Long resourceId, String email) {
+        DigitalItem digitalItem = requireDigitalItem(resourceId);
+
+        boolean isActiveMember = false;
+        if (email != null) {
+            isActiveMember = accountRepository.findByEmail(email)
+                    .flatMap(acc -> membershipSubscriptionRepository.findActiveByAccountId(acc.getId(), LocalDateTime.now()))
+                    .isPresent();
+        }
+
+        DigitalAccessLevel accessLevel = null;
+        String previewUrl = null;
+        String contentUrl = null;
+
+        if (isActiveMember && digitalItem.getFullContentKey() != null) {
+            accessLevel = DigitalAccessLevel.FULL;
+            contentUrl = buildUrl(resourceId, "digital-content");
+        } else if (digitalItem.getPreviewContentKey() != null) {
+            accessLevel = DigitalAccessLevel.PREVIEW;
+        }
+
+        if (digitalItem.getPreviewContentKey() != null) {
+            previewUrl = buildUrl(resourceId, "digital-preview");
+        }
+
+        if (accessLevel == null) {
+            throw notFound(BorrowErrorCode.DIGITAL_CONTENT_NOT_FOUND, "Digital content not found");
+        }
+
         return DigitalAccessDto.builder()
                 .resourceId(resourceId)
-                .canRead(true)
+                .accessLevel(accessLevel)
+                .previewUrl(previewUrl)
                 .contentUrl(contentUrl)
-                .temporaryUrl(false)
                 .build();
     }
 
     @Transactional(readOnly = true)
-    public byte[] getDemoPdf(Long resourceId) {
-        Resource resource = requireDigitalResource(resourceId);
-        return createPdf(resource.getTitle(), resource.getDescription());
+    public byte[] getDemoPdfPreview(Long resourceId) {
+        DigitalItem digitalItem = requireDigitalItem(resourceId);
+        if (digitalItem.getPreviewContentKey() == null) {
+            throw notFound(BorrowErrorCode.DIGITAL_CONTENT_NOT_FOUND, "Preview not configured");
+        }
+        return createPdf("Preview: " + digitalItem.getResource().getTitle(), digitalItem.getResource().getDescription());
     }
 
-    private Resource requireDigitalResource(Long resourceId) {
-        Resource resource = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Resource not found"));
-        if (!digitalItemRepository.existsByResourceId(resourceId)) {
-            throw notFound(BorrowErrorCode.DIGITAL_CONTENT_NOT_FOUND, "Digital content not found");
+    @Transactional(readOnly = true)
+    public byte[] getDemoPdfContent(Long resourceId, String email) {
+        DigitalItem digitalItem = requireDigitalItem(resourceId);
+
+        boolean isActiveMember = accountRepository.findByEmail(email)
+                .flatMap(acc -> membershipSubscriptionRepository.findActiveByAccountId(acc.getId(), LocalDateTime.now()))
+                .isPresent();
+
+        if (!isActiveMember) {
+            throw new BorrowFlowException("DIGITAL_MEMBERSHIP_REQUIRED", HttpStatus.FORBIDDEN, "Active membership required for full content");
         }
-        return resource;
+
+        if (digitalItem.getFullContentKey() == null) {
+            throw notFound(BorrowErrorCode.DIGITAL_CONTENT_NOT_FOUND, "Full content not configured");
+        }
+
+        return createPdf(digitalItem.getResource().getTitle(), digitalItem.getResource().getDescription());
+    }
+
+    private DigitalItem requireDigitalItem(Long resourceId) {
+        if (!resourceRepository.existsById(resourceId)) {
+            throw notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Resource not found");
+        }
+        return digitalItemRepository.findByResourceId(resourceId)
+                .orElseThrow(() -> notFound(BorrowErrorCode.DIGITAL_CONTENT_NOT_FOUND, "Digital content not found"));
+    }
+
+    private String buildUrl(Long resourceId, String endpoint) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/resources/" + resourceId + "/" + endpoint)
+                .toUriString();
     }
 
     private byte[] createPdf(String title, String description) {
-        // Demo Sprint 3: tạo PDF tối thiểu trong memory, chưa đại diện cho storage production-ready.
         String safeTitle = pdfText(title);
         String safeDescription = pdfText(description == null || description.isBlank()
                 ? "Protected digital content preview"
@@ -101,7 +151,9 @@ public class DigitalAccessService {
     }
 
     private void writeAscii(ByteArrayOutputStream output, String value) {
-        output.writeBytes(value.getBytes(StandardCharsets.US_ASCII));
+        for (byte b : value.getBytes(StandardCharsets.US_ASCII)) {
+            output.write(b);
+        }
     }
 
     private BorrowFlowException notFound(BorrowErrorCode code, String message) {

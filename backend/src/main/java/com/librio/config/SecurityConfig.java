@@ -107,9 +107,8 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health").permitAll()
-                        // Digital routes phải match trước /resources/**; đảo thứ tự sẽ làm content số thành public.
+                        // Digital content lA protected
                         .requestMatchers(HttpMethod.GET,
-                                "/resources/*/digital-access",
                                 "/resources/*/digital-content").hasRole("READER")
                         .requestMatchers("/resources/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/membership/plans").permitAll()

@@ -31,21 +31,62 @@ class Sprint3ControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private AccountRepository accountRepository;
 
+    @Autowired private com.librio.repository.DigitalItemRepository digitalItemRepository;
+    @Autowired private com.librio.repository.ResourceRepository resourceRepository;
+    @Autowired private com.librio.repository.MembershipSubscriptionRepository membershipSubscriptionRepository;
+    @Autowired private com.librio.repository.MembershipPlanRepository membershipPlanRepository;
+    @Autowired private com.librio.repository.PaymentTransactionRepository paymentTransactionRepository;
+
     @Test
-    void anonymousUserCannotObtainDigitalCapability() throws Exception {
+    void anonymousUserGets404ForUnconfiguredDigitalCapability() throws Exception {
         mockMvc.perform(get("/resources/1/digital-access"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("DIGITAL_CONTENT_NOT_FOUND"));
     }
 
     @Test
     @WithMockUser(username = "digital-reader@test.local", roles = "READER")
-    void readerCanObtainCapabilityAndOpenPdf() throws Exception {
-        account("digital-reader@test.local", AccountRole.READER);
+    void activeReaderCanObtainCapabilityAndOpenPdf() throws Exception {
+        Account reader = account("digital-reader@test.local", AccountRole.READER);
+        com.librio.domain.Resource r1 = resourceRepository.findById(1L).orElseThrow();
+        digitalItemRepository.findByResourceId(1L).ifPresent(digitalItemRepository::delete);
+        digitalItemRepository.save(com.librio.domain.DigitalItem.builder()
+                .resource(r1)
+                .previewContentKey("preview")
+                .fullContentKey("full")
+                .build());
+
+        com.librio.domain.MembershipPlan plan = membershipPlanRepository.save(com.librio.domain.MembershipPlan.builder()
+                .code("PLAN")
+                .name("Plan")
+                .durationMonths(1)
+                .priceAmount(new java.math.BigDecimal("10"))
+                .currency("USD")
+                .active(true)
+                .build());
+                
+        com.librio.domain.PaymentTransaction tx = paymentTransactionRepository.save(com.librio.domain.PaymentTransaction.builder()
+                .account(reader)
+                .plan(plan)
+                .amount(plan.getPriceAmount())
+                .currency(plan.getCurrency())
+                .status(com.librio.domain.PaymentStatus.SUCCESS)
+                .createdAt(LocalDateTime.now())
+                .completedAt(LocalDateTime.now())
+                .build());
+
+        membershipSubscriptionRepository.save(com.librio.domain.MembershipSubscription.builder()
+                .account(reader)
+                .plan(plan)
+                .paymentTransaction(tx)
+                .startsAt(LocalDateTime.now().minusDays(1))
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .build());
 
         mockMvc.perform(get("/resources/1/digital-access"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.canRead").value(true))
+                .andExpect(jsonPath("$.accessLevel").value("FULL"))
+                .andExpect(jsonPath("$.previewUrl").value(org.hamcrest.Matchers.endsWith("/resources/1/digital-preview")))
                 .andExpect(jsonPath("$.contentUrl").value(org.hamcrest.Matchers.endsWith("/resources/1/digital-content")));
 
         mockMvc.perform(get("/resources/1/digital-content"))

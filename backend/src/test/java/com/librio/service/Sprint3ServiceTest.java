@@ -88,14 +88,26 @@ class Sprint3ServiceTest {
         assertThat(updated.getPhysical().getTotalCopies()).isEqualTo(1);
     }
 
+    @Autowired private com.librio.repository.DigitalItemRepository digitalItemRepository;
+    @Autowired private com.librio.repository.ResourceRepository resourceRepository;
+
     @Test
     void returnsProtectedDemoPdfOnlyForDigitalResource() {
-        assertThat(digitalAccessService.getCapability(1L).isCanRead()).isTrue();
-        assertThat(new String(digitalAccessService.getDemoPdf(1L)))
+        com.librio.domain.Resource resource = resourceRepository.save(com.librio.domain.Resource.builder()
+                .title("Digital Test")
+                .authors("Author")
+                .build());
+        digitalItemRepository.save(com.librio.domain.DigitalItem.builder()
+                .resource(resource)
+                .previewContentKey("preview")
+                .build());
+
+        assertThat(digitalAccessService.getCapability(resource.getId(), null).getAccessLevel()).isEqualTo(com.librio.dto.DigitalAccessLevel.PREVIEW);
+        assertThat(new String(digitalAccessService.getDemoPdfPreview(resource.getId())))
                 .startsWith("%PDF-1.4")
                 .endsWith("%%EOF");
 
-        assertThatThrownBy(() -> digitalAccessService.getCapability(2L))
+        assertThatThrownBy(() -> digitalAccessService.getCapability(2L, null))
                 .isInstanceOf(BorrowFlowException.class)
                 .satisfies(error -> assertThat(((BorrowFlowException) error).getCode())
                         .isEqualTo("DIGITAL_CONTENT_NOT_FOUND"));

@@ -7,7 +7,7 @@ import lombok.Data;
 @Builder
 public class DigitalAccessDto {
     private Long resourceId;
-    private boolean canRead;
+    private DigitalAccessLevel accessLevel;
+    private String previewUrl;
     private String contentUrl;
-    private boolean temporaryUrl;
 }
