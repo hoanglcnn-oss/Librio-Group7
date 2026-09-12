@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import PhysicalItemAdmin from '../components/PhysicalItemAdmin'
 import { createLibrarianResource, getLibrarianResource, updateLibrarianResource } from '../services/authApi'
 import { lookupBookMetadata } from '../services/bookMetadataApi'
-import { emptyResourceForm, resourceFormToPayload, resourceToForm, validateResourceForm } from '../utils/resourceForm'
+import { emptyResourceForm, resourceFormToPayload, resourceToForm, validateResourceForm, applyMetadataPrefill } from '../utils/resourceForm'
 import './BookMetadataLookup.css'
 
 function ResourceAdminPage() {
@@ -43,16 +43,7 @@ function ResourceAdminPage() {
     try {
       const meta = await lookupBookMetadata(form.isbn.trim())
       if (isMountedRef.current) {
-        setForm(current => ({
-          ...current,
-          title: meta.title || current.title,
-          authors: (meta.authors && meta.authors.length > 0) ? meta.authors.join(', ') : current.authors,
-          description: meta.description || current.description,
-          isbn: meta.isbn || current.isbn,
-          coverImageUrl: meta.coverImageUrl || current.coverImageUrl,
-          externalSourceId: meta.externalSourceId || current.externalSourceId,
-          metadataSource: 'GOOGLE_BOOKS'
-        }))
+        setForm(current => applyMetadataPrefill(current, meta))
         setLookupStatus('success')
       }
     } catch (err) {

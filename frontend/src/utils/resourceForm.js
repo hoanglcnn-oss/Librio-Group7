@@ -61,3 +61,16 @@ export function resourceFormToPayload(form) {
     externalSourceId: form.externalSourceId?.trim() || null,
   }
 }
+
+export function applyMetadataPrefill(currentForm, meta) {
+  return {
+    ...currentForm,
+    title: meta.title || currentForm.title,
+    authors: (meta.authors && meta.authors.length > 0) ? meta.authors.join(', ') : currentForm.authors,
+    description: meta.description || currentForm.description,
+    isbn: meta.isbn || currentForm.isbn,
+    coverImageUrl: meta.coverImageUrl || currentForm.coverImageUrl,
+    externalSourceId: meta.externalSourceId || currentForm.externalSourceId,
+    metadataSource: 'GOOGLE_BOOKS'
+  }
+}
