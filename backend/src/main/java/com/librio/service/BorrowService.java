@@ -56,6 +56,7 @@ public class BorrowService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final BorrowingRepository borrowingRepository;
     private final CirculationPolicyProperties circulationPolicy;
+    private final BorrowingQuotaPolicy borrowingQuotaPolicy;
 
     @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public ReaderBorrowRequestItemDto createRequest(Long readerId, Long resourceId) {
@@ -67,6 +68,22 @@ public class BorrowService {
         Account reader = accountRepository.findByIdForUpdate(readerId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Reader not found"));
         requireReaderEligible(reader);
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        BorrowingQuotaPolicy.QuotaSnapshot quotaSnapshot = borrowingQuotaPolicy.getQuotaSnapshot(readerId, now);
+
+        if (!quotaSnapshot.isActiveMembership()) {
+            throw new BorrowFlowException(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), org.springframework.http.HttpStatus.FORBIDDEN, "Active membership is required to borrow physical items");
+        }
+
+        if (!quotaSnapshot.isValidPlanQuota()) {
+            throw new BorrowFlowException(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Membership plan quota is invalid");
+        }
+
+        if (quotaSnapshot.getRemainingQuota() <= 0) {
+            throw conflict(BorrowErrorCode.BORROW_QUOTA_EXCEEDED, "Borrowing quota exceeded");
+        }
+
         Resource resource = resourceRepository.findById(resourceId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Resource not found"));
 
@@ -99,7 +116,6 @@ public class BorrowService {
                 .orElseThrow(() -> conflict(BorrowErrorCode.NO_AVAILABLE_COPY,
                         "No physical item is currently available"));
 
-        LocalDateTime now = LocalDateTime.now();
         // Reserve là thời điểm availability giảm; các bước sau chỉ chuyển commitment sang state khác.
         item.setCirculationStatus(CirculationStatus.RESERVED);
 
