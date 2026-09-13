@@ -71,11 +71,14 @@ export default function MembershipPage() {
     const paymentResult = params.get('payment')
     if (paymentResult) {
       if (paymentResult === 'success') {
-                setPaymentError('Thanh toán thành công. Gói thành viên đã được kích hoạt.')
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Thanh toán thành công. Gói thành viên đã được kích hoạt.')
       } else if (paymentResult === 'failed') {
-                setPaymentError('Thanh toán không thành công hoặc đã bị hủy.')
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Thanh toán không thành công hoặc đã bị hủy.')
       } else if (paymentResult === 'invalid') {
-                setPaymentError('Không thể xác minh kết quả thanh toán.')
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Không thể xác minh kết quả thanh toán.')
       }
       navigate(location.pathname, { replace: true })
     }
@@ -158,13 +161,13 @@ export default function MembershipPage() {
           )}
           {latestPayment && latestPayment.status === 'FAILED' && (
             <div className="payment-context failed">
-              Giao dịch gần nhất thất bại vào lúc {new Date(latestPayment.createdAt).toLocaleString()}.
+              Giao dịch gần nhất thất bại vào lúc {new Date(latestPayment.completedAt).toLocaleString()}.
               {latestPayment.reason && ` Lý do: ${latestPayment.reason}`}
             </div>
           )}
           {latestPayment && latestPayment.status === 'SUCCESS' && (
             <div className="payment-context success">
-              Giao dịch gần nhất thành công vào lúc {new Date(latestPayment.createdAt).toLocaleString()}.
+              Giao dịch gần nhất thành công vào lúc {new Date(latestPayment.completedAt).toLocaleString()}.
             </div>
           )}
         </div>

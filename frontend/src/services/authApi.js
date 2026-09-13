@@ -267,3 +267,13 @@ export function getBorrowingQuota() {
 export function createVnpayPayment(planId) {
   return csrfPost('/me/membership-payments/vnpay', { planId })
 }
+export async function openDigitalContent(resourceId) {
+  const response = await fetch(API_BASE_URL + '/resources/' + encodeURIComponent(resourceId) + '/digital-content', { 
+    credentials: 'include' 
+  });
+  if (!response.ok) return parseError(response);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
