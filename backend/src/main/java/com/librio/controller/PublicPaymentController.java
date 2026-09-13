@@ -21,7 +21,7 @@ public class PublicPaymentController {
     private final MembershipService membershipService;
     private final VnpayService vnpayService;
 
-    @Value("${librio.frontendUrl}")
+    @Value("${librio.frontend-url}")
     private String frontendUrl;
 
     @GetMapping("/payments/vnpay-return")

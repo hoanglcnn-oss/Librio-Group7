@@ -16,16 +16,16 @@ import java.util.stream.Collectors;
 @Service
 public class VnpayService {
 
-    @Value("${vnpay.payUrl}")
+    @Value("${librio.vnpay.pay-url}")
     private String vnpayPayUrl;
 
-    @Value("${vnpay.tmnCode}")
+    @Value("${librio.vnpay.tmn-code}")
     private String vnpayTmnCode;
 
-    @Value("${vnpay.hashSecret}")
+    @Value("${librio.vnpay.hash-secret}")
     private String vnpayHashSecret;
 
-    @Value("${vnpay.returnUrl}")
+    @Value("${librio.vnpay.return-url}")
     private String vnpayReturnUrl;
 
     public String buildPaymentUrl(String txnRef, long amountInVnd, String orderInfo, String ipAddr) {

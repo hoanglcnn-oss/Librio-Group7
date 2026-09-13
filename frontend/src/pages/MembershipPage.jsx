@@ -63,7 +63,7 @@ export default function MembershipPage() {
     loadData()
   }, [])
 
-    const location = useLocation()
+      const location = useLocation()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -71,14 +71,11 @@ export default function MembershipPage() {
     const paymentResult = params.get('payment')
     if (paymentResult) {
       if (paymentResult === 'success') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPaymentError('Thanh to�n th�nh c�ng. G�i th�nh vi�n d� du?c k�ch ho?t.')
+                setPaymentError('Thanh toán thành công. Gói thành viên đã được kích hoạt.')
       } else if (paymentResult === 'failed') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPaymentError('Thanh to�n kh�ng th�nh c�ng ho?c d� b? h?y.')
+                setPaymentError('Thanh toán không thành công hoặc đã bị hủy.')
       } else if (paymentResult === 'invalid') {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPaymentError('Kh�ng th? x�c minh k?t qu? thanh to�n.')
+                setPaymentError('Không thể xác minh kết quả thanh toán.')
       }
       navigate(location.pathname, { replace: true })
     }
@@ -93,7 +90,7 @@ export default function MembershipPage() {
       window.location.assign(result.paymentUrl)
     } catch (err) {
       if (isMountedRef.current) {
-        setPaymentError(err.message || 'C� l?i x?y ra khi kh?i t?o thanh to�n.')
+        setPaymentError(err.message || 'Có lỗi xảy ra khi khởi tạo thanh toán.')
         setSubmitting(false)
       }
     }
@@ -193,7 +190,7 @@ export default function MembershipPage() {
                   disabled={submitting || status === 'ACTIVE'}
                   onClick={() => handlePayment(p.id)}
                 >
-                  {submitting ? '�ang chuy?n d?n c?ng thanh to�n...' : 'Thanh to�n'}
+                  {submitting ? 'Đang chuyển đến cổng thanh toán...' : 'Thanh toán'}
                 </button>
               </div>
             </div>
