@@ -83,7 +83,7 @@ class ReaderBorrowingQuotaControllerTest {
         when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(snapshot);
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> controller.getQuota());
-        assertEquals(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), ex.getCode());
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
     }
 
@@ -97,7 +97,7 @@ class ReaderBorrowingQuotaControllerTest {
         when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(snapshot);
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> controller.getQuota());
-        assertEquals(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), ex.getCode());
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getStatus());
     }
 }

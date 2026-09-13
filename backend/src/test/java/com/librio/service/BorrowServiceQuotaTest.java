@@ -68,7 +68,7 @@ class BorrowServiceQuotaTest {
         when(borrowingRepository.existsActiveBorrowingByReaderIdAndResourceId(1L, 100L)).thenReturn(false);
         when(borrowRequestRepository.countByReaderIdAndStatusIn(eq(1L), any())).thenReturn(0L);
         when(borrowingRepository.countActiveBorrowingsByReaderId(1L)).thenReturn(0L);
-        when(circulationPolicy.commitmentLimit()).thenReturn(5L);
+        when(circulationPolicy.commitmentLimit()).thenReturn(5);
         when(physicalItemRepository.countByResourceId(100L)).thenReturn(1L);
         when(physicalItemRepository.findForUpdate(eq(100L), eq(InventoryStatus.ACTIVE), eq(CirculationStatus.AVAILABLE), eq(PageRequest.of(0, 1))))
                 .thenReturn(List.of(availableItem));
@@ -88,7 +88,7 @@ class BorrowServiceQuotaTest {
         );
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), ex.getCode());
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
         
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
@@ -104,7 +104,7 @@ class BorrowServiceQuotaTest {
         );
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), ex.getCode());
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getStatus());
         
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
@@ -120,7 +120,7 @@ class BorrowServiceQuotaTest {
         );
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
         
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
@@ -154,10 +154,10 @@ class BorrowServiceQuotaTest {
         
         when(borrowRequestRepository.countByReaderIdAndStatusIn(eq(1L), any())).thenReturn(3L);
         when(borrowingRepository.countActiveBorrowingsByReaderId(1L)).thenReturn(2L);
-        when(circulationPolicy.commitmentLimit()).thenReturn(5L);
+        when(circulationPolicy.commitmentLimit()).thenReturn(5);
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.BORROWING_LIMIT_REACHED.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.BORROWING_LIMIT_REACHED.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
         
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
@@ -177,14 +177,14 @@ class BorrowServiceQuotaTest {
         
         when(borrowRequestRepository.countByReaderIdAndStatusIn(eq(1L), any())).thenReturn(0L);
         when(borrowingRepository.countActiveBorrowingsByReaderId(1L)).thenReturn(0L);
-        when(circulationPolicy.commitmentLimit()).thenReturn(5L);
+        when(circulationPolicy.commitmentLimit()).thenReturn(5);
         
         when(physicalItemRepository.countByResourceId(100L)).thenReturn(1L);
         when(physicalItemRepository.findForUpdate(eq(100L), eq(InventoryStatus.ACTIVE), eq(CirculationStatus.AVAILABLE), eq(PageRequest.of(0, 1))))
                 .thenReturn(List.of());
 
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.NO_AVAILABLE_COPY.name(), ex.getErrorCode());
+        assertEquals(BorrowErrorCode.NO_AVAILABLE_COPY.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
         
         verify(borrowRequestRepository, never()).save(any());

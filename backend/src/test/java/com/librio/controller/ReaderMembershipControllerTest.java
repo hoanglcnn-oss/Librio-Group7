@@ -161,7 +161,7 @@ class ReaderMembershipControllerTest {
                 .reader(eligibleReader)
                 .resource(resource)
                 .physicalItem(physicalItem)
-                .status(com.librio.domain.BorrowRequestStatus.BORROWED)
+                .status(com.librio.domain.BorrowRequestStatus.FULFILLED)
                 .requestedAt(now.minusDays(20))
                 .statusUpdatedAt(now.minusDays(19))
                 .build());

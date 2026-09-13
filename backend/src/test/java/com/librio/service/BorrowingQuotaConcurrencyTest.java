@@ -155,7 +155,7 @@ public class BorrowingQuotaConcurrencyTest {
                 borrowService.createRequest(reader.getId(), resource1.getId());
                 successCount.incrementAndGet();
             } catch (BorrowFlowException e) {
-                if (BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name().equals(e.getErrorCode())) {
+                if (BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name().equals(e.getCode())) {
                     quotaExceededCount.incrementAndGet();
                 } else {
                     unexpectedException.compareAndSet(null, e);
@@ -173,7 +173,7 @@ public class BorrowingQuotaConcurrencyTest {
                 borrowService.createRequest(reader.getId(), resource2.getId());
                 successCount.incrementAndGet();
             } catch (BorrowFlowException e) {
-                if (BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name().equals(e.getErrorCode())) {
+                if (BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name().equals(e.getCode())) {
                     quotaExceededCount.incrementAndGet();
                 } else {
                     unexpectedException.compareAndSet(null, e);

@@ -1,4 +1,4 @@
-﻿package com.librio.service;
+package com.librio.service;
 
 import com.librio.domain.Account;
 import com.librio.domain.AccountRole;
