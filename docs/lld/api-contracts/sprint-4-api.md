@@ -216,7 +216,7 @@ Example response:
   "periodStart": "2026-09-20T00:00:00",
   "periodEnd": "2026-10-20T00:00:00"
 }
-````
+```
 
 Field semantics:
 
@@ -283,7 +283,6 @@ Verification coverage added through T-176 includes:
 Frontend verification passed with 39 Node tests, lint and production build.
 
 Backend integration and concurrency tests have been added and aligned with the current domain model, but were not executed in the current local environment because Maven and Maven Wrapper are unavailable.
-
 
 ## Membership-aware digital access
 
