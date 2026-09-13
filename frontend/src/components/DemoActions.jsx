@@ -101,7 +101,7 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
       if (e.status === 401 || e.code === 'AUTHENTICATION_REQUIRED') {
         navigate('/login', { state: { from: location.pathname } })
       } else {
-        setDigitalError(e.message || 'L\u1ed7i khi m\u1edf t\u00e0i li\u1ec7u s\u1ed1.')
+        setDigitalError(e.message || 'Lỗi khi mở tài liệu số.')
       }
     } finally {
       setOpeningContent(false)
@@ -127,7 +127,7 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
         {canRead && !capabilityLoading && digitalCapability && (
           <>
             {digitalCapability.previewUrl && (
-              <a className="secondary-action" href={digitalCapability.previewUrl} target="_blank" rel="noopener noreferrer">Xem b\u1ea3n xem tr\u01b0\u1edbc</a>
+              <a className="secondary-action" href={digitalCapability.previewUrl} target="_blank" rel="noopener noreferrer">Xem bản xem trước</a>
             )}
             {digitalCapability.accessLevel === 'FULL' && (
               <button 
@@ -136,15 +136,15 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
                 onClick={handleOpenFullContent} 
                 disabled={openingContent}
               >
-                {openingContent ? '\u0110ang m\u1edf...' : '\u0110\u1ecdc to\u00e0n b\u1ed9'}
+                {openingContent ? 'Đang mở...' : 'Đọc toàn bộ'}
               </button>
             )}
             {digitalCapability.accessLevel === 'PREVIEW' && (
               <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                <button className="secondary-action" type="button" disabled title="C\u1ea7n g\u00f3i th\u00e0nh vi\u00ean" style={{ cursor: 'not-allowed', opacity: 0.7 }}>
-                  \ud83d\udd12 \u0110\u1ecdc to\u00e0n b\u1ed9
+                <button className="secondary-action" type="button" disabled title="Cần gói thành viên" style={{ cursor: 'not-allowed', opacity: 0.7 }}>
+                  🔒 Đọc toàn bộ
                 </button>
-                <small style={{ fontSize: '12px', color: '#666' }}>C\u1ea7n g\u00f3i th\u00e0nh vi\u00ean</small>
+                <small style={{ fontSize: '12px', color: '#666' }}>Cần gói thành viên</small>
               </div>
             )}
           </>

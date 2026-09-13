@@ -268,12 +268,32 @@ export function createVnpayPayment(planId) {
   return csrfPost('/me/membership-payments/vnpay', { planId })
 }
 export async function openDigitalContent(resourceId) {
-  const response = await fetch(API_BASE_URL + '/resources/' + encodeURIComponent(resourceId) + '/digital-content', { 
-    credentials: 'include' 
-  });
-  if (!response.ok) return parseError(response);
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, '_blank', 'noopener,noreferrer');
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const tab = window.open('', '_blank')
+
+  if (!tab) {
+    const error = new Error('Trình duyệt đã chặn cửa sổ đọc tài liệu.')
+    error.code = 'POPUP_BLOCKED'
+    throw error
+  }
+
+  try {
+    const response = await fetch(
+      API_BASE_URL + '/resources/' + encodeURIComponent(resourceId) + '/digital-content',
+      { credentials: 'include' }
+    )
+
+    if (!response.ok) {
+      tab.close()
+      return parseError(response)
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    tab.location.href = url
+
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch (error) {
+    if (!tab.closed) tab.close()
+    throw error
+  }
 }
