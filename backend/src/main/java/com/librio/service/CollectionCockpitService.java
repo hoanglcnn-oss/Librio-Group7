@@ -87,11 +87,15 @@ public class CollectionCockpitService {
         LocalDateTime now = LocalDateTime.now();
         Pageable pageable = PageRequest.of(page, size);
 
+        String inventoryStatusValue = inventoryStatus != null ? inventoryStatus.name() : "";
+        String circulationStatusValue = circulationStatus != null ? circulationStatus.name() : "";
+        int attentionMode = needsAttention == null ? -1 : (needsAttention ? 1 : 0);
+
         Page<PhysicalItem> itemPage = physicalItemRepository.findCockpitItemsPaged(
-                trimmedQ,
-                inventoryStatus,
-                circulationStatus,
-                needsAttention,
+                trimmedQ != null ? trimmedQ : "",
+                inventoryStatusValue,
+                circulationStatusValue,
+                attentionMode,
                 now,
                 pageable
         );

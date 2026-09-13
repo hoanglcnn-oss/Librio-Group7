@@ -54,97 +54,337 @@ public interface PhysicalItemRepository extends JpaRepository<PhysicalItem, Long
             Pageable pageable
     );
 
-    @Query(value = """
-            select p from PhysicalItem p
-            join fetch p.resource r
-            where (:inventoryStatus is null or p.inventoryStatus = :inventoryStatus)
-              and (:circulationStatus is null or p.circulationStatus = :circulationStatus)
-              and (:q is null or :q = '' or (
-                    lower(p.barcode) like lower(concat('%', :q, '%')) or
-                    lower(p.location) like lower(concat('%', :q, '%')) or
-                    lower(r.title) like lower(concat('%', :q, '%')) or
-                    lower(r.authors) like lower(concat('%', :q, '%'))
-              ))
-              and (:needsAttention is null or (
-                    :needsAttention = true and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN and (
-                        p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED)
-                        or (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED')
-                        or exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now)
-                        or (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) and exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.RESERVED and not exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.BORROWED and not exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.AVAILABLE and (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) or exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP))))
-                    )
-              ) or (
-                    :needsAttention = false and (
-                        p.inventoryStatus = com.librio.domain.InventoryStatus.WITHDRAWN or not (
-                            p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED)
-                            or (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED')
-                            or exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now)
-                            or (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) and exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.RESERVED and not exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.BORROWED and not exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.AVAILABLE and (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) or exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP))))
+    @Query(
+        value = """
+                select p.*
+                from physical_item p
+                join resource r on r.id = p.resource_id
+                where (:inventoryStatus = '' or p.inventory_status = :inventoryStatus)
+                  and (:circulationStatus = '' or p.circulation_status = :circulationStatus)
+                  and (
+                        :q = ''
+                        or lower(p.barcode) like lower(concat('%', :q, '%'))
+                        or lower(p.location) like lower(concat('%', :q, '%'))
+                        or lower(r.title) like lower(concat('%', :q, '%'))
+                        or lower(r.authors) like lower(concat('%', :q, '%'))
+                  )
+                  and (
+                        :attentionMode = -1
+                        or (
+                            :attentionMode = 1
+                            and p.inventory_status <> 'WITHDRAWN'
+                            and (
+                                p.inventory_status in ('LOST', 'DAMAGED')
+                                or p.location is null
+                                or trim(p.location) = ''
+                                or upper(trim(p.location)) = 'UNASSIGNED'
+                                or exists (
+                                    select 1 from borrowing b
+                                    where b.physical_item_id = p.id
+                                      and b.returned_at is null
+                                      and b.due_at < :now
+                                )
+                                or (
+                                    exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                    )
+                                    and exists (
+                                        select 1 from borrow_request br
+                                        where br.physical_item_id = p.id
+                                          and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'RESERVED'
+                                    and not exists (
+                                        select 1 from borrow_request br
+                                        where br.physical_item_id = p.id
+                                          and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'BORROWED'
+                                    and not exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'AVAILABLE'
+                                    and (
+                                        exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                        or exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                )
+                            )
                         )
-                    )
-              ))
-            order by case when (
-                        p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED)
-                        or (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED')
-                        or exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now)
-                        or (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) and exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.RESERVED and not exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.BORROWED and not exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.AVAILABLE and (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) or exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP))))
-                     ) and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN then 0 else 1 end asc,
-                     case when exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now) and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN then 0 else 1 end asc,
-                     case when p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED) and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN then 0 else 1 end asc,
-                     case when (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED') and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN then 0 else 1 end asc,
-                     p.id asc
-            """,
-            countQuery = """
-            select count(p) from PhysicalItem p
-            left join p.resource r
-            where (:inventoryStatus is null or p.inventoryStatus = :inventoryStatus)
-              and (:circulationStatus is null or p.circulationStatus = :circulationStatus)
-              and (:q is null or :q = '' or (
-                    lower(p.barcode) like lower(concat('%', :q, '%')) or
-                    lower(p.location) like lower(concat('%', :q, '%')) or
-                    lower(r.title) like lower(concat('%', :q, '%')) or
-                    lower(r.authors) like lower(concat('%', :q, '%'))
-              ))
-              and (:needsAttention is null or (
-                    :needsAttention = true and p.inventoryStatus <> com.librio.domain.InventoryStatus.WITHDRAWN and (
-                        p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED)
-                        or (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED')
-                        or exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now)
-                        or (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) and exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.RESERVED and not exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.BORROWED and not exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null))
-                        or (p.circulationStatus = com.librio.domain.CirculationStatus.AVAILABLE and (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) or exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP))))
-                    )
-              ) or (
-                    :needsAttention = false and (
-                        p.inventoryStatus = com.librio.domain.InventoryStatus.WITHDRAWN or not (
-                            p.inventoryStatus in (com.librio.domain.InventoryStatus.LOST, com.librio.domain.InventoryStatus.DAMAGED)
-                            or (p.location is null or trim(p.location) = '' or upper(trim(p.location)) = 'UNASSIGNED')
-                            or exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null and b.dueAt < :now)
-                            or (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) and exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.RESERVED and not exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP)))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.BORROWED and not exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null))
-                            or (p.circulationStatus = com.librio.domain.CirculationStatus.AVAILABLE and (exists (select 1 from Borrowing b where b.physicalItem = p and b.returnedAt is null) or exists (select 1 from BorrowRequest br where br.physicalItem = p and br.status in (com.librio.domain.BorrowRequestStatus.REQUESTED, com.librio.domain.BorrowRequestStatus.READY_FOR_PICKUP))))
+                        or (
+                            :attentionMode = 0
+                            and (
+                                p.inventory_status = 'WITHDRAWN'
+                                or not (
+                                    p.inventory_status in ('LOST', 'DAMAGED')
+                                    or p.location is null
+                                    or trim(p.location) = ''
+                                    or upper(trim(p.location)) = 'UNASSIGNED'
+                                    or exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                          and b.due_at < :now
+                                    )
+                                    or (
+                                        exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                        and exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'RESERVED'
+                                        and not exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'BORROWED'
+                                        and not exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'AVAILABLE'
+                                        and (
+                                            exists (
+                                                select 1 from borrowing b
+                                                where b.physical_item_id = p.id
+                                                  and b.returned_at is null
+                                            )
+                                            or exists (
+                                                select 1 from borrow_request br
+                                                where br.physical_item_id = p.id
+                                                  and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                            )
+                                        )
+                                    )
+                                )
+                            )
                         )
-                    )
-              ))
-            """)
-    org.springframework.data.domain.Page<PhysicalItem> findCockpitItemsPaged(
-            @Param("q") String q,
-            @Param("inventoryStatus") InventoryStatus inventoryStatus,
-            @Param("circulationStatus") CirculationStatus circulationStatus,
-            @Param("needsAttention") Boolean needsAttention,
-            @Param("now") java.time.LocalDateTime now,
-            Pageable pageable
-    );
+                  )
+                order by
+                    case when (
+                        p.inventory_status <> 'WITHDRAWN'
+                        and (
+                            p.inventory_status in ('LOST', 'DAMAGED')
+                            or p.location is null
+                            or trim(p.location) = ''
+                            or upper(trim(p.location)) = 'UNASSIGNED'
+                            or exists (
+                                select 1 from borrowing b
+                                where b.physical_item_id = p.id
+                                  and b.returned_at is null
+                                  and b.due_at < :now
+                            )
+                            or (
+                                p.circulation_status = 'RESERVED'
+                                and not exists (
+                                    select 1 from borrow_request br
+                                    where br.physical_item_id = p.id
+                                      and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                )
+                            )
+                            or (
+                                p.circulation_status = 'BORROWED'
+                                and not exists (
+                                    select 1 from borrowing b
+                                    where b.physical_item_id = p.id
+                                      and b.returned_at is null
+                                )
+                            )
+                        )
+                    ) then 0 else 1 end,
+                    case when exists (
+                        select 1 from borrowing b
+                        where b.physical_item_id = p.id
+                          and b.returned_at is null
+                          and b.due_at < :now
+                    ) and p.inventory_status <> 'WITHDRAWN' then 0 else 1 end,
+                    case when p.inventory_status in ('LOST', 'DAMAGED')
+                         and p.inventory_status <> 'WITHDRAWN' then 0 else 1 end,
+                    case when (
+                        p.location is null
+                        or trim(p.location) = ''
+                        or upper(trim(p.location)) = 'UNASSIGNED'
+                    ) and p.inventory_status <> 'WITHDRAWN' then 0 else 1 end,
+                    p.id asc
+                """,
+        countQuery = """
+                select count(*)
+                from physical_item p
+                join resource r on r.id = p.resource_id
+                where (:inventoryStatus = '' or p.inventory_status = :inventoryStatus)
+                  and (:circulationStatus = '' or p.circulation_status = :circulationStatus)
+                  and (
+                        :q = ''
+                        or lower(p.barcode) like lower(concat('%', :q, '%'))
+                        or lower(p.location) like lower(concat('%', :q, '%'))
+                        or lower(r.title) like lower(concat('%', :q, '%'))
+                        or lower(r.authors) like lower(concat('%', :q, '%'))
+                  )
+                  and (
+                        :attentionMode = -1
+                        or (
+                            :attentionMode = 1
+                            and p.inventory_status <> 'WITHDRAWN'
+                            and (
+                                p.inventory_status in ('LOST', 'DAMAGED')
+                                or p.location is null
+                                or trim(p.location) = ''
+                                or upper(trim(p.location)) = 'UNASSIGNED'
+                                or exists (
+                                    select 1 from borrowing b
+                                    where b.physical_item_id = p.id
+                                      and b.returned_at is null
+                                      and b.due_at < :now
+                                )
+                                or (
+                                    exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                    )
+                                    and exists (
+                                        select 1 from borrow_request br
+                                        where br.physical_item_id = p.id
+                                          and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'RESERVED'
+                                    and not exists (
+                                        select 1 from borrow_request br
+                                        where br.physical_item_id = p.id
+                                          and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'BORROWED'
+                                    and not exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                    )
+                                )
+                                or (
+                                    p.circulation_status = 'AVAILABLE'
+                                    and (
+                                        exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                        or exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                        or (
+                            :attentionMode = 0
+                            and (
+                                p.inventory_status = 'WITHDRAWN'
+                                or not (
+                                    p.inventory_status in ('LOST', 'DAMAGED')
+                                    or p.location is null
+                                    or trim(p.location) = ''
+                                    or upper(trim(p.location)) = 'UNASSIGNED'
+                                    or exists (
+                                        select 1 from borrowing b
+                                        where b.physical_item_id = p.id
+                                          and b.returned_at is null
+                                          and b.due_at < :now
+                                    )
+                                    or (
+                                        exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                        and exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'RESERVED'
+                                        and not exists (
+                                            select 1 from borrow_request br
+                                            where br.physical_item_id = p.id
+                                              and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'BORROWED'
+                                        and not exists (
+                                            select 1 from borrowing b
+                                            where b.physical_item_id = p.id
+                                              and b.returned_at is null
+                                        )
+                                    )
+                                    or (
+                                        p.circulation_status = 'AVAILABLE'
+                                        and (
+                                            exists (
+                                                select 1 from borrowing b
+                                                where b.physical_item_id = p.id
+                                                  and b.returned_at is null
+                                            )
+                                            or exists (
+                                                select 1 from borrow_request br
+                                                where br.physical_item_id = p.id
+                                                  and br.status in ('REQUESTED', 'READY_FOR_PICKUP')
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                  )
+                """,
+        nativeQuery = true
+)
+org.springframework.data.domain.Page<PhysicalItem> findCockpitItemsPaged(
+        @Param("q") String q,
+        @Param("inventoryStatus") String inventoryStatus,
+        @Param("circulationStatus") String circulationStatus,
+        @Param("attentionMode") int attentionMode,
+        @Param("now") java.time.LocalDateTime now,
+        Pageable pageable
+);
 
     interface CockpitSummaryProjection {
         Long getTotalCopies();
