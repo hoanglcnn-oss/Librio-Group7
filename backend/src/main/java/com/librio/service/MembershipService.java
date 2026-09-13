@@ -24,6 +24,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +41,103 @@ public class MembershipService {
         return membershipPlanRepository.findByActiveTrueOrderByIdAsc().stream()
                 .map(this::toPlanDto)
                 .toList();
+    }
+
+    @Transactional
+    public String createVnpayPayment(String email, Long planId, VnpayService vnpayService, String ipAddr) {
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new BorrowFlowException("ACCOUNT_NOT_FOUND", HttpStatus.NOT_FOUND, "Account not found"));
+
+        Account lockedAccount = accountRepository.findByIdForUpdate(account.getId())
+                .orElseThrow(() -> new BorrowFlowException("ACCOUNT_NOT_FOUND", HttpStatus.NOT_FOUND, "Account not found"));
+
+        if (!lockedAccount.isMembershipEligible()) {
+            throw new BorrowFlowException("MEMBERSHIP_NOT_ELIGIBLE", HttpStatus.FORBIDDEN, "Account is not eligible for membership");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Optional<MembershipSubscription> latestSub = membershipSubscriptionRepository.findFirstByAccountIdOrderByStartsAtDescIdDesc(lockedAccount.getId());
+        if (latestSub.isPresent() && latestSub.get().getExpiresAt().isAfter(now)) {
+            throw new BorrowFlowException("ACTIVE_MEMBERSHIP_EXISTS", HttpStatus.CONFLICT, "Active membership exists");
+        }
+
+        MembershipPlan plan = membershipPlanRepository.findById(planId)
+                .orElseThrow(() -> new BorrowFlowException("MEMBERSHIP_PLAN_NOT_FOUND", HttpStatus.NOT_FOUND, "Membership plan not found"));
+
+        if (!plan.isActive()) {
+            throw new BorrowFlowException("MEMBERSHIP_PLAN_NOT_FOUND", HttpStatus.NOT_FOUND, "Membership plan not found or inactive");
+        }
+
+        String txnRef = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+
+        PaymentTransaction tx = PaymentTransaction.builder()
+                .account(lockedAccount)
+                .plan(plan)
+                .amount(plan.getPriceAmount())
+                .currency(plan.getCurrency())
+                .status(PaymentStatus.PENDING)
+                .providerTxnRef(txnRef)
+                .createdAt(now)
+                .build();
+        
+        paymentTransactionRepository.save(tx);
+
+        String orderInfo = "Membership payment for plan " + plan.getName();
+        return vnpayService.buildPaymentUrl(txnRef, plan.getPriceAmount().longValue(), orderInfo, ipAddr);
+    }
+
+    @Transactional
+    public boolean processVnpayReturn(Map<String, String> params) {
+        String txnRef = params.get("vnp_TxnRef");
+        if (txnRef == null) {
+            return false; // Or throw
+        }
+
+        PaymentTransaction tx = paymentTransactionRepository.findByProviderTxnRef(txnRef)
+                .orElse(null);
+
+        if (tx == null) {
+            return false;
+        }
+
+        if (tx.getStatus() != PaymentStatus.PENDING) {
+            return tx.getStatus() == PaymentStatus.SUCCESS; // Idempotent
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String responseCode = params.get("vnp_ResponseCode");
+        String transactionNo = params.get("vnp_TransactionNo");
+
+        tx.setProviderResponseCode(responseCode);
+        tx.setProviderTransactionNo(transactionNo);
+        tx.setCompletedAt(now);
+
+        if ("00".equals(responseCode)) {
+            Account lockedAccount = accountRepository.findByIdForUpdate(tx.getAccount().getId())
+                    .orElseThrow(() -> new BorrowFlowException("ACCOUNT_NOT_FOUND", HttpStatus.NOT_FOUND, "Account not found"));
+
+            Optional<MembershipSubscription> latestSub = membershipSubscriptionRepository.findFirstByAccountIdOrderByStartsAtDescIdDesc(lockedAccount.getId());
+            if (latestSub.isPresent() && latestSub.get().getExpiresAt().isAfter(now)) {
+                // Should not happen unless concurrency skipped lock previously, mark success but don't double sub
+                tx.setStatus(PaymentStatus.SUCCESS);
+                return true;
+            }
+
+            tx.setStatus(PaymentStatus.SUCCESS);
+            
+            MembershipSubscription sub = MembershipSubscription.builder()
+                    .account(lockedAccount)
+                    .plan(tx.getPlan())
+                    .paymentTransaction(tx)
+                    .startsAt(now)
+                    .expiresAt(now.plusMonths(tx.getPlan().getDurationMonths()))
+                    .build();
+            membershipSubscriptionRepository.save(sub);
+            return true;
+        } else {
+            tx.setStatus(PaymentStatus.FAILED);
+            return false;
+        }
     }
 
     @Transactional(readOnly = true)

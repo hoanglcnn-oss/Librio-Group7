@@ -40,6 +40,15 @@ public class PaymentTransaction {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "completed_at", nullable = false)
+        @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    @Column(name = "provider_txn_ref", unique = true)
+    private String providerTxnRef;
+
+    @Column(name = "provider_transaction_no")
+    private String providerTransactionNo;
+
+    @Column(name = "provider_response_code")
+    private String providerResponseCode;
 }

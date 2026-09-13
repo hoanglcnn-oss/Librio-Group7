@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { getMembershipPlans, getCurrentMembership, simulateMembershipPayment, getBorrowingQuota } from '../services/authApi'
+import { getMembershipPlans, getCurrentMembership, createVnpayPayment, getBorrowingQuota } from '../services/authApi'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './MembershipPage.css'
 
 export default function MembershipPage() {
@@ -57,51 +58,42 @@ export default function MembershipPage() {
     }
   }
 
-  const fetchMembershipOnly = async () => {
-    const seq = ++fetchSeqRef.current
-    try {
-      const res = await getCurrentMembership()
-      let quotaRes = null
-      if (res.status === 'ACTIVE') {
-        try {
-          quotaRes = await getBorrowingQuota()
-        } catch (e) {
-          console.error("Failed to load quota", e)
-        }
-      }
-      if (isMountedRef.current && seq === fetchSeqRef.current) {
-        setMembership(res)
-        setQuota(quotaRes)
-      }
-    } catch {
-      if (isMountedRef.current && seq === fetchSeqRef.current) {
-        setPaymentError('Lỗi khi tải lại trạng thái thành viên.')
-      }
-    }
-  }
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
   }, [])
 
-  const handlePayment = async (planId, outcome) => {
+    const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const paymentResult = params.get('payment')
+    if (paymentResult) {
+      if (paymentResult === 'success') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Thanh to�n th�nh c�ng. G�i th�nh vi�n d� du?c k�ch ho?t.')
+      } else if (paymentResult === 'failed') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Thanh to�n kh�ng th�nh c�ng ho?c d� b? h?y.')
+      } else if (paymentResult === 'invalid') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPaymentError('Kh�ng th? x�c minh k?t qu? thanh to�n.')
+      }
+      navigate(location.pathname, { replace: true })
+    }
+  }, [location.search, location.pathname, navigate])
+
+  const handlePayment = async (planId) => {
     if (submitting) return
     setSubmitting(true)
     setPaymentError(null)
     try {
-      await simulateMembershipPayment(planId, outcome)
-      await fetchMembershipOnly()
-      if (outcome === 'SUCCESS') {
-        window.dispatchEvent(new CustomEvent('librio:membership-changed'))
-      }
+      const result = await createVnpayPayment(planId)
+      window.location.assign(result.paymentUrl)
     } catch (err) {
       if (isMountedRef.current) {
-        setPaymentError(err.message || 'Có lỗi xảy ra khi thanh toán.')
-      }
-      await fetchMembershipOnly()
-    } finally {
-      if (isMountedRef.current) {
+        setPaymentError(err.message || 'C� l?i x?y ra khi kh?i t?o thanh to�n.')
         setSubmitting(false)
       }
     }
@@ -195,20 +187,13 @@ export default function MembershipPage() {
               <p>Thời lượng: {p.durationMonths} tháng</p>
               <p>Giá: {p.priceAmount} {p.currency}</p>
               <p>Hạn mức mượn: {p.monthlyBorrowQuota} quyển/tháng</p>
-              <div className="plan-actions">
+                            <div className="plan-actions">
                 <button 
                   className="btn-success" 
                   disabled={submitting || status === 'ACTIVE'}
-                  onClick={() => handlePayment(p.id, 'SUCCESS')}
+                  onClick={() => handlePayment(p.id)}
                 >
-                  Mô phỏng thanh toán (THÀNH CÔNG)
-                </button>
-                <button 
-                  className="btn-danger" 
-                  disabled={submitting || status === 'ACTIVE'}
-                  onClick={() => handlePayment(p.id, 'FAILED')}
-                >
-                  Mô phỏng thanh toán (THẤT BẠI)
+                  {submitting ? '�ang chuy?n d?n c?ng thanh to�n...' : 'Thanh to�n'}
                 </button>
               </div>
             </div>

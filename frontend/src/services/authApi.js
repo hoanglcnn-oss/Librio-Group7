@@ -263,3 +263,26 @@ export function simulateMembershipPayment(planId, outcome) {
 export function getBorrowingQuota() {
   return authenticatedGet('/me/borrowing-quota')
 }
+
+export async function createVnpayPayment(planId) {
+  const res = await fetch(API_BASE_URL + '/me/membership-payments/vnpay', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrf,
+    },
+    body: JSON.stringify({ planId }),
+  })
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}))
+    const code = errorData.code || 'UNKNOWN_ERROR'
+    const message = ERROR_MESSAGES[code] || errorData.message || 'Error occurred'
+    const error = new Error(message)
+    error.status = res.status
+    error.code = code
+    throw error
+  }
+
+  return res.json()
+}

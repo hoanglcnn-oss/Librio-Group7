@@ -65,3 +65,12 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+vnpay:
+  payUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  tmnCode: TEST
+  hashSecret: TEST
+  returnUrl: http://localhost:8080/payments/vnpay-return
+
+librio:
+  frontendUrl: http://localhost:5173

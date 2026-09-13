@@ -67,9 +67,15 @@ SELECT 303, 4
 WHERE NOT EXISTS (SELECT 1 FROM digital_item WHERE id = 303);
 -- Seed Membership Plans
 INSERT INTO membership_plan (code, name, duration_months, price_amount, currency, monthly_borrow_quota, active) 
-SELECT 'MONTHLY', 'Monthly Plan', 1, 10.00, 'USD', 5, true
+SELECT 'MONTHLY', 'Monthly Plan', 1, 100000.00, 'VND', 5, true
 WHERE NOT EXISTS (SELECT 1 FROM membership_plan WHERE code = 'MONTHLY');
 
 INSERT INTO membership_plan (code, name, duration_months, price_amount, currency, monthly_borrow_quota, active) 
-SELECT 'YEARLY', 'Yearly Plan', 12, 100.00, 'USD', 50, true
+SELECT 'YEARLY', 'Yearly Plan', 12, 1000000.00, 'VND', 50, true
 WHERE NOT EXISTS (SELECT 1 FROM membership_plan WHERE code = 'YEARLY');
+
+UPDATE digital_item SET preview_content_key = COALESCE(preview_content_key, CONCAT('preview-', id)), full_content_key = COALESCE(full_content_key, CONCAT('full-', id));
+
+UPDATE membership_plan SET price_amount = 100000, currency = 'VND' WHERE code = 'MONTHLY';
+
+UPDATE membership_plan SET price_amount = 1000000, currency = 'VND' WHERE code = 'YEARLY';

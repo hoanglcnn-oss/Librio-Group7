@@ -79,7 +79,7 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
       setDialog(null)
       await onBorrowRequestCreated?.()
     } catch (requestError) {
-      if (requestError.status === 401 || requestError.status === 403) {
+      if (requestError.status === 401 || requestError.code === 'AUTHENTICATION_REQUIRED') {
         setDialog(null)
         navigate('/login', { state: { from: location.pathname } })
       } else {

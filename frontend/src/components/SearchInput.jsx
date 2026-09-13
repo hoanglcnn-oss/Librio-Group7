@@ -10,6 +10,14 @@ function SearchInput({ initialValue, onSearch }) {
   const lastSearch = useRef(initialValue.trim())
 
   useEffect(() => {
+    const keyword = initialValue.trim()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setValue(initialValue)
+    lastSearch.current = keyword
+    setPending(false)
+  }, [initialValue])
+
+  useEffect(() => {
     const keyword = value.trim()
     if (keyword === lastSearch.current) {
       setPending(false)

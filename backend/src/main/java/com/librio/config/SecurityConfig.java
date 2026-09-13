@@ -111,6 +111,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/resources/*/digital-content").hasRole("READER")
                         .requestMatchers("/resources/**").permitAll()
+                        .requestMatchers("/payments/vnpay-return").permitAll()
                         .requestMatchers(HttpMethod.GET, "/membership/plans").permitAll()
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/auth/csrf").permitAll()

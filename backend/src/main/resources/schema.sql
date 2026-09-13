@@ -283,3 +283,10 @@ CREATE TABLE IF NOT EXISTS membership_subscription (
 
 ALTER TABLE digital_item ADD COLUMN IF NOT EXISTS preview_content_key VARCHAR(512);
 ALTER TABLE digital_item ADD COLUMN IF NOT EXISTS full_content_key VARCHAR(512);
+
+ALTER TABLE payment_transaction ALTER COLUMN completed_at DROP NOT NULL;
+ALTER TABLE payment_transaction DROP CONSTRAINT IF EXISTS chk_payment_status;
+ALTER TABLE payment_transaction ADD CONSTRAINT chk_payment_status CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED'));
+ALTER TABLE payment_transaction ADD COLUMN IF NOT EXISTS provider_txn_ref VARCHAR(255) UNIQUE;
+ALTER TABLE payment_transaction ADD COLUMN IF NOT EXISTS provider_transaction_no VARCHAR(255);
+ALTER TABLE payment_transaction ADD COLUMN IF NOT EXISTS provider_response_code VARCHAR(50);

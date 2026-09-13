@@ -65,6 +65,7 @@ public class DevAccountSeeder implements CommandLineRunner {
                 .displayName(displayName)
                 .role(role)
                 .accountStatus(AccountStatus.ACTIVE)
+                .membershipEligible(role == AccountRole.READER)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
