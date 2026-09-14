@@ -7,7 +7,6 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
   const [dialog, setDialog] = useState(null)
   const [digitalCapabilityState, setDigitalCapabilityState] = useState({ resourceId: null, capability: null })
   const [capabilityLoading, setCapabilityLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [borrowRequest, setBorrowRequest] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [openingContent, setOpeningContent] = useState(false)
@@ -149,7 +148,6 @@ function DemoActions({ resource, onBorrowRequestCreated }) {
             )}
           </>
         )}
-        <button className="text-action" type="button" onClick={() => setSaved((value) => !value)}>{saved ? '✓ Đã lưu' : '+ Lưu vào danh sách'}</button>
       </div>
 
       {borrowRequest && (

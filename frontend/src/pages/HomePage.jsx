@@ -27,13 +27,15 @@ function HomePage() {
             <h1>Học tập hôm nay,<br /><em>kiến tạo tương lai.</em></h1>
             <p className="hero-description">Tra cứu giáo trình, sách tham khảo và tài liệu số phục vụ học tập, giảng dạy và nghiên cứu trong nhà trường.</p>
             
-            <form className="search-form" onSubmit={handleSearch}>
+            <form className="search-form home-search" onSubmit={handleSearch}>
               <input type="search" name="q" placeholder="Tìm tài liệu theo tên hoặc tác giả..." aria-label="Tìm kiếm tài liệu" />
-              <button type="submit">Tìm kiếm</button>
+              <button type="submit" className="btn-primary">Tìm kiếm</button>
             </form>
 
-            <div className="hero-stats" aria-label="Thống kê thư viện">
-              <div><strong>10K+</strong><span>Tài liệu</span></div><div><strong>24/7</strong><span>Thư viện số</span></div><div><strong>5K+</strong><span>Học viên</span></div>
+            <div className="hero-cta" style={{ marginTop: '1.5rem' }}>
+              <button type="button" onClick={() => navigate('/resources')} className="btn-text">
+                Khám phá kho tài liệu &rarr;
+              </button>
             </div>
           </div>
           <div className="hero-art" aria-hidden="true">
@@ -58,6 +60,17 @@ function HomePage() {
               <p>Tìm kiếm và khám phá tài liệu.</p>
               <button type="button" onClick={() => navigate('/resources')} style={{ marginTop: '12px' }}>Kho tài liệu</button>
             </article>
+
+            {/* Anonymous */}
+            {!auth.account && (
+              <article>
+                <strong>Đăng nhập</strong>
+                <p>Truy cập thư viện của bạn.</p>
+                <button type="button" onClick={() => navigate('/login')} style={{ marginTop: '12px' }}>Đăng nhập</button>
+              </article>
+            )}
+
+            {/* READER */}
             {auth.isReader && (
               <>
                 <article>
@@ -72,6 +85,8 @@ function HomePage() {
                 </article>
               </>
             )}
+
+            {/* LIBRARIAN */}
             {auth.isLibrarian && (
               <>
                 <article>
@@ -80,12 +95,14 @@ function HomePage() {
                   <button type="button" onClick={() => navigate('/librarian/cockpit')} style={{ marginTop: '12px' }}>Cockpit kho sách</button>
                 </article>
                 <article>
-                  <strong>Xử lý mượn & Quản lý</strong>
-                  <p>Duyệt yêu cầu và thêm sách mới.</p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <button type="button" onClick={() => navigate('/librarian/requests')}>Xử lý mượn</button>
-                    <button type="button" onClick={() => navigate('/librarian/resources/new')}>Thêm sách</button>
-                  </div>
+                  <strong>Xử lý mượn</strong>
+                  <p>Duyệt yêu cầu từ độc giả.</p>
+                  <button type="button" onClick={() => navigate('/librarian/requests')} style={{ marginTop: '12px' }}>Xử lý mượn</button>
+                </article>
+                <article>
+                  <strong>Quản lý tài liệu</strong>
+                  <p>Thêm và sửa thông tin sách.</p>
+                  <button type="button" onClick={() => navigate('/librarian/resources/new')} style={{ marginTop: '12px' }}>Quản lý tài liệu</button>
                 </article>
               </>
             )}

@@ -112,8 +112,6 @@ test('T-175: stable error mapping exists for borrow quota failures', () => {
 test('T-175: MembershipPage renders quota display values', () => {
   const pageContent = fs.readFileSync(path.join(__dirname, '../pages/MembershipPage.jsx'), 'utf-8')
   
-  assert.ok(pageContent.includes("Hạn mức mượn: {quota.planQuota} lượt / chu kỳ"))
-  assert.ok(pageContent.includes("Đã sử dụng: {quota.usedBorrowings + quota.activeCommitments} / {quota.planQuota} lượt"))
-  assert.ok(pageContent.includes("Còn lại: {quota.remainingQuota} lượt"))
+  assert.ok(pageContent.includes("Còn {quota.remainingQuota} / {quota.planQuota} lượt"))
   assert.ok(pageContent.includes("getBorrowingQuota"))
 })

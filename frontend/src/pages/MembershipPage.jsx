@@ -121,85 +121,103 @@ export default function MembershipPage() {
     )
   }
 
-  const { status, plan, startsAt, expiresAt, latestPayment } = membership || {}
+  const { status, plan, startsAt, expiresAt } = membership || {}
+  
+  const monthlyPlan = plans.find(p => p.durationMonths === 1)
+  const yearlyPlan = plans.find(p => p.durationMonths === 12)
+  let yearlySaving = 0
+  if (monthlyPlan && yearlyPlan && yearlyPlan.priceAmount < (monthlyPlan.priceAmount * 12)) {
+    yearlySaving = (monthlyPlan.priceAmount * 12) - yearlyPlan.priceAmount
+  }
+
+  const formatPrice = (price) => new Intl.NumberFormat('vi-VN').format(price) + ' ₫'
 
   return (
     <div className="app-shell">
       <Header />
-      <main className="membership-page">
-        <h1>Quản lý gói thành viên</h1>
-      
-      {paymentError && (
-        <div className="error-box">
-          <p>{paymentError}</p>
-        </div>
-      )}
-
-      <section className="current-membership">
-        <h2>Trạng thái hiện tại</h2>
-        <div className="status-card">
-          <p className="status-label">Trạng thái: <strong>{status}</strong></p>
-          {status === 'ACTIVE' && plan && (
-            <>
-              <p>Gói: {plan.name}</p>
-              <p>Ngày bắt đầu: {new Date(startsAt).toLocaleString()}</p>
-              <p>Ngày hết hạn: {new Date(expiresAt).toLocaleString()}</p>
-              {quota && (
-                <div className="quota-summary" style={{ marginTop: '16px', padding: '12px', background: '#f3f4f6', borderRadius: '4px' }}>
-                  <p>Hạn mức mượn: {quota.planQuota} lượt / chu kỳ</p>
-                  <p>Đã sử dụng: {quota.usedBorrowings + quota.activeCommitments} / {quota.planQuota} lượt</p>
-                  <p>Còn lại: {quota.remainingQuota} lượt</p>
-                  <p>Chu kỳ hiện tại: {new Date(quota.periodStart).toLocaleDateString()} – {new Date(quota.periodEnd).toLocaleDateString()}</p>
-                </div>
-              )}
-            </>
-          )}
-          {status === 'EXPIRED' && expiresAt && (
-            <p>Gói của bạn đã hết hạn vào lúc {new Date(expiresAt).toLocaleString()}</p>
-          )}
-          {latestPayment && latestPayment.status === 'FAILED' && (
-            <div className="payment-context failed">
-              Giao dịch gần nhất thất bại vào lúc {new Date(latestPayment.completedAt).toLocaleString()}.
-              {latestPayment.reason && ` Lý do: ${latestPayment.reason}`}
-            </div>
-          )}
-          {latestPayment && latestPayment.status === 'SUCCESS' && (
-            <div className="payment-context success">
-              Giao dịch gần nhất thành công vào lúc {new Date(latestPayment.completedAt).toLocaleString()}.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="available-plans">
-        <h2>Các gói thành viên</h2>
-        {status === 'ACTIVE' && (
-          <p style={{ color: '#047857', marginBottom: '16px' }}>
-            Bạn đang có gói thành viên hoạt động. Việc mua thêm gói mới không cần thiết vào lúc này.
-          </p>
+      <main className="membership-page pricing-first">
+        
+        {paymentError && (
+          <div className="error-box payment-banner">
+            <p>{paymentError}</p>
+          </div>
         )}
-        <div className="plans-grid">
-          {plans.map(p => (
-            <div key={p.id} className="plan-card">
-              <h3>{p.name}</h3>
-              <p>Thời lượng: {p.durationMonths} tháng</p>
-              <p>Giá: {p.priceAmount} {p.currency}</p>
-              <p>Hạn mức mượn: {p.monthlyBorrowQuota} quyển/tháng</p>
-                            <div className="plan-actions">
-                <button 
-                  className="btn-success" 
-                  disabled={submitting || status === 'ACTIVE'}
-                  onClick={() => handlePayment(p.id)}
-                >
-                  {submitting ? 'Đang chuyển đến cổng thanh toán...' : 'Thanh toán'}
-                </button>
-              </div>
+
+        <section className="pricing-intro">
+          <h1>Gói thành viên Librio</h1>
+          <p className="subtitle">Mở khóa quyền mượn sách và đọc toàn bộ tài liệu số.</p>
+        </section>
+
+        <section className="available-plans">
+          <div className="plans-grid">
+            {plans.map(p => {
+              const isCurrentPlan = status === 'ACTIVE' && plan && plan.id === p.id;
+              
+              return (
+                <div key={p.id} className={`plan-card ${isCurrentPlan ? 'current-plan' : ''}`}>
+                  {isCurrentPlan && <div className="plan-badge">Gói hiện tại</div>}
+                  <h3>{p.name}</h3>
+                  <div className="plan-price">
+                    <strong>{formatPrice(p.priceAmount)}</strong>
+                    <span>/ {p.durationMonths} tháng</span>
+                  </div>
+                  
+                  {p.durationMonths === 12 && yearlySaving > 0 && (
+                    <div className="plan-saving">Tiết kiệm {formatPrice(yearlySaving)} so với gói tháng</div>
+                  )}
+
+                  <ul className="plan-benefits">
+                    <li>✓ Quyền mượn sách giấy ({p.monthlyBorrowQuota} quyển/tháng)</li>
+                    <li>✓ Đọc toàn bộ tài liệu số</li>
+                    <li>✓ Thời hạn {p.durationMonths} tháng</li>
+                  </ul>
+                  
+                  <div className="plan-actions">
+                    <button 
+                      className="btn-primary" 
+                      disabled={submitting || status === 'ACTIVE'}
+                      onClick={() => handlePayment(p.id)}
+                    >
+                      {submitting ? 'Đang xử lý...' : (status === 'ACTIVE' ? 'Đã đăng ký' : 'Chọn gói')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {plans.length === 0 && <p>Không có gói thành viên nào đang mở bán.</p>}
+          </div>
+        </section>
+
+        <section className="current-membership compact-summary">
+          <h2>Trạng thái tài khoản</h2>
+          <div className="status-card">
+            <div className="status-header">
+              <span className={`status-dot ${status === 'ACTIVE' ? 'active' : ''}`}></span>
+              <strong>{status === 'ACTIVE' ? 'Đang hoạt động' : status === 'EXPIRED' ? 'Đã hết hạn' : 'Chưa đăng ký'}</strong>
             </div>
-          ))}
-          {plans.length === 0 && <p>Không có gói thành viên nào đang mở bán.</p>}
-        </div>
-      </section>
-    </main>
+            
+            {status === 'ACTIVE' && plan && (
+              <div className="status-details">
+                <div className="status-col">
+                  <p><strong>Gói:</strong> {plan.name}</p>
+                  <p><strong>Chu kỳ:</strong> {new Date(startsAt).toLocaleDateString()} – {new Date(expiresAt).toLocaleDateString()}</p>
+                </div>
+                {quota && (
+                  <div className="status-col quota-highlight">
+                    <div className="quota-big">Còn {quota.remainingQuota} / {quota.planQuota} lượt</div>
+                    <p>Chu kỳ hiện tại: {new Date(quota.periodStart).toLocaleDateString()} – {new Date(quota.periodEnd).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {status === 'EXPIRED' && expiresAt && (
+              <p>Gói của bạn đã hết hạn vào lúc {new Date(expiresAt).toLocaleString()}</p>
+            )}
+          </div>
+        </section>
+
+      </main>
       <Footer />
     </div>
   )

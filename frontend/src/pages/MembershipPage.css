@@ -1,98 +1,177 @@
-.membership-page {
-  max-width: 800px;
+﻿.membership-page.pricing-first {
+  max-width: 900px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 1rem;
+}
+.pricing-intro {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.pricing-intro h1 {
+  font-family: serif;
+  font-size: 2.5rem;
+  color: #235c73;
+  margin-bottom: 0.5rem;
+}
+.pricing-intro .subtitle {
+  font-size: 1.1rem;
+  color: #666;
 }
 
-.membership-page h1, .membership-page h2 {
-  margin-bottom: 1rem;
-}
-
-.error-box {
-  background: #fee;
-  border: 1px solid #fcc;
+.payment-banner {
+  background: #fff0ed;
+  color: #b5473c;
+  border: 1px solid #f8c9c4;
   padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 4px;
-}
-
-.current-membership {
   margin-bottom: 2rem;
-}
-
-.status-card {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.status-label {
-  font-size: 1.2rem;
-}
-
-.payment-context {
-  margin-top: 1rem;
-  padding: 0.5rem;
   border-radius: 4px;
-}
-
-.payment-context.failed {
-  background: #fee;
-  color: #c00;
-}
-
-.payment-context.success {
-  background: #efe;
-  color: #0c0;
+  text-align: center;
+  font-weight: 600;
 }
 
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
 }
 
 .plan-card {
-  border: 1px solid #ddd;
+  border: 2px solid #e5e5dc;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 2rem;
   background: white;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
-.plan-card h3 {
-  margin-top: 0;
+.plan-card.current-plan {
+  border-color: #235c73;
+  box-shadow: 0 4px 12px rgba(35, 92, 115, 0.1);
 }
 
-.plan-actions {
-  margin-top: auto;
-  padding-top: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.plan-actions button {
-  padding: 0.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #235c73;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
   font-weight: bold;
 }
 
+.plan-card h3 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.plan-price {
+  margin-bottom: 1rem;
+}
+
+.plan-price strong {
+  font-size: 2rem;
+  color: #d66434;
+}
+
+.plan-price span {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.plan-saving {
+  color: #d66434;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  background: #fdf2ee;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.plan-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem 0;
+  flex-grow: 1;
+}
+
+.plan-benefits li {
+  margin-bottom: 0.75rem;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.plan-actions button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+}
 .plan-actions button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  background: #e5e5dc;
+  color: #666;
+  border-color: #e5e5dc;
 }
 
-.btn-success {
+.compact-summary {
+  background: #fafaf7;
+  border-radius: 8px;
+  padding: 2rem;
+  border: 1px solid #e5e5dc;
+}
+.compact-summary h2 {
+  font-size: 1.25rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ccc;
+}
+.status-dot.active {
   background: #4caf50;
-  color: white;
 }
-
-.btn-danger {
-  background: #f44336;
-  color: white;
+.status-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+.status-col p {
+  margin: 0.5rem 0;
+  color: #555;
+}
+.quota-highlight {
+  background: white;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e5e5dc;
+}
+.quota-big {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #235c73;
+  margin-bottom: 0.5rem;
+}
+@media (max-width: 600px) {
+  .status-details {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
