@@ -54,11 +54,22 @@ function ResourceDetailLoader({ id }) {
 }
 
 function ResourceDetail({ resource, onResourceChanged }) {
+  const [imgError, setImgError] = useState(false)
   return (
     <section className="detail-card">
-      <div className="detail-cover book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
-        <span className="cover-code">{resource.cover || 'LIB'}</span><small>BỘ SƯU TẬP LIBRIO</small>
-      </div>
+      {resource.coverImageUrl && !imgError ? (
+        <img 
+          src={resource.coverImageUrl} 
+          alt={`Bìa sách ${resource.title}`} 
+          className="detail-cover book-cover-img"
+          style={{ width: '100%', minHeight: '320px', objectFit: 'cover', boxShadow: '5px 7px 12px rgba(0,0,0,.14)' }}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="detail-cover book-cover" style={{ '--cover-color': resource.color || '#234e70' }}>
+          <span className="cover-code">{resource.cover || 'LIB'}</span><small>BỘ SƯU TẬP LIBRIO</small>
+        </div>
+      )}
       <div className="detail-content">
         <div className="access-types">{resource.accessTypes.map((type) => <span className="category-tag" key={type}>{formatAccessType(type)}</span>)}</div>
         <h1>{resource.title}</h1>

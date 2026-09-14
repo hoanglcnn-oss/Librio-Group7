@@ -22,6 +22,7 @@ function ResourceAdminPage() {
 
   const [lookupStatus, setLookupStatus] = useState('idle')
   const [lookupError, setLookupError] = useState('')
+  const [lookupErrorCode, setLookupErrorCode] = useState('')
 
   const isMountedRef = useRef(true)
 
@@ -50,11 +51,12 @@ function ResourceAdminPage() {
     } catch (err) {
       if (isMountedRef.current) {
         setLookupStatus('error')
+        setLookupErrorCode(err.message)
         const msgMap = {
           'INVALID_ISBN': 'Mã ISBN không hợp lệ.',
           'BOOK_METADATA_NOT_FOUND': 'Không tìm thấy thông tin sách.',
-          'BOOK_METADATA_LOOKUP_TIMEOUT': 'Quá thời gian tra cứu, vui lòng thử lại.',
-          'BOOK_METADATA_PROVIDER_ERROR': 'Lỗi từ dịch vụ cung cấp metadata.'
+          'BOOK_METADATA_LOOKUP_TIMEOUT': 'Không thể kết nối dịch vụ tra cứu lúc này. Bạn vẫn có thể nhập thông tin thủ công.',
+          'BOOK_METADATA_PROVIDER_ERROR': 'Không thể kết nối dịch vụ tra cứu lúc này. Bạn vẫn có thể nhập thông tin thủ công.'
         }
         setLookupError(msgMap[err.message] || 'Lỗi tra cứu không xác định.')
       }
@@ -188,7 +190,16 @@ function ResourceAdminPage() {
                   {lookupStatus === 'loading' ? 'Đang tra...' : 'Tra cứu'}
                 </button>
               </div>
-              {lookupStatus === 'error' && <div className="isbn-lookup-status error">{lookupError}</div>}
+              {lookupStatus === 'error' && (
+                  <div className="isbn-lookup-status error" style={{ display: 'flex', alignItems: 'center' }}>
+                    {lookupError}
+                    {(lookupErrorCode === 'BOOK_METADATA_LOOKUP_TIMEOUT' || lookupErrorCode === 'BOOK_METADATA_PROVIDER_ERROR') && (
+                      <button type="button" className="btn-text" style={{ marginLeft: '10px', textDecoration: 'underline' }} onClick={handleLookup}>
+                        Thử lại
+                      </button>
+                    )}
+                  </div>
+                )}
               {lookupStatus === 'success' && <div className="isbn-lookup-status success">Tra cứu thành công! Dữ liệu đã được điền.</div>}
             </FormField>
 
@@ -208,9 +219,7 @@ function ResourceAdminPage() {
             <FormField label="Tác giả" hint="Phân cách nhiều tác giả bằng dấu phẩy." error={errors.authors} required>
               <input name="authors" value={form.authors} onChange={updateField} aria-invalid={Boolean(errors.authors)} />
             </FormField>
-            <FormField label="Danh mục">
-              <input name="category" value={form.category} maxLength={100} onChange={updateField} />
-            </FormField>
+            
             <FormField label="Mô tả" hint={`${form.description.length}/5000 ký tự`} error={errors.description}>
               <textarea name="description" value={form.description} maxLength={5000} rows={7} onChange={updateField} aria-invalid={Boolean(errors.description)} />
             </FormField>
@@ -221,7 +230,7 @@ function ResourceAdminPage() {
                 <span><strong>Bản vật lý</strong><small>Quản lý số lượng bản sách.</small></span>
               </label>
               <label className="checkbox-card"><input name="hasDigital" type="checkbox" checked={form.hasDigital} onChange={updateField} />
-                <span><strong>Tài liệu số</strong><small>Cho phép gắn nội dung số được bảo vệ.</small></span>
+                <span><strong>Tài liệu số</strong><small>Đánh dấu tài liệu có quyền truy cập nội dung số.</small></span>
               </label>
               {errors.accessTypes && <small className="field-error">{errors.accessTypes}</small>}
             </fieldset>
