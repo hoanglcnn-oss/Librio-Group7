@@ -20,6 +20,7 @@ function ResourceListPage() {
       <main id="top">
         <section className="resource-section catalog-only" id="resources">
           <div className="catalog-header">
+            <h1>Kho tài liệu</h1>
             <SearchInput initialValue={keyword} onSearch={handleSearch} />
           </div>
           <ResourceResults key={keyword} keyword={keyword} onClearSearch={() => handleSearch('')} />
