@@ -18,6 +18,7 @@ function ResourceAdminPage() {
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState(editing ? 'loading' : 'ready')
   const [message, setMessage] = useState('')
+  const [activeTab, setActiveTab] = useState('metadata')
 
   const [lookupStatus, setLookupStatus] = useState('idle')
   const [lookupError, setLookupError] = useState('')
@@ -151,8 +152,29 @@ function ResourceAdminPage() {
 
         {status === 'loading' && <div className="shelf-empty resource-form-loading">Đang tải dữ liệu…</div>}
         {status === 'error' && message && <div className="demo-error" role="alert">{message}</div>}
-        {status !== 'loading' && (
-          <form className="resource-admin-form" noValidate onSubmit={submit}>
+        {editing && status !== 'loading' && status !== 'error' && (
+          <div className="resource-admin-tabs" style={{ display: 'flex', gap: '10px', marginTop: '32px', marginBottom: '24px', borderBottom: '1px solid #e2e1d8' }}>
+            <button
+              type="button"
+              className="btn-text"
+              style={{ padding: '12px 16px', fontWeight: '700', color: activeTab === 'metadata' ? 'var(--green)' : '#879087', borderBottom: activeTab === 'metadata' ? '2px solid var(--green)' : '2px solid transparent', marginBottom: '-1px' }}
+              onClick={() => setActiveTab('metadata')}
+            >
+              Thông tin tài liệu
+            </button>
+            <button
+              type="button"
+              className="btn-text"
+              style={{ padding: '12px 16px', fontWeight: '700', color: activeTab === 'physical' ? 'var(--green)' : '#879087', borderBottom: activeTab === 'physical' ? '2px solid var(--green)' : '2px solid transparent', marginBottom: '-1px' }}
+              onClick={() => setActiveTab('physical')}
+            >
+              Bản vật lý {managedResource?.physicalCopies != null ? `(${managedResource.physicalCopies})` : ''}
+            </button>
+          </div>
+        )}
+
+        {(!editing || activeTab === 'metadata') && status !== 'loading' && (
+          <form className="resource-admin-form" style={{ marginTop: editing ? '0' : '32px' }} noValidate onSubmit={submit}>
             {form.metadataSource === 'GOOGLE_BOOKS' && (
               <div style={{ marginBottom: '16px' }}>
                 <span className="metadata-source-badge">Nguồn: GOOGLE_BOOKS</span>
@@ -225,7 +247,7 @@ function ResourceAdminPage() {
           </form>
         )}
 
-        {editing && status !== 'loading' && status !== 'error' && (
+        {editing && activeTab === 'physical' && status !== 'loading' && status !== 'error' && (
           <PhysicalItemAdmin resource={{ id: Number(id), title: persistedTitle }} onItemChange={refreshManagedResourceSnapshot} />
         )}
       </main>

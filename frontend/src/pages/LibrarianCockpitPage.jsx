@@ -126,20 +126,22 @@ function LibrarianCockpitPage() {
     <div className="app-shell">
       <Header />
       <main className="librarian-page cockpit-page">
-        <section className="section-heading">
+        <section className="section-heading" style={{ alignItems: 'center' }}>
           <div>
-            <p className="eyebrow">QUẢN LÝ KHO SÁCH</p>
-            <h1>Collection Cockpit</h1>
+            <h1 style={{ margin: 0 }}>Kho sách</h1>
           </div>
-          <div className="cockpit-header-actions">
+          <div className="cockpit-header-actions" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
             <span>
               {itemsStatus === 'revalidating' || summaryStatus === 'revalidating'
                 ? 'Đang cập nhật…'
                 : `Tổng ${totalElements} bản sách`}
             </span>
+            <Link to="/librarian/resources/new" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '14px' }}>
+              + Thêm tài liệu
+            </Link>
             <button
               type="button"
-              className="text-action"
+              className="btn-text"
               onClick={handleRefreshAll}
               disabled={itemsStatus === 'loading' || summaryStatus === 'loading'}
             >

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ERROR_MESSAGES, createPhysicalItem, getLibrarianPhysicalItems, updatePhysicalItem } from '../services/authApi'
 import { fetchResourcePhysicalItems, handlePhysicalItemMutation } from '../utils/physicalItemUtils'
+import { formatInventoryStatus, formatCirculationStatus } from '../utils/cockpitStatus'
 
 export default function PhysicalItemAdmin({ resource, onItemChange }) {
   const [items, setItems] = useState([])
@@ -140,9 +141,9 @@ export default function PhysicalItemAdmin({ resource, onItemChange }) {
 
   return (
     <section className="physical-item-admin">
-      <div className="physical-header">
-        <h2>Quản lý bản vật lý</h2>
-        <button type="button" className="secondary-action" onClick={openCreate} disabled={loading || formVisible}>
+      <div className="physical-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ margin: 0, fontSize: '18px' }}>Quản lý bản vật lý</h2>
+        <button type="button" className="secondary-action" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={openCreate} disabled={loading || formStatus === 'saving'}>
           + Thêm bản sách
         </button>
       </div>
@@ -171,8 +172,8 @@ export default function PhysicalItemAdmin({ resource, onItemChange }) {
                   <tr key={item.id}>
                     <td>{item.barcode}</td>
                     <td>{item.location}</td>
-                    <td><span className={`status-tag status-${item.inventoryStatus?.toLowerCase()}`}>{item.inventoryStatus}</span></td>
-                    <td><span className={`status-tag status-${item.circulationStatus?.toLowerCase()}`}>{item.circulationStatus}</span></td>
+                    <td><span className={`status-tag status-${item.inventoryStatus?.toLowerCase()}`}>{formatInventoryStatus(item.inventoryStatus)}</span></td>
+                    <td><span className={`status-tag status-${item.circulationStatus?.toLowerCase()}`}>{formatCirculationStatus(item.circulationStatus)}</span></td>
                     <td>
                       <button type="button" className="text-action" onClick={() => openEdit(item)}>Sửa</button>
                     </td>
