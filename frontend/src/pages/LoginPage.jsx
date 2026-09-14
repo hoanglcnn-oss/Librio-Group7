@@ -12,7 +12,7 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (!auth.loading && auth.account) {
-    return <Navigate to={auth.isLibrarian ? '/librarian/requests' : '/resources'} replace />
+    return <Navigate to="/home" replace />
   }
 
   async function submit(event) {
@@ -21,9 +21,8 @@ function LoginPage() {
     setSubmitting(true)
     setError('')
     try {
-      const account = await auth.login(data.get('email'), data.get('password'))
-      const isLibrarian = account.roles.includes('ROLE_LIBRARIAN')
-      navigate(location.state?.from || (isLibrarian ? '/librarian/requests' : '/resources'), { replace: true })
+      await auth.login(data.get('email'), data.get('password'))
+      navigate(location.state?.from || '/home', { replace: true })
     } catch (requestError) {
       setError(requestError.status === 401 ? 'Email hoặc mật khẩu không đúng.' : requestError.message)
     } finally {

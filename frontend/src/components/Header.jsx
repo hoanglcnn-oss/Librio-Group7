@@ -7,24 +7,24 @@ function Header() {
 
   async function signOut() {
     await auth.logout()
-    navigate('/resources')
+    navigate('/home')
   }
 
   return (
     <header className="site-header">
-      <Link className="brand" to="/resources" aria-label="Librio - Trang chủ">
+      <Link className="brand" to="/home" aria-label="Librio - Trang chủ">
         <span className="brand-mark">L</span>
         <span>Librio</span>
       </Link>
       <div className="header-actions">
         <nav aria-label="Điều hướng chính">
+          <NavLink to="/home">Thông tin thư viện</NavLink>
           <NavLink to="/resources">Kho tài liệu</NavLink>
           {auth.isReader && <NavLink to="/my-library">Thư viện của tôi</NavLink>}
           {auth.isReader && <NavLink to="/membership">Gói thành viên</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/cockpit">Cockpit kho sách</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/requests">Xử lý mượn</NavLink>}
           {auth.isLibrarian && <NavLink to="/librarian/resources/new">Quản lý tài liệu</NavLink>}
-          <Link to="/resources#library-info">Thông tin thư viện</Link>
         </nav>
         {auth.loading ? <span className="account-chip">Đang tải…</span> : auth.account ? (
           <div className="account-menu">

@@ -18,32 +18,12 @@ function ResourceListPage() {
     <div className="app-shell">
       <Header />
       <main id="top">
-        <section className="hero-section">
-          <div className="hero-copy">
-            <p className="eyebrow">CỔNG THÔNG TIN THƯ VIỆN TRƯỜNG HỌC</p>
-            <h1>Học tập hôm nay,<br /><em>kiến tạo tương lai.</em></h1>
-            <p className="hero-description">Tra cứu giáo trình, sách tham khảo và tài liệu số phục vụ học tập, giảng dạy và nghiên cứu trong nhà trường.</p>
+        <section className="resource-section catalog-only" id="resources">
+          <div className="catalog-header">
+            <h1>Kho tài liệu</h1>
             <SearchInput initialValue={keyword} onSearch={handleSearch} />
-            <div className="hero-stats" aria-label="Thống kê thư viện">
-              <div><strong>10K+</strong><span>Tài liệu</span></div><div><strong>24/7</strong><span>Thư viện số</span></div><div><strong>5K+</strong><span>Học viên</span></div>
-            </div>
           </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="sun"></div><div className="book book-one"><span>ĐẠI GIA<br />GATSBY</span></div><div className="book book-two"><span>GIẾT CON<br />CHIM NHẠI</span></div><div className="book book-three"><span>1984</span></div><div className="plant">⌇</div><div className="table"></div>
-          </div>
-        </section>
-
-        <section className="resource-section" id="resources">
           <ResourceResults key={keyword} keyword={keyword} onClearSearch={() => handleSearch('')} />
-        </section>
-
-        <section className="library-info" id="library-info">
-          <div><p className="eyebrow">THÔNG TIN THƯ VIỆN</p><h2>Không gian học tập dành cho bạn</h2></div>
-          <div className="info-grid">
-            <article><strong>07:30 – 17:30</strong><span>Thứ Hai đến Thứ Sáu</span><p>Giờ mở cửa thư viện</p></article>
-            <article><strong>02 tuần</strong><span>Thời hạn mượn tiêu chuẩn</span><p>Có thể gia hạn theo quy định</p></article>
-            <article><strong>Phòng A101</strong><span>Khu học tập trung tâm</span><p>Liên hệ thủ thư để được hỗ trợ</p></article>
-          </div>
         </section>
       </main>
       <Footer />

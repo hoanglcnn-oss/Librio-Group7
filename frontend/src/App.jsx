@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import HomePage from './pages/HomePage'
 import ResourceListPage from './pages/ResourceListPage'
 import ResourceDetailPage from './pages/ResourceDetailPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -16,7 +17,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/resources" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/resources" element={<ResourceListPage />} />
         <Route path="/resources/:id" element={<ResourceDetailPage />} />
         <Route path="/login" element={<LoginPage />} />

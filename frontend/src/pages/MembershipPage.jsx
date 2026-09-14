@@ -74,10 +74,8 @@ export default function MembershipPage() {
                 // eslint-disable-next-line react-hooks/set-state-in-effect
         setPaymentError('Thanh toán thành công. Gói thành viên đã được kích hoạt.')
       } else if (paymentResult === 'failed') {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
         setPaymentError('Thanh toán không thành công hoặc đã bị hủy.')
       } else if (paymentResult === 'invalid') {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
         setPaymentError('Không thể xác minh kết quả thanh toán.')
       }
       navigate(location.pathname, { replace: true })
