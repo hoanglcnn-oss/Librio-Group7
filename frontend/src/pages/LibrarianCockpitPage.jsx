@@ -299,9 +299,11 @@ function LibrarianCockpitPage() {
                     <tr>
                       <th>Mã vạch & Vị trí</th>
                       <th>Tài liệu</th>
-                      <th>Trạng thái kho & Lưu thông</th>
-                      <th>Lý do cần chú ý</th>
-                      <th>Tác vụ lưu thông hiện tại</th>
+                      <th>Trạng thái kho</th>
+                        <th>Trạng thái lưu thông</th>
+                      <th>Cần chú ý</th>
+                      <th>Tác vụ hiện tại</th>
+                        <th>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -339,12 +341,18 @@ function LibrarianCockpitPage() {
                           </div>
                         </td>
 
-                        {/* Status & Borrowable */}
+                        {/* Inventory Status */}
                         <td>
                           <div className="item-status-group">
                             <span className={`badge inventory-badge status-${item.inventoryStatus?.toLowerCase()}`}>
                               {formatInventoryStatus(item.inventoryStatus)}
                             </span>
+                          </div>
+                        </td>
+
+                        {/* Circulation Status */}
+                        <td>
+                          <div className="item-status-group">
                             <span className={`badge circulation-badge status-${item.circulationStatus?.toLowerCase()}`}>
                               {formatCirculationStatus(item.circulationStatus)}
                             </span>
@@ -418,6 +426,11 @@ function LibrarianCockpitPage() {
                           ) : (
                             <span className="text-muted">Không có tác vụ</span>
                           )}
+                        </td>
+                        <td>
+                          <Link to={`/librarian/resources/${item.resource?.id}/edit`} className="btn-text" style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>
+                            Sửa tài liệu
+                          </Link>
                         </td>
                       </tr>
                     ))}
