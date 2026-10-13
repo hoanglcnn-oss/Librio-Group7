@@ -28,6 +28,10 @@ librio:
 spring:
   application:
     name: librio-backend
+  flyway:
+    enabled: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: 1
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/librio}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -43,8 +47,7 @@ spring:
         format_sql: true
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
+      mode: ${SPRING_SQL_INIT_MODE:never}
       data-locations: classpath:data.sql
 
 ---
@@ -53,6 +56,8 @@ spring:
   config:
     activate:
       on-profile: test
+  flyway:
+    enabled: false
   datasource:
     url: jdbc:h2:mem:libriodb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
     username: sa
@@ -65,7 +70,7 @@ spring:
     defer-datasource-initialization: true
   sql:
     init:
-      schema-locations: optional:classpath:/schema-h2-not-used.sql
+      mode: always
       data-locations: classpath:data.sql
   h2:
     console:
