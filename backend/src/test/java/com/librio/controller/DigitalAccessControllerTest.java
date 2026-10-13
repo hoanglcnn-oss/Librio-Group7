@@ -131,7 +131,7 @@ class DigitalAccessControllerTest {
                 .displayName(email)
                 .role(AccountRole.READER)
                 .accountStatus(AccountStatus.ACTIVE)
-                .membershipEligible(true)
+                .readerType(ReaderType.INSTITUTIONAL)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build());

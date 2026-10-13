@@ -87,6 +87,7 @@ public class AuthController {
                 .displayName(account.getDisplayName())
                 .role(account.getRole())
                 .accountStatus(account.getAccountStatus())
+                .readerType(account.getReaderType())
                 .build();
     }
 

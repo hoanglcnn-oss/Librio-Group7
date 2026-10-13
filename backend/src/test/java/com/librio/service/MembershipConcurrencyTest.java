@@ -3,6 +3,7 @@ package com.librio.service;
 import com.librio.domain.Account;
 import com.librio.domain.AccountRole;
 import com.librio.domain.AccountStatus;
+import com.librio.domain.ReaderType;
 import com.librio.domain.MembershipPlan;
 import com.librio.dto.MembershipPaymentRequestDto;
 import com.librio.exception.BorrowFlowException;
@@ -63,7 +64,7 @@ public class MembershipConcurrencyTest {
                 .displayName("Concurrent Reader")
                 .role(AccountRole.READER)
                 .accountStatus(AccountStatus.ACTIVE)
-                .membershipEligible(true)
+                .readerType(ReaderType.INSTITUTIONAL)
                 .createdAt(now)
                 .updatedAt(now)
                 .build());

@@ -35,25 +35,27 @@ public class MembershipPersistenceTest {
         var yearly = membershipPlanRepository.findByCode("YEARLY");
 
         assertThat(monthly).isPresent();
-        assertThat(monthly.get().getPriceAmount()).isEqualByComparingTo("10.00");
+        assertThat(monthly.get().getPriceAmount()).isEqualByComparingTo("100000.00");
         
         assertThat(yearly).isPresent();
-        assertThat(yearly.get().getPriceAmount()).isEqualByComparingTo("100.00");
+        assertThat(yearly.get().getPriceAmount()).isEqualByComparingTo("1000000.00");
     }
 
     @Test
-    void defaultMembershipEligibleIsFalse() {
+    void readerTypeCanBePersisted() {
         Account account = Account.builder()
                 .email("test.eligible@librio.local")
                 .passwordHash("hash")
                 .role(AccountRole.READER)
+                .readerType(ReaderType.INSTITUTIONAL)
                 .accountStatus(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
         account = accountRepository.save(account);
 
-        assertThat(account.isMembershipEligible()).isFalse();
+        assertThat(account.getReaderType()).isEqualTo(ReaderType.INSTITUTIONAL);
+        assertThat(account.isInstitutional()).isTrue();
     }
 
     @Test

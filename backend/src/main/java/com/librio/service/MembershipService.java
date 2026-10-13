@@ -51,10 +51,6 @@ public class MembershipService {
         Account lockedAccount = accountRepository.findByIdForUpdate(account.getId())
                 .orElseThrow(() -> new BorrowFlowException("ACCOUNT_NOT_FOUND", HttpStatus.NOT_FOUND, "Account not found"));
 
-        if (!lockedAccount.isMembershipEligible()) {
-            throw new BorrowFlowException("MEMBERSHIP_NOT_ELIGIBLE", HttpStatus.FORBIDDEN, "Account is not eligible for membership");
-        }
-
         LocalDateTime now = LocalDateTime.now();
         Optional<MembershipSubscription> latestSub = membershipSubscriptionRepository.findFirstByAccountIdOrderByStartsAtDescIdDesc(lockedAccount.getId());
         if (latestSub.isPresent() && latestSub.get().getExpiresAt().isAfter(now)) {
@@ -161,11 +157,6 @@ public class MembershipService {
         Account lockedAccount = accountRepository.findByIdForUpdate(account.getId())
                 .orElseThrow(() -> new BorrowFlowException("ACCOUNT_NOT_FOUND", HttpStatus.NOT_FOUND, "Account not found"));
 
-        // 2. Re-check membership eligibility
-        if (!lockedAccount.isMembershipEligible()) {
-            throw new BorrowFlowException("MEMBERSHIP_NOT_ELIGIBLE", HttpStatus.FORBIDDEN, "Account is not eligible for membership");
-        }
-
         // 3. Validate outcome parameter
         String outcome = request.getOutcome() != null ? request.getOutcome().trim().toUpperCase() : "";
         if (!"SUCCESS".equals(outcome) && !"FAILED".equals(outcome)) {
@@ -259,7 +250,6 @@ public class MembershipService {
 
         return ReaderMembershipDto.builder()
                 .status(status)
-                .membershipEligible(account.isMembershipEligible())
                 .plan(planDto)
                 .startsAt(startsAt)
                 .expiresAt(expiresAt)

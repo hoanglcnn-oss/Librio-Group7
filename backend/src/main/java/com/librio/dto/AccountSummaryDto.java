@@ -2,6 +2,7 @@ package com.librio.dto;
 
 import com.librio.domain.AccountRole;
 import com.librio.domain.AccountStatus;
+import com.librio.domain.ReaderType;
 import lombok.Builder;
 import lombok.Data;
 
@@ -13,4 +14,5 @@ public class AccountSummaryDto {
     private String displayName;
     private AccountRole role;
     private AccountStatus accountStatus;
+    private ReaderType readerType;
 }

@@ -41,6 +41,11 @@ public class Account {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "membership_eligible", nullable = false)
-    private boolean membershipEligible;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reader_type")
+    private ReaderType readerType;
+
+    public boolean isInstitutional() {
+        return readerType == ReaderType.INSTITUTIONAL;
+    }
 }

@@ -13,7 +13,6 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 public class ReaderMembershipDto {
     private String status;
-    private boolean membershipEligible;
     private MembershipPlanDto plan;
     private OffsetDateTime startsAt;
     private OffsetDateTime expiresAt;

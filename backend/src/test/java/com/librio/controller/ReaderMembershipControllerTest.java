@@ -7,11 +7,13 @@ import com.librio.domain.MembershipPlan;
 import com.librio.domain.MembershipSubscription;
 import com.librio.domain.PaymentStatus;
 import com.librio.domain.PaymentTransaction;
+import com.librio.domain.ReaderType;
 import com.librio.repository.AccountRepository;
 import com.librio.repository.MembershipPlanRepository;
 import com.librio.repository.MembershipSubscriptionRepository;
 import com.librio.repository.PaymentTransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,8 +70,8 @@ class ReaderMembershipControllerTest {
         paymentTransactionRepository.deleteAll();
         membershipPlanRepository.deleteAll();
 
-        eligibleReader = createAccount("eligible.reader@test.local", true);
-        ineligibleReader = createAccount("ineligible.reader@test.local", false);
+        eligibleReader = createAccount("eligible.reader@test.local", ReaderType.INSTITUTIONAL);
+        ineligibleReader = createAccount("ineligible.reader@test.local", ReaderType.EXTERNAL);
 
         activePlan = membershipPlanRepository.save(MembershipPlan.builder()
                 .code("STANDARD_1M")
@@ -107,8 +109,7 @@ class ReaderMembershipControllerTest {
     void testGetCurrentMembership_None() throws Exception {
         mockMvc.perform(get("/me/membership"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("NONE"))
-                .andExpect(jsonPath("$.membershipEligible").value(true));
+                .andExpect(jsonPath("$.status").value("NONE"));
     }
 
     @Test
@@ -153,6 +154,7 @@ class ReaderMembershipControllerTest {
         com.librio.domain.PhysicalItem physicalItem = physicalItemRepository.save(com.librio.domain.PhysicalItem.builder()
                 .resource(resource)
                 .barcode("EXP-TEST-001")
+                .location("STACK-A")
                 .inventoryStatus(com.librio.domain.InventoryStatus.ACTIVE)
                 .circulationStatus(com.librio.domain.CirculationStatus.BORROWED)
                 .build());
@@ -164,6 +166,8 @@ class ReaderMembershipControllerTest {
                 .status(com.librio.domain.BorrowRequestStatus.FULFILLED)
                 .requestedAt(now.minusDays(20))
                 .statusUpdatedAt(now.minusDays(19))
+                .createdAt(now.minusDays(20))
+                .updatedAt(now.minusDays(19))
                 .build());
                 
         com.librio.domain.Borrowing borrowing = borrowingRepository.save(com.librio.domain.Borrowing.builder()
@@ -191,6 +195,7 @@ class ReaderMembershipControllerTest {
     }
 
     @Test
+    @Disabled("membership_eligible Account gate removed in Batch 20C")
     @DisplayName("POST /me/membership-payments with ineligible reader returns 403 MEMBERSHIP_NOT_ELIGIBLE")
     @WithMockUser(username = "ineligible.reader@test.local", roles = "READER")
     void testPayment_IneligibleReader_Returns403() throws Exception {
@@ -363,7 +368,7 @@ class ReaderMembershipControllerTest {
         assertEquals(1, membershipSubscriptionRepository.count());
     }
 
-    private Account createAccount(String email, boolean membershipEligible) {
+    private Account createAccount(String email, ReaderType readerType) {
         LocalDateTime now = LocalDateTime.now();
         return accountRepository.save(Account.builder()
                 .email(email)
@@ -371,7 +376,7 @@ class ReaderMembershipControllerTest {
                 .displayName(email)
                 .role(AccountRole.READER)
                 .accountStatus(AccountStatus.ACTIVE)
-                .membershipEligible(membershipEligible)
+                .readerType(readerType)
                 .createdAt(now)
                 .updatedAt(now)
                 .build());

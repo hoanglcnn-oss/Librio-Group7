@@ -71,8 +71,8 @@ class FlywayPostgreSqlMigrationTest {
 
         MigrateResult result = flyway.migrate();
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(1);
-        assertThat(result.targetSchemaVersion).isEqualTo("1");
+        assertThat(result.migrationsExecuted).isEqualTo(2);
+        assertThat(result.targetSchemaVersion).isEqualTo("2");
 
         try (Connection conn = DriverManager.getConnection(CLEAN_DB_URL, PG_USER, PG_PASSWORD);
              Statement stmt = conn.createStatement()) {
@@ -98,7 +98,18 @@ class FlywayPostgreSqlMigrationTest {
                     "flyway_schema_history"
             );
 
-            // 2. Verify PostgreSQL partial unique indexes
+            // 2. Verify accounts columns: reader_type present, membership_eligible removed
+            List<String> accountColumns = new ArrayList<>();
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'accounts'")) {
+                while (rs.next()) {
+                    accountColumns.add(rs.getString(1));
+                }
+            }
+            assertThat(accountColumns).contains("reader_type");
+            assertThat(accountColumns).doesNotContain("membership_eligible");
+
+            // 3. Verify PostgreSQL partial unique indexes
             List<String> partialIndexes = new ArrayList<>();
             try (ResultSet rs = stmt.executeQuery(
                     "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexdef LIKE '%WHERE%'")) {
@@ -115,7 +126,7 @@ class FlywayPostgreSqlMigrationTest {
                     "idx_borrowing_active_due"
             );
 
-            // 3. Verify check constraints
+            // 4. Verify check constraints (including V2 reader_type check constraints)
             List<String> checkConstraints = new ArrayList<>();
             try (ResultSet rs = stmt.executeQuery(
                     "SELECT conname FROM pg_constraint WHERE contype = 'c' AND conrelid::regclass::text NOT LIKE 'pg_%'")) {
@@ -129,6 +140,8 @@ class FlywayPostgreSqlMigrationTest {
                     "chk_physical_item_circulation_status",
                     "chk_account_role",
                     "chk_account_status",
+                    "chk_account_reader_type",
+                    "chk_account_reader_type_role",
                     "chk_borrow_request_status",
                     "chk_borrowing_due_after_borrowed",
                     "chk_borrowing_returned_after_borrowed",
@@ -136,7 +149,7 @@ class FlywayPostgreSqlMigrationTest {
                     "chk_expires_after_starts"
             );
 
-            // 4. Verify sequences
+            // 5. Verify sequences
             List<String> sequences = new ArrayList<>();
             try (ResultSet rs = stmt.executeQuery(
                     "SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public'")) {
@@ -156,10 +169,11 @@ class FlywayPostgreSqlMigrationTest {
     void existingNonFlywayDatabaseFailsWithoutExplicitBaselineAndSucceedsWithBaseline() throws Exception {
         assumeTrue(postgresAvailable, "PostgreSQL not reachable at " + PG_HOST);
 
-        // Pre-create a table to simulate an existing pre-Flyway database
+        // Pre-create full V1 schema to simulate an existing pre-Flyway V1 database
         try (Connection conn = DriverManager.getConnection(BASELINE_DB_URL, PG_USER, PG_PASSWORD);
              Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE resource (id BIGINT PRIMARY KEY, title VARCHAR(255) NOT NULL, authors VARCHAR(255) NOT NULL)");
+            String v1Sql = new String(getClass().getResourceAsStream("/db/migration/V1__initial_schema.sql").readAllBytes());
+            stmt.execute(v1Sql);
         }
 
         // 1. With baselineOnMigrate=false (our default), migrating an un-baselined existing database MUST fail
@@ -173,7 +187,7 @@ class FlywayPostgreSqlMigrationTest {
                 .isInstanceOf(FlywayException.class)
                 .hasMessageContaining("Found non-empty schema(s)");
 
-        // 2. Explicit baseline operation marks the existing database at V1 without re-running scripts
+        // 2. Explicit baseline operation marks the existing database at V1 without re-running V1
         Flyway baseliningFlyway = Flyway.configure()
                 .dataSource(BASELINE_DB_URL, PG_USER, PG_PASSWORD)
                 .locations("classpath:db/migration")
@@ -183,9 +197,10 @@ class FlywayPostgreSqlMigrationTest {
 
         baseliningFlyway.baseline();
 
-        // 3. Subsequent migrate succeeds with 0 migrations executed
+        // 3. Subsequent migrate succeeds and applies V2 (since baseline is at V1)
         MigrateResult afterBaseline = baseliningFlyway.migrate();
         assertThat(afterBaseline.success).isTrue();
-        assertThat(afterBaseline.migrationsExecuted).isEqualTo(0);
+        assertThat(afterBaseline.migrationsExecuted).isEqualTo(1);
+        assertThat(afterBaseline.targetSchemaVersion).isEqualTo("2");
     }
 }
