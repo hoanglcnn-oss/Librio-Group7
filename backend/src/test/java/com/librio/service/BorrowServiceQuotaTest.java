@@ -15,8 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,25 +44,27 @@ class BorrowServiceQuotaTest {
     @Mock
     private CirculationPolicyProperties circulationPolicy;
 
-    @Mock
-    private BorrowingQuotaPolicy borrowingQuotaPolicy;
-
     @InjectMocks
     private BorrowService borrowService;
 
-    private Account validReader;
+    private Account institutionalReader;
     private Resource validResource;
     private PhysicalItem availableItem;
 
     @BeforeEach
     void setUp() {
-        validReader = Account.builder().id(1L).role(AccountRole.READER).accountStatus(AccountStatus.ACTIVE).build();
+        institutionalReader = Account.builder()
+                .id(1L)
+                .role(AccountRole.READER)
+                .readerType(ReaderType.INSTITUTIONAL)
+                .accountStatus(AccountStatus.ACTIVE)
+                .build();
         validResource = Resource.builder().id(100L).build();
         availableItem = PhysicalItem.builder().id(1000L).circulationStatus(CirculationStatus.AVAILABLE).build();
     }
 
     private void mockCommonSuccessPath() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(institutionalReader));
         when(resourceRepository.findById(100L)).thenReturn(Optional.of(validResource));
         when(borrowRequestRepository.existsByReaderIdAndResourceIdAndStatusIn(eq(1L), eq(100L), any())).thenReturn(false);
         when(borrowingRepository.existsActiveBorrowingByReaderIdAndResourceId(1L, 100L)).thenReturn(false);
@@ -80,60 +82,47 @@ class BorrowServiceQuotaTest {
     }
 
     @Test
-    @DisplayName("1. no active membership -> ACTIVE_MEMBERSHIP_REQUIRED")
-    void testNoActiveMembership() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(false).build()
-        );
+    @DisplayName("1. external reader is rejected with READER_INELIGIBLE")
+    void testExternalReaderRejected() {
+        Account externalReader = Account.builder()
+                .id(2L)
+                .role(AccountRole.READER)
+                .readerType(ReaderType.EXTERNAL)
+                .accountStatus(AccountStatus.ACTIVE)
+                .build();
+        when(accountRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(externalReader));
 
-        BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), ex.getCode());
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
-        
-        verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
-        verify(borrowRequestRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("2. invalid/null plan quota -> INVALID_PLAN_QUOTA")
-    void testInvalidPlanQuota() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(true).validPlanQuota(false).build()
-        );
-
-        BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), ex.getCode());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getStatus());
-        
-        verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
-        verify(borrowRequestRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("3. exhausted quota -> BORROW_QUOTA_EXCEEDED")
-    void testExhaustedQuota() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(true).validPlanQuota(true).remainingQuota(0L).build()
-        );
-
-        BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
-        assertEquals(BorrowErrorCode.BORROW_QUOTA_EXCEEDED.name(), ex.getCode());
+        BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(2L, 100L));
+        assertEquals(BorrowErrorCode.READER_INELIGIBLE.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
-        
+
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
         verify(borrowRequestRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("4. valid quota -> request succeeds and item becomes RESERVED")
-    void testActiveMembershipSuccess() {
+    @DisplayName("2. disabled reader is rejected with READER_INELIGIBLE")
+    void testDisabledReaderRejected() {
+        Account disabledReader = Account.builder()
+                .id(3L)
+                .role(AccountRole.READER)
+                .readerType(ReaderType.INSTITUTIONAL)
+                .accountStatus(AccountStatus.DISABLED)
+                .build();
+        when(accountRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(disabledReader));
+
+        BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(3L, 100L));
+        assertEquals(BorrowErrorCode.READER_INELIGIBLE.name(), ex.getCode());
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+
+        verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
+        verify(borrowRequestRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("3. institutional reader creates request without membership or quota check")
+    void testInstitutionalReaderSuccessWithoutQuotaOrMembership() {
         mockCommonSuccessPath();
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(true).validPlanQuota(true).remainingQuota(1L).build()
-        );
 
         borrowService.createRequest(1L, 100L);
 
@@ -142,16 +131,13 @@ class BorrowServiceQuotaTest {
     }
 
     @Test
-    @DisplayName("5. existing circulation commitment limit remains independent")
+    @DisplayName("4. commitment limit still applies independently of membership/quota")
     void testCommitmentLimitStillApplies() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(true).validPlanQuota(true).remainingQuota(5L).build()
-        );
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(institutionalReader));
         when(resourceRepository.findById(100L)).thenReturn(Optional.of(validResource));
         when(borrowRequestRepository.existsByReaderIdAndResourceIdAndStatusIn(eq(1L), eq(100L), any())).thenReturn(false);
         when(borrowingRepository.existsActiveBorrowingByReaderIdAndResourceId(1L, 100L)).thenReturn(false);
-        
+
         when(borrowRequestRepository.countByReaderIdAndStatusIn(eq(1L), any())).thenReturn(3L);
         when(borrowingRepository.countActiveBorrowingsByReaderId(1L)).thenReturn(2L);
         when(circulationPolicy.commitmentLimit()).thenReturn(5);
@@ -159,26 +145,23 @@ class BorrowServiceQuotaTest {
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
         assertEquals(BorrowErrorCode.BORROWING_LIMIT_REACHED.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
-        
+
         verify(physicalItemRepository, never()).findForUpdate(any(), any(), any(), any());
         verify(borrowRequestRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("6. quota passes but no available copy -> NO_AVAILABLE_COPY")
+    @DisplayName("5. reader eligible but no available copy -> NO_AVAILABLE_COPY")
     void testNoAvailableCopy() {
-        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(validReader));
-        when(borrowingQuotaPolicy.getQuotaSnapshot(eq(1L), any())).thenReturn(
-                BorrowingQuotaPolicy.QuotaSnapshot.builder().activeMembership(true).validPlanQuota(true).remainingQuota(1L).build()
-        );
+        when(accountRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(institutionalReader));
         when(resourceRepository.findById(100L)).thenReturn(Optional.of(validResource));
         when(borrowRequestRepository.existsByReaderIdAndResourceIdAndStatusIn(eq(1L), eq(100L), any())).thenReturn(false);
         when(borrowingRepository.existsActiveBorrowingByReaderIdAndResourceId(1L, 100L)).thenReturn(false);
-        
+
         when(borrowRequestRepository.countByReaderIdAndStatusIn(eq(1L), any())).thenReturn(0L);
         when(borrowingRepository.countActiveBorrowingsByReaderId(1L)).thenReturn(0L);
         when(circulationPolicy.commitmentLimit()).thenReturn(5);
-        
+
         when(physicalItemRepository.countByResourceId(100L)).thenReturn(1L);
         when(physicalItemRepository.findForUpdate(eq(100L), eq(InventoryStatus.ACTIVE), eq(CirculationStatus.AVAILABLE), eq(PageRequest.of(0, 1))))
                 .thenReturn(List.of());
@@ -186,7 +169,7 @@ class BorrowServiceQuotaTest {
         BorrowFlowException ex = assertThrows(BorrowFlowException.class, () -> borrowService.createRequest(1L, 100L));
         assertEquals(BorrowErrorCode.NO_AVAILABLE_COPY.name(), ex.getCode());
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
-        
+
         verify(borrowRequestRepository, never()).save(any());
     }
 }

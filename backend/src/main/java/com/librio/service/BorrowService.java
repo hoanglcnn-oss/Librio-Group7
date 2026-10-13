@@ -25,12 +25,17 @@ import java.util.Set;
 /**
  * Điều phối toàn bộ vòng đời mượn sách vật lý.
  *
- * <p>Các invariant chính:
+ * <p>
+ * Các invariant chính:
  * <ul>
- *   <li>Một physical item chỉ thuộc tối đa một active request hoặc một active borrowing.</li>
- *   <li>Reserve làm giảm availability; fulfil không được giảm availability lần thứ hai.</li>
- *   <li>Transition terminal release hoặc consume đúng item đã reserve trong cùng transaction.</li>
- *   <li>Overdue được derive từ dueAt và returnedAt, không persist như borrowing status.</li>
+ * <li>Một physical item chỉ thuộc tối đa một active request hoặc một active
+ * borrowing.</li>
+ * <li>Reserve làm giảm availability; fulfil không được giảm availability lần
+ * thứ hai.</li>
+ * <li>Transition terminal release hoặc consume đúng item đã reserve trong cùng
+ * transaction.</li>
+ * <li>Overdue được derive từ dueAt và returnedAt, không persist như borrowing
+ * status.</li>
  * </ul>
  */
 @Service
@@ -39,16 +44,13 @@ public class BorrowService {
 
     private static final List<BorrowRequestStatus> ACTIVE_STATUSES = List.of(
             BorrowRequestStatus.REQUESTED,
-            BorrowRequestStatus.READY_FOR_PICKUP
-    );
+            BorrowRequestStatus.READY_FOR_PICKUP);
     private static final List<BorrowRequestStatus> TERMINAL_STATUSES = List.of(
             BorrowRequestStatus.FULFILLED,
             BorrowRequestStatus.CANCELLED,
             BorrowRequestStatus.REJECTED,
-            BorrowRequestStatus.EXPIRED
-    );
-    private static final Map<BorrowRequestStatus, Set<BorrowRequestStatus>> ALLOWED_TRANSITIONS =
-            buildAllowedTransitions();
+            BorrowRequestStatus.EXPIRED);
+    private static final Map<BorrowRequestStatus, Set<BorrowRequestStatus>> ALLOWED_TRANSITIONS = buildAllowedTransitions();
 
     private final ResourceRepository resourceRepository;
     private final PhysicalItemRepository physicalItemRepository;
@@ -56,7 +58,6 @@ public class BorrowService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final BorrowingRepository borrowingRepository;
     private final CirculationPolicyProperties circulationPolicy;
-    private final BorrowingQuotaPolicy borrowingQuotaPolicy;
 
     @Transactional(noRollbackFor = RequestExpiredTransitionException.class)
     public ReaderBorrowRequestItemDto createRequest(Long readerId, Long resourceId) {
@@ -64,25 +65,11 @@ public class BorrowService {
             throw validation("resourceId is required");
         }
 
-        // Lock reader để serialize eligibility, duplicate và commitment-limit checks của cùng reader.
+        // Lock reader để serialize eligibility, duplicate và commitment-limit checks
+        // của cùng reader.
         Account reader = accountRepository.findByIdForUpdate(readerId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Reader not found"));
         requireReaderEligible(reader);
-
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        BorrowingQuotaPolicy.QuotaSnapshot quotaSnapshot = borrowingQuotaPolicy.getQuotaSnapshot(readerId, now);
-
-        if (!quotaSnapshot.isActiveMembership()) {
-            throw new BorrowFlowException(BorrowErrorCode.ACTIVE_MEMBERSHIP_REQUIRED.name(), org.springframework.http.HttpStatus.FORBIDDEN, "Active membership is required to borrow physical items");
-        }
-
-        if (!quotaSnapshot.isValidPlanQuota()) {
-            throw new BorrowFlowException(BorrowErrorCode.INVALID_PLAN_QUOTA.name(), org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Membership plan quota is invalid");
-        }
-
-        if (quotaSnapshot.getRemainingQuota() <= 0) {
-            throw conflict(BorrowErrorCode.BORROW_QUOTA_EXCEEDED, "Borrowing quota exceeded");
-        }
 
         Resource resource = resourceRepository.findById(resourceId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.RESOURCE_NOT_FOUND, "Resource not found"));
@@ -110,14 +97,17 @@ public class BorrowService {
         }
 
         PhysicalItem item = physicalItemRepository.findForUpdate(
-                        resourceId, InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE, PageRequest.of(0, 1))
+                resourceId, InventoryStatus.ACTIVE, CirculationStatus.AVAILABLE, PageRequest.of(0, 1))
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> conflict(BorrowErrorCode.NO_AVAILABLE_COPY,
                         "No physical item is currently available"));
 
-        // Reserve là thời điểm availability giảm; các bước sau chỉ chuyển commitment sang state khác.
+        // Reserve là thời điểm availability giảm; các bước sau chỉ chuyển commitment
+        // sang state khác.
         item.setCirculationStatus(CirculationStatus.RESERVED);
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
         BorrowRequest request = BorrowRequest.builder()
                 .reader(reader)
@@ -175,7 +165,8 @@ public class BorrowService {
         transition(request, BorrowRequestStatus.FULFILLED, now);
         request.setFulfilledAt(now);
         request.setFulfilledBy(librarian);
-        // Item đã bị loại khỏi availability khi reserve, nên fulfil chỉ consume reservation sang borrowing.
+        // Item đã bị loại khỏi availability khi reserve, nên fulfil chỉ consume
+        // reservation sang borrowing.
         request.getPhysicalItem().setCirculationStatus(CirculationStatus.BORROWED);
 
         Borrowing borrowing = Borrowing.builder()
@@ -197,7 +188,7 @@ public class BorrowService {
                         .map(this::toReaderRequestDto)
                         .toList())
                 .recentOutcomes(borrowRequestRepository.findRecentOutcomesForReader(
-                                readerId, TERMINAL_STATUSES, PageRequest.of(0, 5))
+                        readerId, TERMINAL_STATUSES, PageRequest.of(0, 5))
                         .stream()
                         .map(this::toReaderRequestDto)
                         .toList())
@@ -229,7 +220,8 @@ public class BorrowService {
     @Transactional
     public LibrarianBorrowingDto returnBorrowing(Long librarianId, Long borrowingId) {
         getLibrarian(librarianId);
-        // Lock borrowing trước để một lượt mượn chỉ có một return thắng, rồi mới lock exact item.
+        // Lock borrowing trước để một lượt mượn chỉ có một return thắng, rồi mới lock
+        // exact item.
         Borrowing borrowing = borrowingRepository.findByIdForUpdate(borrowingId)
                 .orElseThrow(() -> notFound(BorrowErrorCode.BORROWING_NOT_FOUND, "Borrowing not found"));
         if (borrowing.getReturnedAt() != null) {
@@ -258,7 +250,7 @@ public class BorrowService {
                         .map(this::toLibrarianRequestDto)
                         .toList())
                 .recentOutcomes(borrowRequestRepository.findRecentOutcomesForLibrarian(
-                                TERMINAL_STATUSES, PageRequest.of(0, 50))
+                        TERMINAL_STATUSES, PageRequest.of(0, 50))
                         .stream()
                         .map(this::toLibrarianRequestDto)
                         .toList())
@@ -284,7 +276,8 @@ public class BorrowService {
     public LibrarianBorrowRequestItemDto reject(Long librarianId, Long requestId) {
         BorrowRequest request = getRequestForUpdate(requestId);
         Account librarian = getLibrarian(librarianId);
-        if (!Set.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP).contains(request.getStatus())) {
+        if (!Set.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP)
+                .contains(request.getStatus())) {
             throw conflict(BorrowErrorCode.INVALID_REQUEST_STATE, "Borrow request cannot be rejected");
         }
         requireNotExpired(request);
@@ -301,8 +294,7 @@ public class BorrowService {
     @Transactional
     public int expireDueRequests() {
         LocalDateTime now = LocalDateTime.now();
-        List<BorrowRequest> expiredRequests =
-                borrowRequestRepository.findExpiredActiveForUpdate(now, ACTIVE_STATUSES);
+        List<BorrowRequest> expiredRequests = borrowRequestRepository.findExpiredActiveForUpdate(now, ACTIVE_STATUSES);
         expiredRequests.forEach(request -> {
             transition(request, BorrowRequestStatus.EXPIRED, now);
             releaseReservedItem(request);
@@ -342,7 +334,8 @@ public class BorrowService {
 
     private void requireReaderEligible(Account account) {
         requireRole(account, AccountRole.READER);
-        if (account.getAccountStatus() != AccountStatus.ACTIVE) {
+        if (account.getAccountStatus() != AccountStatus.ACTIVE
+                || !account.isInstitutional()) {
             throw conflict(BorrowErrorCode.READER_INELIGIBLE, "Reader is not eligible to borrow");
         }
     }
@@ -363,7 +356,8 @@ public class BorrowService {
     private void requireNotExpired(BorrowRequest request) {
         LocalDateTime now = LocalDateTime.now();
         if (request.getExpiresAt() != null && !now.isBefore(request.getExpiresAt())) {
-            // noRollbackFor cho phép commit EXPIRED + release item dù API trả 409 REQUEST_EXPIRED.
+            // noRollbackFor cho phép commit EXPIRED + release item dù API trả 409
+            // REQUEST_EXPIRED.
             expireRequest(request, now);
             throw new RequestExpiredTransitionException("Borrow request has expired");
         }
@@ -455,7 +449,8 @@ public class BorrowService {
     }
 
     private boolean isOverdue(Borrowing borrowing, LocalDateTime now) {
-        // Overdue là derived value tại serverNow, không phải status persist trong bảng borrowing.
+        // Overdue là derived value tại serverNow, không phải status persist trong bảng
+        // borrowing.
         return borrowing.getReturnedAt() == null && borrowing.getDueAt().isBefore(now);
     }
 
@@ -504,20 +499,17 @@ public class BorrowService {
     }
 
     private static Map<BorrowRequestStatus, Set<BorrowRequestStatus>> buildAllowedTransitions() {
-        Map<BorrowRequestStatus, Set<BorrowRequestStatus>> transitions =
-                new EnumMap<>(BorrowRequestStatus.class);
+        Map<BorrowRequestStatus, Set<BorrowRequestStatus>> transitions = new EnumMap<>(BorrowRequestStatus.class);
         transitions.put(BorrowRequestStatus.REQUESTED, Set.of(
                 BorrowRequestStatus.READY_FOR_PICKUP,
                 BorrowRequestStatus.CANCELLED,
                 BorrowRequestStatus.REJECTED,
-                BorrowRequestStatus.EXPIRED
-        ));
+                BorrowRequestStatus.EXPIRED));
         transitions.put(BorrowRequestStatus.READY_FOR_PICKUP, Set.of(
                 BorrowRequestStatus.FULFILLED,
                 BorrowRequestStatus.CANCELLED,
                 BorrowRequestStatus.REJECTED,
-                BorrowRequestStatus.EXPIRED
-        ));
+                BorrowRequestStatus.EXPIRED));
         return transitions;
     }
 }

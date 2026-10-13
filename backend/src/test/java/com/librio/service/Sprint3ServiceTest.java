@@ -5,6 +5,7 @@ import com.librio.domain.AccountRole;
 import com.librio.domain.AccountStatus;
 import com.librio.domain.Borrowing;
 import com.librio.domain.CirculationStatus;
+import com.librio.domain.ReaderType;
 import com.librio.dto.LibrarianBorrowingDto;
 import com.librio.dto.ManagedResourceDto;
 import com.librio.dto.ReaderBorrowRequestItemDto;
@@ -133,6 +134,7 @@ class Sprint3ServiceTest {
                 .passwordHash("not-used")
                 .displayName(email)
                 .role(role)
+                .readerType(role == AccountRole.READER ? ReaderType.INSTITUTIONAL : null)
                 .accountStatus(AccountStatus.ACTIVE)
                 .createdAt(now)
                 .updatedAt(now)

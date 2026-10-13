@@ -232,14 +232,54 @@ class BorrowServiceTest {
         assertThat(borrowingRepository.existsByBorrowRequestId(requested.getId())).isFalse();
     }
 
+    @Test
+    void rejectsCreateRequestWhenReaderIsExternal() {
+        Account reader = createAccount("external-reader@test.local", AccountRole.READER, AccountStatus.ACTIVE, ReaderType.EXTERNAL);
+
+        assertThatThrownBy(() -> borrowService.createRequest(reader.getId(), 1L))
+                .isInstanceOf(BorrowFlowException.class)
+                .satisfies(error -> {
+                    BorrowFlowException ex = (BorrowFlowException) error;
+                    assertThat(ex.getCode()).isEqualTo("READER_INELIGIBLE");
+                    assertThat(ex.getStatus().value()).isEqualTo(409);
+                });
+    }
+
+    @Test
+    void rejectsCreateRequestWhenReaderIsNotActive() {
+        Account reader = createAccount("disabled-reader@test.local", AccountRole.READER, AccountStatus.DISABLED, ReaderType.INSTITUTIONAL);
+
+        assertThatThrownBy(() -> borrowService.createRequest(reader.getId(), 1L))
+                .isInstanceOf(BorrowFlowException.class)
+                .satisfies(error -> {
+                    BorrowFlowException ex = (BorrowFlowException) error;
+                    assertThat(ex.getCode()).isEqualTo("READER_INELIGIBLE");
+                    assertThat(ex.getStatus().value()).isEqualTo(409);
+                });
+    }
+
+    @Test
+    void institutionalReaderCanCreateRequestWithoutActiveMembership() {
+        Account reader = createAccount("no-membership-reader@test.local", AccountRole.READER, AccountStatus.ACTIVE, ReaderType.INSTITUTIONAL);
+
+        ReaderBorrowRequestItemDto requested = borrowService.createRequest(reader.getId(), 1L);
+        assertThat(requested.getStatus()).isEqualTo(BorrowRequestStatus.REQUESTED);
+        assertThat(allocatedItemId(requested.getId())).isNotNull();
+    }
+
     private Account createAccount(String email, AccountRole role) {
+        return createAccount(email, role, AccountStatus.ACTIVE, role == AccountRole.READER ? ReaderType.INSTITUTIONAL : null);
+    }
+
+    private Account createAccount(String email, AccountRole role, AccountStatus status, ReaderType readerType) {
         LocalDateTime now = LocalDateTime.now();
         return accountRepository.save(Account.builder()
                 .email(email)
                 .passwordHash("not-used-in-service-test")
                 .displayName(email)
                 .role(role)
-                .accountStatus(AccountStatus.ACTIVE)
+                .accountStatus(status)
+                .readerType(readerType)
                 .createdAt(now)
                 .updatedAt(now)
                 .build());

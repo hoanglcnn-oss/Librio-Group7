@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 public class BorrowingQuotaIntegrationTest {
 
     @Autowired
@@ -55,12 +57,15 @@ public class BorrowingQuotaIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        cleanUp();
+        LocalDateTime now = LocalDateTime.now();
         reader = accountRepository.save(Account.builder()
                 .email("quota_integ_reader" + UUID.randomUUID() + "@example.com")
                 .passwordHash("hash")
                 .role(AccountRole.READER)
+                .readerType(ReaderType.INSTITUTIONAL)
                 .accountStatus(AccountStatus.ACTIVE)
+                .createdAt(now)
+                .updatedAt(now)
                 .build());
 
         plan = planRepository.save(MembershipPlan.builder()
@@ -85,18 +90,6 @@ public class BorrowingQuotaIntegrationTest {
                 .inventoryStatus(InventoryStatus.ACTIVE)
                 .circulationStatus(CirculationStatus.AVAILABLE)
                 .build());
-    }
-
-    @AfterEach
-    void cleanUp() {
-        borrowingRepository.deleteAll();
-        borrowRequestRepository.deleteAll();
-        subscriptionRepository.deleteAll();
-        paymentTransactionRepository.deleteAll();
-        physicalItemRepository.deleteAll();
-        resourceRepository.deleteAll();
-        planRepository.deleteAll();
-        accountRepository.deleteAll();
     }
 
     private MembershipSubscription createSubscription(LocalDateTime startsAt) {

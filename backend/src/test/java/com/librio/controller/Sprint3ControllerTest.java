@@ -39,7 +39,7 @@ class Sprint3ControllerTest {
 
     @Test
     void anonymousUserGets404ForUnconfiguredDigitalCapability() throws Exception {
-        mockMvc.perform(get("/resources/1/digital-access"))
+        mockMvc.perform(get("/resources/2/digital-access"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("DIGITAL_CONTENT_NOT_FOUND"));
     }
@@ -49,12 +49,18 @@ class Sprint3ControllerTest {
     void activeReaderCanObtainCapabilityAndOpenPdf() throws Exception {
         Account reader = account("digital-reader@test.local", AccountRole.READER);
         com.librio.domain.Resource r1 = resourceRepository.findById(1L).orElseThrow();
-        digitalItemRepository.findByResourceId(1L).ifPresent(digitalItemRepository::delete);
-        digitalItemRepository.save(com.librio.domain.DigitalItem.builder()
-                .resource(r1)
-                .previewContentKey("preview")
-                .fullContentKey("full")
-                .build());
+        com.librio.domain.DigitalItem item = digitalItemRepository.findByResourceId(1L).orElse(null);
+        if (item != null) {
+            item.setPreviewContentKey("preview");
+            item.setFullContentKey("full");
+            digitalItemRepository.save(item);
+        } else {
+            digitalItemRepository.save(com.librio.domain.DigitalItem.builder()
+                    .resource(r1)
+                    .previewContentKey("preview")
+                    .fullContentKey("full")
+                    .build());
+        }
 
         com.librio.domain.MembershipPlan plan = membershipPlanRepository.save(com.librio.domain.MembershipPlan.builder()
                 .code("PLAN")
@@ -128,6 +134,7 @@ class Sprint3ControllerTest {
                 .passwordHash("not-used")
                 .displayName(email)
                 .role(role)
+                .readerType(role == AccountRole.READER ? com.librio.domain.ReaderType.INSTITUTIONAL : null)
                 .accountStatus(AccountStatus.ACTIVE)
                 .createdAt(now)
                 .updatedAt(now)

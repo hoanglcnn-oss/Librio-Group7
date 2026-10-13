@@ -13,6 +13,12 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * @deprecated replaced by
+ *             {@link BorrowService#getQuotaSnapshot(Long, LocalDateTime)} and
+ *             {@link com.librio.controller.ReaderBorrowingQuotaController}
+ */
+@Deprecated
 @Service
 @RequiredArgsConstructor
 public class BorrowingQuotaPolicy {
@@ -36,7 +42,8 @@ public class BorrowingQuotaPolicy {
 
     public QuotaSnapshot getQuotaSnapshot(Long readerId, LocalDateTime serverNow) {
         // Find active subscription
-        java.util.Optional<MembershipSubscription> activeSubOpt = subscriptionRepository.findActiveByAccountId(readerId, serverNow);
+        java.util.Optional<MembershipSubscription> activeSubOpt = subscriptionRepository.findActiveByAccountId(readerId,
+                serverNow);
         if (activeSubOpt.isEmpty()) {
             return QuotaSnapshot.builder()
                     .activeMembership(false)
@@ -64,7 +71,7 @@ public class BorrowingQuotaPolicy {
         // Calculate cycle
         LocalDateTime cycleStart = subscription.getStartsAt();
         LocalDateTime cycleEnd = cycleStart.plusMonths(1);
-        
+
         while (!serverNow.isBefore(cycleEnd)) {
             cycleStart = cycleEnd;
             cycleEnd = cycleStart.plusMonths(1);
@@ -76,9 +83,8 @@ public class BorrowingQuotaPolicy {
 
         long usedBorrowings = borrowingRepository.countBorrowingsByReaderIdAndPeriod(readerId, cycleStart, cycleEnd);
         long activeCommitments = borrowRequestRepository.countByReaderIdAndStatusIn(
-                readerId, 
-                List.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP)
-        );
+                readerId,
+                List.of(BorrowRequestStatus.REQUESTED, BorrowRequestStatus.READY_FOR_PICKUP));
 
         long remaining = planQuota - usedBorrowings - activeCommitments;
         if (remaining < 0) {

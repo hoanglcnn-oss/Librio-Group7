@@ -26,18 +26,18 @@ class BorrowingQuotaRepositoryTest {
     @Test
     @DisplayName("Usage count boundaries and returned status")
     void testUsageCount() {
-        Long readerId = 2L; // from seeded data
+        Long readerId = 2L;
         
-        // Ensure reader exists
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update("MERGE INTO accounts (id, email, password_hash, display_name, role, reader_type, account_status, created_at, updated_at) " +
+                "KEY(id) VALUES (2, 'repo-reader@librio.local', 'hash', 'Repo Reader', 'READER', 'INSTITUTIONAL', 'ACTIVE', ?, ?)", now, now);
+        jdbcTemplate.update("MERGE INTO resource (id, title, authors) KEY(id) VALUES (1, 'Title', 'Author')");
+        jdbcTemplate.update("MERGE INTO physical_item (id, resource_id, barcode, location, inventory_status, circulation_status) " +
+                "KEY(id) VALUES (1000, 1, 'BC-1000', 'A1', 'ACTIVE', 'AVAILABLE')");
+
+        // Ensure clean state for reader 2
         jdbcTemplate.execute("DELETE FROM borrowing WHERE reader_id = 2");
         jdbcTemplate.execute("DELETE FROM borrow_request WHERE reader_id = 2");
-        
-        // Insert dummy physical_item and borrow_request if needed, but actually we can just insert borrowing directly.
-        // wait, borrow_request and physical_item have foreign keys. Let's just use existing seeded ones.
-        // seeded physical items: 1000, 1001
-        // borrow request: 1000
-        
-        // Instead of dealing with foreign keys manually, we can just use the repository method's logic and test it conceptually, or just insert raw SQL carefully.
         
         jdbcTemplate.update(
             "INSERT INTO borrow_request (id, reader_id, resource_id, status, requested_at, status_updated_at, created_at, updated_at) " +

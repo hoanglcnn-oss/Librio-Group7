@@ -6,6 +6,7 @@ import com.librio.exception.BorrowFlowException;
 import com.librio.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled("Decoupled in Librio V2 (Batch 20D): physical circulation no longer enforces monthly membership quota")
 @SpringBootTest
 @ActiveProfiles("test")
 public class BorrowingQuotaConcurrencyTest {

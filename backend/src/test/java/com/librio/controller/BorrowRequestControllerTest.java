@@ -134,6 +134,29 @@ class BorrowRequestControllerTest {
                 .andExpect(jsonPath("$.activeBorrowings[0].dueDate").exists());
     }
 
+    @Test
+    @WithMockUser(username = "http-external-reader@test.local", roles = "READER")
+    void createBorrowRequestByExternalReaderReturnsConflict() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        accountRepository.save(Account.builder()
+                .email("http-external-reader@test.local")
+                .passwordHash("not-used-in-controller-test")
+                .displayName("http-external-reader@test.local")
+                .role(AccountRole.READER)
+                .readerType(ReaderType.EXTERNAL)
+                .accountStatus(AccountStatus.ACTIVE)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+
+        mockMvc.perform(post("/borrow-requests")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"resourceId\":1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("READER_INELIGIBLE"));
+    }
+
     private void createAccount(String email, AccountRole role) {
         LocalDateTime now = LocalDateTime.now();
         accountRepository.save(Account.builder()
@@ -141,6 +164,7 @@ class BorrowRequestControllerTest {
                 .passwordHash("not-used-in-controller-test")
                 .displayName(email)
                 .role(role)
+                .readerType(role == AccountRole.READER ? ReaderType.INSTITUTIONAL : null)
                 .accountStatus(AccountStatus.ACTIVE)
                 .createdAt(now)
                 .updatedAt(now)
