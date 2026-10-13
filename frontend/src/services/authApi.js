@@ -1,13 +1,4 @@
-import { mockReaderBorrowings } from '../data/mockBorrowings'
-import { getMockLibrarianBorrowings, returnMockLibrarianBorrowing } from '../data/mockLibrarianBorrowings'
-import { getMockDigitalCapability } from '../data/mockDigitalAccess'
-import { getMockManagedResource, saveMockManagedResource } from '../data/mockResourceAdmin'
-import { API_BASE_URL, featureFlags } from '../config/runtime'
-
-const USE_MOCK_BORROWINGS = featureFlags.mockBorrowings
-const USE_MOCK_LIBRARIAN_BORROWINGS = featureFlags.mockLibrarianBorrowings
-const USE_MOCK_DIGITAL_ACCESS = featureFlags.mockDigitalAccess
-const USE_MOCK_RESOURCE_ADMIN = featureFlags.mockResourceAdmin
+import { API_BASE_URL } from '../config/runtime'
 
 let csrf = null
 let currentAccountPromise = null
@@ -160,27 +151,22 @@ export function getReaderBorrowRequests() {
 }
 
 export async function getReaderBorrowings() {
-  if (USE_MOCK_BORROWINGS) return mockReaderBorrowings
   return authenticatedGet('/me/borrowings')
 }
 
 export function getDigitalReadCapability(resourceId) {
-  if (USE_MOCK_DIGITAL_ACCESS) return Promise.resolve(getMockDigitalCapability(resourceId))
   return authenticatedGet(`/resources/${encodeURIComponent(resourceId)}/digital-access`)
 }
 
 export function getLibrarianResource(resourceId) {
-  if (USE_MOCK_RESOURCE_ADMIN) return getMockManagedResource(resourceId)
   return authenticatedGet(`/librarian/resources/${encodeURIComponent(resourceId)}`)
 }
 
 export function createLibrarianResource(payload) {
-  if (USE_MOCK_RESOURCE_ADMIN) return saveMockManagedResource(payload)
   return csrfPost('/librarian/resources', payload)
 }
 
 export function updateLibrarianResource(resourceId, payload) {
-  if (USE_MOCK_RESOURCE_ADMIN) return saveMockManagedResource(payload, resourceId)
   return csrfPost(`/librarian/resources/${encodeURIComponent(resourceId)}`, payload, 'PUT')
 }
 
@@ -193,12 +179,10 @@ export function getLibrarianBorrowRequests() {
 }
 
 export function getLibrarianBorrowings() {
-  if (USE_MOCK_LIBRARIAN_BORROWINGS) return getMockLibrarianBorrowings()
   return authenticatedGet('/librarian/borrowings?status=active')
 }
 
 export function returnLibrarianBorrowing(borrowingId) {
-  if (USE_MOCK_LIBRARIAN_BORROWINGS) return returnMockLibrarianBorrowing(borrowingId)
   return csrfPost(`/librarian/borrowings/${encodeURIComponent(borrowingId)}/return`)
 }
 
