@@ -1,0 +1,2 @@
+Role, affiliation và entitlement không nên được coi là cùng một thứ.
+READER nói user được dùng reader-facing capability; STUDENT / ALUMNI / EXTERNAL nói user thuộc nhóm nào; còn borrowing/digital privileges nói user thực sự được phép làm gì.

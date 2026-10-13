@@ -2,23 +2,28 @@
 
 ## 1. Mục đích
 
-Tài liệu này mô tả các yêu cầu mà Librio V2 phải bảo toàn hoặc làm rõ trong quá trình chuyển từ Mock Project sang baseline cá nhân.
+Tài liệu này mô tả các yêu cầu của Librio V2 trong quá trình chuyển từ Mock Project thành một baseline cá nhân có thể tiếp tục phát triển.
 
-V2 chủ yếu là giai đoạn repair/refactor, không phải feature expansion lớn.
+V2 chủ yếu là giai đoạn repair/refactor. Mục tiêu không phải mở rộng mạnh feature set mà là:
+
+- bảo toàn các behavior và domain decision còn giá trị từ V1;
+- sửa các assumption không còn phù hợp;
+- tách các responsibility đang bị coupling sai;
+- tạo một baseline có thể maintain, test và deploy lâu dài.
 
 Các yêu cầu được chia thành:
 
-- **Yêu cầu chức năng (Functional Requirements):** actor hoặc system có thể làm gì.
+- **Yêu cầu chức năng (Functional Requirements):** behavior mà actor hoặc system có thể thực hiện hoặc quan sát.
 - **Business Rules:** các luật mà behavior của hệ thống phải tuân theo.
-- **Yêu cầu phi chức năng (Non-functional Requirements):** các thuộc tính chất lượng hoặc “passive behavior” mà hệ thống phải duy trì.
-- **Ngoài phạm vi V2:** các capability chưa phải mục tiêu của baseline repair.
+- **Yêu cầu phi chức năng (Non-functional Requirements):** các thuộc tính về consistency, security, maintainability, testability và deployment.
+- **Phạm vi V2:** capability phải được bảo toàn, repair hoặc chưa thuộc V2.
 
 ### Trạng thái
 
-- **[GIỮ]** — behavior V1 đã xác định rõ, V2 phải preserve.
-- **[LÀM RÕ]** — intent đã có nhưng specification hiện chưa đủ chính xác.
-- **[V2 REPAIR]** — requirement được thêm vì mục tiêu của V2 là tạo một baseline maintainable.
-- **[NGOÀI V2]** — không phải requirement của V2.
+- **[GIỮ]** — behavior hoặc rule của V1 vẫn phù hợp và phải được preserve.
+- **[V2 REPAIR]** — behavior/concept cần thay đổi để phù hợp với baseline mới.
+- **[LÀM RÕ]** — intent đã có nhưng quyết định chi tiết chưa cần chốt ở requirements layer.
+- **[NGOÀI V2]** — không phải deliverable bắt buộc của V2.
 
 ---
 
@@ -29,800 +34,803 @@ Các yêu cầu được chia thành:
 ### FR-DIS-01 — Duyệt tài nguyên
 **[GIỮ]**
 
-Người đọc phải có khả năng duyệt danh sách tài nguyên trong thư viện.
+Người dùng phải có khả năng duyệt danh sách tài nguyên của thư viện.
 
-**Kết quả mong đợi**
-- Hiển thị danh sách resource.
-- Mỗi resource hiển thị đủ thông tin tóm tắt để người đọc quyết định có mở chi tiết hay không.
+Mỗi resource phải hiển thị đủ thông tin tóm tắt để người dùng quyết định có mở chi tiết hay không.
 
 ---
 
 ### FR-DIS-02 — Tìm kiếm tài nguyên
-**[GIỮ / LÀM RÕ]**
+**[GIỮ]**
 
-Người đọc phải có khả năng tìm kiếm tài nguyên.
+Người dùng phải có khả năng tìm kiếm tài nguyên dựa trên metadata mà hệ thống hiện hỗ trợ.
 
-V2 phải bảo toàn các search behavior hữu ích đang tồn tại trong V1.
-
-**Cần làm rõ từ V1**
-- searchable fields;
-- filter;
-- sort;
-- pagination;
-- exact search behavior hiện tại.
+V2 không yêu cầu dedicated search engine hoặc advanced search architecture nếu search hiện tại vẫn đáp ứng product need.
 
 ---
 
 ### FR-DIS-03 — Xem chi tiết tài nguyên
 **[GIỮ]**
 
-Người đọc phải có khả năng mở một resource và xem thông tin chi tiết cần thiết để:
+Người dùng phải có khả năng xem chi tiết một resource để:
 
-- hiểu resource đó là gì;
-- biết resource có physical/digital access hay không;
-- biết cách tiếp tục sử dụng resource.
+- hiểu tài nguyên đó là gì;
+- biết tài nguyên có physical form, digital form hoặc cả hai;
+- xem physical availability;
+- biết digital access hiện có thể được sử dụng hay không.
 
 ---
 
-### FR-DIS-04 — Xem hình thức truy cập
+### FR-DIS-04 — Xem physical availability
 **[GIỮ]**
 
-Người đọc phải có khả năng nhận biết resource có thể được truy cập dưới dạng:
+Nếu resource có physical copies, hệ thống phải cung cấp availability được derive từ trạng thái thực tế của các copy.
 
-- physical;
-- digital;
-- hoặc cả hai.
+Ví dụ:
+
+```text
+Clean Code
+
+5 physical copies
+2 currently borrowable
+```
+
+Client không được tự suy đoán availability độc lập với server.
 
 ---
 
-### FR-DIS-05 — Xem availability
+## 2.2 Identity & Access
+
+### FR-ID-01 — Đăng nhập
 **[GIỮ]**
 
-Người đọc phải có khả năng biết resource hoặc item liên quan hiện có khả dụng hay không.
+User phải có khả năng đăng nhập bằng account hợp lệ.
 
-Nếu resource có nhiều item, hệ thống phải trình bày availability ở mức đủ dễ hiểu cho người đọc.
+Hệ thống phải duy trì authenticated session và xác định được account hiện tại.
+
+Registration không phải requirement bắt buộc của V2.
 
 ---
 
-## 2.2 Physical Circulation
-
-### FR-CIR-01 — Mượn physical item
+### FR-ID-02 — Phân biệt Reader và Librarian
 **[GIỮ]**
 
-Người đọc phải có khả năng gửi yêu cầu mượn một physical item.
+Hệ thống phải phân biệt ít nhất hai authorization role:
 
-Server phải quyết định request đó có hợp lệ hay không.
+```text
+READER
+LIBRARIAN
+```
 
-**Kết quả mong đợi**
-- Nếu item đủ điều kiện: borrowing được tạo.
-- Nếu item không đủ điều kiện: operation bị từ chối với lỗi phù hợp.
+Role được dùng để quyết định actor có thể thực hiện operation nào.
+
+Role không được dùng để thay thế các concept khác như institutional affiliation hoặc paid entitlement.
 
 ---
 
-### FR-CIR-02 — Gán hạn trả
+### FR-ID-03 — Institutional Reader
+**[V2 REPAIR]**
+
+V2 phải có đủ thông tin để xác định reader có thuộc nhóm được phép sử dụng circulation của institution/library hiện tại hay không.
+
+V2 giả định:
+
+> Một Librio deployment phục vụ một library/institution chính.
+
+V2 không yêu cầu generic multi-institution model.
+
+Cách persist institutional status được quyết định trong `domain.md` và `database.md`.
+
+---
+
+## 2.3 Physical Circulation
+
+### FR-CIR-01 — Gửi yêu cầu mượn resource vật lý
 **[GIỮ]**
 
-Khi một physical borrowing được tạo thành công, hệ thống phải gán thông tin đủ để xác định due date.
+Institutional Reader đủ điều kiện phải có khả năng gửi yêu cầu mượn một resource có physical copy khả dụng.
+
+Reader yêu cầu **resource**, còn server chịu trách nhiệm chọn một exact physical copy phù hợp.
 
 ---
 
-### FR-CIR-03 — Xác định borrowing quá hạn
+### FR-CIR-02 — Reserve exact physical copy
+**[GIỮ]**
+
+Khi yêu cầu mượn được chấp nhận, hệ thống phải reserve một exact physical item để tránh cùng một copy bị cấp cho nhiều request cạnh tranh.
+
+Ví dụ:
+
+```text
+Resource: Clean Code
+
+#101 AVAILABLE
+#102 AVAILABLE
+```
+
+Request của Hoàng có thể được allocate:
+
+```text
+BorrowRequest → PhysicalItem #101
+#101 → RESERVED
+```
+
+Đây là exact-copy reservation phục vụ circulation workflow.
+
+Nó không đồng nghĩa với waitlist/hold queue cho resource đang hết sách.
+
+---
+
+### FR-CIR-03 — Chuẩn bị sách để nhận
 **[GIỮ / LÀM RÕ]**
 
-Hệ thống phải có khả năng xác định một active borrowing đã quá hạn hay chưa.
+Librarian có thể chuyển request đã hợp lệ sang trạng thái sẵn sàng giao cho reader.
 
-Cách biểu diễn trạng thái overdue sẽ được quyết định ở `domain.md` và `database.md`.
+V1 sử dụng:
+
+```text
+REQUESTED
+→ READY_FOR_PICKUP
+→ FULFILLED
+```
+
+V2 tạm giữ behavior này. Nếu implementation review cho thấy bước preparation không còn mang product value, lifecycle có thể được đơn giản hóa mà không thay đổi intent của circulation.
 
 ---
 
-### FR-CIR-04 — Trả physical item
+### FR-CIR-04 — Fulfil request và tạo borrowing
 **[GIỮ]**
 
-Hệ thống phải hỗ trợ việc trả một physical item đã được mượn.
+Khi physical item thực sự được giao cho reader:
 
-**Kết quả mong đợi**
-- borrowing được kết thúc hợp lệ;
-- circulation state được cập nhật;
-- item có thể trở lại trạng thái borrowable nếu không có rule khác ngăn cản.
-
----
-
-### FR-CIR-05 — Xem trạng thái borrowing
-**[GIỮ / LÀM RÕ]**
-
-Reader hoặc librarian phải có khả năng xem đủ thông tin để hiểu trạng thái hiện tại của một borrowing liên quan.
-
-Các field cụ thể cần inventory từ V1.
+- BorrowRequest phải được hoàn tất;
+- Borrowing phải được tạo;
+- exact physical item phải chuyển sang trạng thái borrowed;
+- due date phải được gán.
 
 ---
 
-## 2.3 Digital Access
-
-### FR-DIG-01 — Nhận biết digital access
+### FR-CIR-05 — Hủy, từ chối hoặc expire request
 **[GIỮ]**
 
-Nếu một resource có digital form, người đọc phải có khả năng nhận biết digital access đang tồn tại.
+Request chưa được fulfil có thể kết thúc bằng các outcome hợp lệ như:
+
+```text
+CANCELLED
+REJECTED
+EXPIRED
+```
+
+Nếu request kết thúc mà chưa tạo borrowing, exact physical item đã reserve phải được release phù hợp.
 
 ---
 
-### FR-DIG-02 — Truy cập digital resource
-**[GIỮ / LÀM RÕ]**
-
-Người đọc phải có khả năng truy cập digital resource theo behavior mà V1 hiện hỗ trợ.
-
-**Cần làm rõ từ V1**
-- access bằng link, viewer hay mechanism khác;
-- có download hay không;
-- permission/access control hiện tại;
-- loại digital content thực sự đang được hỗ trợ.
-
----
-
-## 2.4 User Account
-
-### FR-USR-01 — Đăng nhập và nhận diện người dùng
-**[GIỮ / LÀM RÕ]**
-
-Hệ thống phải có khả năng nhận diện người dùng để các operation liên quan tới account và circulation hoạt động đúng.
-
-Chi tiết registration/login/profile cần inventory từ V1.
-
----
-
-### FR-USR-02 — Liên kết borrowing với reader
+### FR-CIR-06 — Xem borrowing của reader
 **[GIỮ]**
 
-Mỗi borrowing phải được liên kết với reader tương ứng.
+Reader phải có khả năng xem các borrowing liên quan tới account của mình, gồm tối thiểu:
+
+- resource;
+- physical item khi cần;
+- borrowed time;
+- due date;
+- trạng thái return/overdue liên quan.
 
 ---
 
-### FR-USR-03 — Xem thông tin liên quan tới account
-**[GIỮ / LÀM RÕ]**
-
-Người dùng phải có khả năng xem các thông tin account-related mà V1 hiện hỗ trợ và còn cần thiết cho core workflow.
-
-Phạm vi cụ thể sẽ được xác minh trong salvage pass.
-
----
-
-## 2.5 Library Administration
-
-### FR-ADM-01 — Quản lý resource data
+### FR-CIR-07 — Librarian xử lý circulation
 **[GIỮ]**
 
-Librarian phải có khả năng tạo hoặc duy trì resource data ở mức cần thiết cho core workflow.
+Librarian phải có khả năng xem và xử lý các request/borrowing cần thiết cho circulation workflow.
 
 ---
 
-### FR-ADM-02 — Quản lý item
+### FR-CIR-08 — Trả physical item
 **[GIỮ]**
 
-Librarian phải có khả năng duy trì physical/digital item cần thiết để resource có thể được truy cập đúng.
+Librarian phải có khả năng hoàn tất việc trả sách.
+
+Khi return thành công:
+
+- borrowing được ghi nhận là returned;
+- exact physical item được release khỏi trạng thái borrowed;
+- item có thể trở lại borrowable nếu inventory state cho phép.
 
 ---
 
-### FR-ADM-03 — Hỗ trợ circulation
+## 2.4 Digital Access
+
+### FR-DIG-01 — Nhận biết digital form
 **[GIỮ]**
 
-Librarian phải có khả năng thực hiện hoặc hỗ trợ các operation circulation mà V1 hiện cung cấp.
+Nếu một resource có digital representation, người dùng phải có khả năng nhận biết điều đó.
 
-Chi tiết operation cụ thể cần inventory từ implementation.
+Sự tồn tại của digital form không tự động đồng nghĩa user có full access.
+
+---
+
+### FR-DIG-02 — Preview digital content
+**[GIỮ / V2 REPAIR]**
+
+Nếu resource cung cấp preview, hệ thống có thể cho phép user truy cập preview mà không cần full digital entitlement.
+
+Preview và full content phải được server phân biệt.
+
+---
+
+### FR-DIG-03 — Truy cập full digital content
+**[V2 REPAIR]**
+
+Server phải là nơi quyết định user có quyền truy cập full digital content hay không.
+
+Trong V2, digital access phải có khả năng phân biệt tối thiểu:
+
+```text
+public/free access
+institutional access
+no full access
+```
+
+V2 không bắt buộc phải productize paid external access.
+
+Tuy nhiên design không được giả định rằng paid membership là nguồn entitlement duy nhất.
+
+---
+
+### FR-DIG-04 — Digital content delivery
+**[V2 REPAIR]**
+
+V2 phải loại bỏ sự phụ thuộc vào demo-generated content như implementation lâu dài.
+
+Digital content phải có một content reference/delivery mechanism có thể thay thế được.
+
+Cloud storage hoặc provider cụ thể không bắt buộc trong V2.
+
+---
+
+## 2.5 Resource & Inventory Administration
+
+### FR-ADM-01 — Tạo và cập nhật resource
+**[GIỮ]**
+
+Librarian phải có khả năng tạo và cập nhật resource metadata cần thiết cho catalog.
+
+---
+
+### FR-ADM-02 — Quản lý physical item
+**[GIỮ]**
+
+Librarian phải có khả năng quản lý physical copies, gồm các thông tin cần thiết như:
+
+- barcode;
+- location;
+- inventory status;
+- circulation-related state.
+
+System phải ngăn các transition có thể phá active circulation.
+
+---
+
+### FR-ADM-03 — Quản lý digital representation
+**[GIỮ / V2 REPAIR]**
+
+Librarian phải có khả năng duy trì digital representation cần thiết cho resource.
+
+Digital content storage và access policy không được trộn thành cùng một concept nếu chúng có responsibility khác nhau.
+
+---
+
+### FR-ADM-04 — Điều chỉnh số lượng physical copy an toàn
+**[GIỮ]**
+
+Nếu resource administration thay đổi số lượng physical copies, system không được xóa hoặc withdraw copy đang thuộc active request/borrowing theo cách làm mất circulation integrity.
+
+---
+
+## 2.6 ISBN & External Metadata
+
+### FR-META-01 — ISBN
+**[GIỮ]**
+
+Resource dạng sách có thể có ISBN.
+
+System phải normalize ISBN về canonical format mà implementation hỗ trợ và ngăn duplicate ISBN theo policy hiện tại.
+
+---
+
+### FR-META-02 — Lookup metadata từ external provider
+**[GIỮ]**
+
+Librarian có thể sử dụng ISBN để lookup bibliographic metadata từ provider ngoài.
+
+Google Books là provider hiện tại nhưng không phải domain dependency cố định.
+
+---
+
+### FR-META-03 — External metadata chỉ là editable prefill
+**[GIỮ]**
+
+Metadata lấy từ provider ngoài không được tự động trở thành source of truth mà không qua user action.
+
+Flow mong muốn:
+
+```text
+ISBN lookup
+→ provider result
+→ prefill form
+→ librarian review/edit
+→ persist
+```
+
+---
+
+## 2.7 Paid Access Capability
+
+### FR-PAY-01 — Paid access không quyết định physical borrowing
+**[V2 REPAIR]**
+
+Physical circulation V2 không được yêu cầu active paid membership như điều kiện mặc định.
+
+Institutional borrowing eligibility phải độc lập với payment/subscription.
+
+---
+
+### FR-PAY-02 — Payment/subscription được tách khỏi circulation
+**[V2 REPAIR]**
+
+Nếu V1 payment và subscription implementation được giữ lại, chúng phải tồn tại như một capability riêng phục vụ future paid digital access.
+
+Một payment thành công có thể tạo hoặc activate subscription/access record.
+
+Nó không được trực tiếp tạo physical borrowing privilege.
+
+---
+
+### FR-PAY-03 — External paid digital access
+**[NGOÀI V2]**
+
+V2 chưa bắt buộc mở paid digital subscription cho external users.
+
+Đây là candidate của V3+.
+
+V2 chỉ cần tránh thiết kế domain theo cách khiến capability này không thể bổ sung hợp lý sau này.
 
 ---
 
 # 3. Business Rules
 
-## BR-01 — Resource và access form là các concept khác nhau
+## BR-01 — Resource khác với physical và digital representation
 **[GIỮ]**
 
-Một `Resource` đại diện cho tài nguyên logical/bibliographic.
+`Resource` mô tả tài nguyên logical/bibliographic.
 
-Physical và digital là các hình thức truy cập có lifecycle riêng.
-
-**Ví dụ**
+Physical và digital form là các representation/access form liên quan tới resource.
 
 ```text
 Resource: Clean Code
-
-├── Physical Item #A
-├── Physical Item #B
-└── Digital PDF
+├── PhysicalItem #101
+├── PhysicalItem #102
+└── DigitalItem
 ```
-
-`Clean Code` là một resource.
-
-Hai bản sách vật lý và file PDF không phải ba resource độc lập.
 
 ---
 
-## BR-02 — Một physical item chỉ có tối đa một active borrowing
+## BR-02 — Physical copy phải thuộc inventory của library
+**[V2 REPAIR]**
+
+Library chỉ có thể cho mượn physical item mà deployment hiện tại thực sự quản lý.
+
+Paid subscription không tạo ra physical inventory.
+
+---
+
+## BR-03 — Physical item borrowable khi inventory và circulation đều hợp lệ
 **[GIỮ]**
 
-Một physical item không được đồng thời thuộc nhiều active borrowing.
-
-**Ví dụ**
+Một item chỉ được coi là borrowable khi thỏa mãn các state phù hợp, hiện tại tương ứng với:
 
 ```text
-Physical Item #12
-→ Hoàng đang mượn
+inventoryStatus = ACTIVE
+circulationStatus = AVAILABLE
 ```
-
-Linh gửi request mượn `Item #12`.
-
-Kết quả hợp lệ:
-- request của Linh bị từ chối.
-
-Kết quả không hợp lệ:
-- Hoàng và Linh đều có active borrowing cho cùng `Item #12`.
 
 ---
 
-## BR-03 — Physical item có thể có nhiều borrowing trong lịch sử
+## BR-04 — Một physical item chỉ có tối đa một active request allocation
 **[GIỮ]**
 
-BR-02 chỉ giới hạn borrowing đang active cùng lúc.
-
-**Ví dụ**
-
-```text
-Item #12
-→ Hoàng mượn → trả
-→ Linh mượn  → trả
-→ Nam mượn   → đang active
-```
-
-Ba borrowing record là hợp lệ vì chỉ có borrowing của Nam đang active.
+Một exact physical copy không được reserve đồng thời cho nhiều active BorrowRequest.
 
 ---
 
-## BR-04 — Physical borrowing phải có due date
+## BR-05 — Một physical item chỉ có tối đa một active borrowing
 **[GIỮ]**
 
-Mỗi physical borrowing phải có thông tin đủ để biết hạn trả.
-
-**Ví dụ**
-
-```text
-Borrowed at: 2026-09-01
-Due at:      2026-09-15
-```
-
-Nếu thiếu `dueAt`, hệ thống không thể xác định overdue một cách đáng tin cậy.
+Một exact copy không được thuộc nhiều active borrowing cùng lúc.
 
 ---
 
-## BR-05 — Overdue chỉ áp dụng cho borrowing còn active
-**[LÀM RÕ]**
-
-Một borrowing được coi là overdue khi:
-
-- borrowing vẫn active;
-- và `dueAt` đã qua thời điểm hiện tại.
-
-**Ví dụ**
-
-```text
-dueAt = 2026-09-15
-today = 2026-09-20
-returnedAt = null
-```
-
-→ overdue.
-
-Nếu:
-
-```text
-returnedAt = 2026-09-18
-```
-
-→ không còn là active overdue.
-
-Cách lưu hoặc derive trạng thái này chưa được chốt ở requirements layer.
-
----
-
-## BR-06 — Borrow/return được quyết định ở server
+## BR-06 — Một reader không được có duplicate active circulation cho cùng resource
 **[GIỮ]**
 
-Client không được tự quyết định operation đã thành công.
-
-**Ví dụ**
-
-Frontend bấm `Borrow`.
-
-Sai:
-
-```text
-set item = BORROWED
-→ sau đó mới gọi API
-```
-
-Đúng:
-
-```text
-gọi API
-→ server validate
-→ server trả success
-→ frontend cập nhật UI
-```
+Reader không được tạo thêm active request cho resource mà họ đã có active request hoặc active borrowing tương ứng theo policy hiện tại.
 
 ---
 
-## BR-07 — Availability phải phản ánh trạng thái hệ thống
+## BR-07 — BorrowRequest khác Borrowing
 **[GIỮ]**
 
-Availability không được client tự suy đoán.
+`BorrowRequest` mô tả request/reservation workflow trước checkout.
 
-**Ví dụ**
-
-Nếu DB cho biết cả hai physical copy đều đang được mượn:
-
-```text
-Copy A = unavailable
-Copy B = unavailable
-```
-
-frontend không được hiển thị:
-
-```text
-Physical: Available
-```
-
-chỉ vì state cũ trên UI chưa refresh.
+`Borrowing` mô tả actual loan sau khi item thực sự được giao.
 
 ---
 
-## BR-08 — Availability có thể aggregate nhiều item
+## BR-08 — Terminal request phải release hoặc consume reservation đúng cách
 **[GIỮ]**
 
-Một resource có thể có nhiều item nhưng reader cần một availability summary dễ hiểu.
-
-**Ví dụ**
-
 ```text
-Resource: Clean Code
+CANCELLED / REJECTED / EXPIRED
+→ release reserved item
 
-Physical Copy A → Borrowed
-Physical Copy B → Available
-Digital PDF     → Available
+FULFILLED
+→ reservation được consume thành borrowing
 ```
 
-Có thể hiển thị:
-
-```text
-Physical: 1 copy available
-Digital: Available
-```
+System không được để orphan reservation.
 
 ---
 
-## BR-09 — Digital access trong baseline không có expiry
+## BR-09 — Physical borrowing phải có due date
 **[GIỮ]**
 
-Digital access của baseline V1/V2 không tự hết hạn theo borrowing period.
-
-**Ví dụ**
-
-Nếu user có quyền truy cập một PDF theo baseline hiện tại:
-
-```text
-Monday  → accessible
-Friday  → vẫn accessible
-```
-
-Không tồn tại rule kiểu:
-
-```text
-access expires after 7 days
-```
-
-trong V2.
+Mọi active borrowing phải có `dueAt`.
 
 ---
 
-## BR-10 — Overdue không kéo theo fine/payment
+## BR-10 — Overdue là derived state
 **[GIỮ]**
 
-Một borrowing overdue không tự tạo payment, fine hoặc billing obligation trong V2.
-
-**Ví dụ**
+Borrowing được coi là overdue khi:
 
 ```text
-Borrowing = overdue
+returnedAt == null
+AND dueAt < current time
 ```
 
-Có thể dẫn tới warning/status change.
-
-Không mặc định dẫn tới:
-
-```text
-Fine = 50,000 VND
-```
+Không cần lưu một `isOverdue` riêng làm source of truth.
 
 ---
 
-## BR-11 — Reservation không thuộc baseline
+## BR-11 — Overdue không tự tạo fine/payment
 **[GIỮ]**
 
-Nếu item đang được mượn, V2 không bắt buộc phải hỗ trợ queue/reservation.
+V2 không tự động tạo billing obligation khi borrowing quá hạn.
 
-**Ví dụ**
+---
 
-```text
-Item #12 = borrowed
-```
+## BR-12 — Inventory state khác circulation state
+**[GIỮ]**
 
-Reader khác có thể chỉ thấy unavailable.
-
-Không bắt buộc phải có:
+Các state như:
 
 ```text
-Reserve this item
+LOST
+DAMAGED
+WITHDRAWN
 ```
+
+không cùng dimension với:
+
+```text
+AVAILABLE
+RESERVED
+BORROWED
+```
+
+Hai nhóm state phải được xử lý độc lập nhưng consistent.
+
+---
+
+## BR-13 — Availability do server quyết định
+**[GIỮ]**
+
+Client không được tự tạo source of truth riêng về availability.
+
+Resource-level availability có thể được aggregate từ nhiều physical items.
+
+---
+
+## BR-14 — Digital existence khác digital entitlement
+**[V2 REPAIR]**
+
+Các câu hỏi sau là khác nhau:
+
+```text
+Digital edition/content có tồn tại không?
+Institution hiện tại có cấp quyền không?
+User hiện tại có quyền full access không?
+```
+
+Không được gộp chúng thành một boolean duy nhất.
+
+---
+
+## BR-15 — Digital access có thể có nhiều nguồn
+**[V2 REPAIR]**
+
+V2 phải cho phép reasoning theo các nguồn quyền khác nhau:
+
+```text
+public/free
+institutional
+personal paid access (future)
+```
+
+V2 chưa bắt buộc triển khai đầy đủ nguồn `personal paid`.
+
+---
+
+## BR-16 — Role khác affiliation và entitlement
+**[V2 REPAIR]**
+
+Ví dụ:
+
+```text
+role = READER
+```
+
+không tự động cho biết:
+
+- reader thuộc institution hay không;
+- resource nào họ được access;
+- họ có paid subscription hay không.
+
+---
+
+## BR-17 — ISBN external lookup không tự ghi đè catalog
+**[GIỮ]**
+
+External provider chỉ hỗ trợ metadata acquisition.
+
+Catalog của Librio vẫn là source of truth sau khi librarian review và persist.
 
 ---
 
 # 4. Yêu cầu phi chức năng
 
-NFR mô tả các thuộc tính mà hệ thống phải duy trì trong khi thực hiện các chức năng.
+## 4.1 Data Integrity & Concurrency
 
-Có thể hiểu như “passive” của hệ thống: người dùng không gọi trực tiếp nhưng chúng ảnh hưởng tới độ đúng, an toàn và maintainability.
-
----
-
-## 4.1 Data Integrity & Consistency
-
-### NFR-CON-01 — Giữ circulation invariant
+### NFR-CON-01 — Circulation invariant phải được bảo vệ
 **[GIỮ]**
 
-Borrow/return operation không được làm hỏng circulation invariant.
-
-**Ví dụ**
-
-Hai request borrow `Item #12` đến gần như cùng lúc.
-
-Kết quả hợp lệ:
-
-```text
-Request A → success
-Request B → rejected
-```
-
-Kết quả không hợp lệ:
-
-```text
-Request A → success
-Request B → success
-→ 2 active borrowings
-```
+Concurrent request không được dẫn tới cùng một physical copy được reserve hoặc borrowed cho nhiều user.
 
 ---
 
-### NFR-CON-02 — Tránh partial update
-**[GIỮ / LÀM RÕ]**
+### NFR-CON-02 — Business operation phải atomic
+**[GIỮ]**
 
-Nếu một business operation cần nhiều thay đổi dữ liệu liên quan, hệ thống phải tránh trạng thái chỉ update được một phần.
+Operation gồm nhiều thay đổi liên quan phải commit hoặc rollback nhất quán.
 
-**Ví dụ**
-
-Borrow flow cần:
+Ví dụ fulfil:
 
 ```text
-create Borrowing
-+
-update circulation state
+BorrowRequest → FULFILLED
+PhysicalItem  → BORROWED
+Borrowing     → created
 ```
 
-Nếu bước sau fail thì hệ thống không được để lại state kiểu:
+không được chỉ thành công một phần.
 
-```text
-Borrowing created
-but Item still Available
-```
+---
+
+### NFR-CON-03 — Database phải bảo vệ invariant phù hợp
+**[GIỮ]**
+
+Các invariant có thể biểu diễn hợp lý bằng FK, UNIQUE, CHECK hoặc database constraint nên được bảo vệ ở persistence layer thay vì chỉ dựa vào UI.
 
 ---
 
 ## 4.2 Security
 
-### NFR-SEC-01 — Authorization phải được enforce ở server
-**[LÀM RÕ]**
+### NFR-SEC-01 — Authentication và authorization phải được enforce ở server
+**[GIỮ]**
 
-Operation yêu cầu role hoặc ownership không được dựa chỉ vào việc frontend ẩn button.
-
-**Ví dụ**
-
-Frontend không hiện nút Admin cho reader.
-
-Điều đó chưa đủ.
-
-Reader vẫn không được phép gọi trực tiếp:
-
-```http
-DELETE /admin/resources/12
-```
-
-và thành công.
+Frontend routing hoặc ẩn button không được dùng làm security boundary.
 
 ---
 
-### NFR-SEC-02 — Secret không được hard-code
-**[V2 REPAIR]**
+### NFR-SEC-02 — Ownership phải được enforce
+**[GIỮ]**
 
-Credential, token và production secret phải nằm ngoài source code.
+Reader chỉ được thao tác trên dữ liệu cá nhân/circulation mà họ có quyền thao tác.
 
-**Ví dụ**
+---
 
-Không hợp lệ:
+### NFR-SEC-03 — Secret phải được externalize
+**[GIỮ / V2 REPAIR]**
 
-```java
-String password = "postgres123";
-```
-
-Phù hợp hơn:
-
-```text
-DB_PASSWORD=<environment variable>
-```
+Database credential, payment secret và production secret không được hard-code trong source.
 
 ---
 
 ## 4.3 Maintainability
 
-### NFR-MNT-01 — Responsibility phải đủ rõ
+### NFR-MNT-01 — Responsibility phải rõ
 **[V2 REPAIR]**
 
-Module/layer phải có responsibility đủ rõ để maintainer hiểu được flow chính.
-
-**Ví dụ**
-
-Một business rule về borrowing không nên nằm rải rác ở:
-
-```text
-Controller
-React component
-Repository
-SQL script
-```
-
-mà không có một nơi chịu responsibility rõ ràng.
+Business rule quan trọng phải có responsibility rõ ràng và không bị phân tán vô lý giữa controller, frontend, repository và SQL.
 
 ---
 
-### NFR-MNT-02 — Không giữ academic structure chỉ vì đã tồn tại
+### NFR-MNT-02 — Không giữ Mock artifact chỉ vì đã tồn tại
 **[V2 REPAIR]**
 
-Code và documentation không cần preserve structure chỉ vì Mock Project từng yêu cầu.
-
-**Ví dụ**
-
-Nếu một WBS spreadsheet không còn giúp development:
-
-```text
-→ không cần duy trì chỉ để project "trông đầy đủ"
-```
+Code, config hoặc documentation chỉ phục vụ sprint/deadline/submission cũ có thể bị loại bỏ nếu không còn giá trị.
 
 ---
 
-### NFR-MNT-03 — Không over-engineer cho future chưa tồn tại
+### NFR-MNT-03 — Không over-engineer future
 **[V2 REPAIR]**
 
-V2 không nên tạo abstraction chỉ để chuẩn bị cho use case chưa có.
+V2 không tạo abstraction hoặc entity generic chỉ vì feature tương lai có thể cần.
 
-**Ví dụ**
-
-Nếu hiện tại chỉ có một search implementation:
+Ví dụ V2 chưa mặc định cần:
 
 ```text
-SearchService
+Institution table
+generic Entitlement table
+BorrowingPolicy table
 ```
 
-không cần ngay lập tức tạo:
-
-```text
-SearchProviderFactory
-SearchProviderStrategy
-SearchProviderAdapter
-SearchProviderRegistry
-```
-
-chỉ vì tương lai “có thể dùng Elasticsearch”.
+nếu use case hiện tại chưa chứng minh cần chúng.
 
 ---
 
 ## 4.4 Testability
 
-### NFR-TST-01 — Core business rule phải kiểm thử tự động được
+### NFR-TST-01 — Core business invariant phải có automated tests
+**[GIỮ / V2 REPAIR]**
+
+Các behavior như:
+
+- exact-copy reservation;
+- duplicate prevention;
+- fulfil;
+- cancel/reject/expire release;
+- return;
+- inventory transition;
+- authorization;
+- external metadata verification;
+
+phải có test phù hợp.
+
+---
+
+### NFR-TST-02 — Browser E2E không bắt buộc
 **[V2 REPAIR]**
 
-Các rule có khả năng phá core behavior phải có automated tests phù hợp.
+V2 không yêu cầu duy trì Playwright.
 
-**Ví dụ**
+Critical behavior có thể được bảo vệ bằng service/API/integration tests nếu chúng cung cấp confidence phù hợp.
 
-Cần test ít nhất behavior:
+---
 
-```text
-given Item #12 already borrowed
-when another borrow is attempted
-then operation must fail
-```
+### NFR-TST-03 — Database-critical behavior phải được verify phù hợp
+**[V2 REPAIR]**
 
-Mục tiêu là bảo vệ behavior, không chỉ tăng coverage percentage.
+H2 có thể tiếp tục phục vụ fast tests.
+
+Các behavior phụ thuộc PostgreSQL semantics như locking, partial indexes, constraint hoặc migration nên có verification trên PostgreSQL khi cần.
 
 ---
 
 ## 4.5 Configuration & Deployment
 
-### NFR-DEP-01 — Configuration phải tách khỏi source
-**[V2 REPAIR]**
+### NFR-DEP-01 — Configuration phải externalized
+**[GIỮ]**
 
-Environment-specific config không nên yêu cầu sửa code bằng tay.
-
-**Ví dụ**
-
-Cùng một build có thể dùng:
-
-```text
-local DB
-staging DB
-production DB
-```
-
-bằng configuration khác nhau.
+Environment-specific configuration phải được truyền qua config/environment thay vì sửa source code.
 
 ---
 
-### NFR-DEP-02 — Deployment phải có thể tái tạo
+### NFR-DEP-02 — Deployment phải reproducible
 **[V2 REPAIR]**
 
-V2 phải có một deployment path mà future maintainer có thể thực hiện lại từ documentation/configuration hiện có.
-
-**Ví dụ**
-
-Không nên phụ thuộc vào:
-
-```text
-"máy t chạy được vì trước đây t click một setting nào đó mà giờ không nhớ"
-```
+Project phải có deployment path có thể thực hiện lại từ repository và documented configuration.
 
 ---
 
-## 4.6 Observability & Error Handling
-
-### NFR-OBS-01 — Lỗi quan trọng phải chẩn đoán được
+### NFR-DEP-03 — Database schema phải có lifecycle rõ
 **[V2 REPAIR]**
 
-Backend phải cung cấp đủ error/log context để chẩn đoán lỗi quan trọng.
+V2 không nên tiếp tục phụ thuộc lâu dài vào một `schema.sql` vừa bootstrap vừa backfill vừa migrate schema.
 
-**Ví dụ**
-
-Không tốt:
-
-```text
-500 Internal Server Error
-```
-
-và server không có thông tin gì thêm.
-
-Tốt hơn:
-
-```text
-request failed
-operation = borrow
-itemId = 12
-exception = ...
-```
-
-mà không log secret/sensitive information.
+Database changes phải chuyển dần sang versioned migration strategy.
 
 ---
 
-### NFR-OBS-02 — Client nhận error response nhất quán
-**[V2 REPAIR / LÀM RÕ]**
+### NFR-DEP-04 — Demo data phải tách khỏi production data lifecycle
+**[V2 REPAIR]**
 
-Các error phổ biến nên có response format đủ ổn định để frontend xử lý.
-
-**Ví dụ**
-
-Thay vì từng endpoint trả:
-
-```text
-"error"
-"failed"
-null
-HTML error page
-```
-
-nên có một error contract thống nhất ở mức cần thiết.
-
-Chi tiết thuộc API/design phase.
+Demo resources/account/sample state không được mặc định seed vào mọi environment.
 
 ---
 
 # 5. Phạm vi V2
 
-## 5.1 V2 phải bảo toàn
+## 5.1 V2 phải giữ hoặc repair
 
-Baseline gồm:
-
-- resource discovery;
-- resource detail;
-- availability;
-- physical borrowing;
-- due date / overdue;
-- return;
-- basic digital access;
-- user behavior cần cho core workflow;
-- minimal librarian administration.
+- resource browse/search/detail;
+- physical/digital access-form discovery;
+- server-authoritative availability;
+- login/session/security;
+- Reader/Librarian authorization;
+- institutional physical circulation;
+- exact-copy reservation;
+- request lifecycle;
+- borrowing/due date/overdue/return;
+- physical inventory management;
+- resource administration;
+- digital representation và server-side access decision;
+- ISBN normalization;
+- Google Books/external metadata lookup;
+- payment/subscription implementation nếu được giữ phải tách khỏi physical borrowing;
+- automated tests bảo vệ core business rule;
+- reproducible configuration/deployment.
 
 ---
 
-## 5.2 Không yêu cầu mở rộng trong V2
+## 5.2 Không bắt buộc trong V2
 
-V2 không có nghĩa vụ bổ sung:
+V2 không bắt buộc bổ sung:
 
-- reservation system;
-- fine/payment;
-- digital expiry/licensing;
-- advanced librarian administration;
-- advanced statistics/reporting;
+- external physical borrowing;
+- inter-library loan;
+- physical book commerce;
+- paid external digital product UX;
+- multi-institution / multi-tenant support;
+- generic entitlement engine;
+- waitlist/hold queue khi resource hết copy;
+- fine/payment do overdue;
+- advanced reporting/statistics;
 - social login;
-- Google Books / ISBN integration;
-- cloud storage integration mới;
+- production-grade object storage mới;
+- email/Zalo reminders;
 - AI recommendation;
-- metadata extraction;
+- metadata extraction bằng AI;
 - summarization;
-- plagiarism detection;
-- IoT/hardware integration.
+- plagiarism detection.
 
-Các capability này có thể trở thành requirement của version sau qua một vòng Analyze → Design mới.
-
----
-
-# 6. Những điểm phải làm rõ từ V1
-
-## 6.1 Search
-- searchable fields hiện tại;
-- filter/sort/pagination hiện có;
-- behavior nào thực sự đang được frontend sử dụng.
-
-## 6.2 User / Security
-- registration;
-- login;
-- profile;
-- role;
-- authorization;
-- ownership behavior.
-
-## 6.3 Borrowing / Overdue
-- active borrowing được nhận diện thế nào;
-- overdue persisted hay derived;
-- return state được biểu diễn ra sao.
-
-## 6.4 Availability
-- item-level availability được lưu hay derive;
-- resource-level availability được aggregate ở đâu;
-- frontend đang phụ thuộc vào field nào.
-
-## 6.5 Digital Access
-- loại digital item hiện có;
-- access mechanism;
-- download/viewer;
-- permission hiện tại.
-
-## 6.6 Librarian Administration
-- operation nào tồn tại thật trong source;
-- operation nào chỉ tồn tại trong proposal/docs;
-- operation nào frontend thực sự expose.
+Các capability này có thể trở thành candidate của V3+.
 
 ---
 
-# 7. Nguyên tắc khi duy trì requirements
+# 6. Những quyết định để domain/design layer xử lý
 
-- FR chỉ mô tả behavior mà actor/system có thể thực hiện hoặc quan sát.
-- Scope exclusion không viết thành FR.
-- Business policy không phải user action nên đặt ở Business Rules.
-- Business Rule nên có ví dụ đủ cụ thể để đọc độc lập vẫn hiểu.
-- NFR nên được nhóm theo quality category.
-- NFR nên có ví dụ cho thấy requirement ảnh hưởng runtime/design như thế nào.
-- Requirement chưa được source hiện tại chứng minh phải được đánh dấu **[LÀM RÕ]**, không tự giả định.
-- Requirements được phép thay đổi khi quá trình salvage hoặc implementation cung cấp evidence mới.
+Requirements không chốt representation cụ thể cho các điểm sau:
+
+- institutional reader được persist bằng field, enum hay structure khác;
+- `READY_FOR_PICKUP` có tiếp tục giữ trong implementation cuối V2 hay được simplify;
+- exact set của BorrowRequest audit fields;
+- digital access classification được persist thế nào;
+- paid subscription naming/model cuối cùng;
+- physical circulation policy có cần entity riêng hay config hiện tại đã đủ;
+- Resource lifecycle có cần `ARCHIVED`/soft-delete;
+- migration tool cụ thể;
+- digital storage provider cụ thể.
+
+Các quyết định này thuộc `domain.md`, `database.md`, `architecture.md` hoặc ADR khi cần.
+
+---
+
+# 7. Nguyên tắc duy trì requirements
+
+- FR mô tả behavior observable.
+- Business Rule mô tả policy/invariant.
+- NFR mô tả quality requirement.
+- Không biến implementation detail thành requirement nếu product không phụ thuộc vào detail đó.
+- Không biến future possibility thành V2 requirement.
+- V1 behavior chỉ được preserve khi salvage review xác định nó còn giá trị.
+- Requirements được phép thay đổi khi implementation hoặc product learning tạo evidence mới.

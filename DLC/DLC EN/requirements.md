@@ -2,23 +2,28 @@
 
 ## 1. Purpose
 
-This document defines the requirements that Librio V2 must preserve or clarify while transitioning from the Mock Project into a personal baseline.
+This document defines the requirements for Librio V2 while transitioning from the Mock Project into a maintainable personal baseline.
 
-V2 is primarily a repair and refactoring phase, not a major feature-expansion release.
+V2 is primarily a repair and refactoring release. Its goals are to:
 
-Requirements are divided into:
+- preserve useful V1 product behavior and domain decisions;
+- remove obsolete assumptions;
+- separate responsibilities that are incorrectly coupled;
+- establish a baseline that can be maintained, tested, and deployed over time.
 
-- **Functional Requirements:** observable behavior performed by an actor or the system.
-- **Business Rules:** rules that system behavior must obey.
-- **Non-functional Requirements:** quality attributes or passive behavior the system must maintain.
-- **Out of V2 Scope:** capabilities that are not part of the baseline repair.
+Requirements are grouped into:
+
+- **Functional Requirements:** behavior observable by an actor or the system.
+- **Business Rules:** policies and invariants that system behavior must obey.
+- **Non-functional Requirements:** consistency, security, maintainability, testability, and deployment qualities.
+- **V2 Scope:** capabilities that must be preserved, repaired, or intentionally deferred.
 
 ### Status
 
-- **[PRESERVE]** — clearly established V1 behavior that V2 must preserve.
-- **[CLARIFY]** — the intent exists, but current specification is insufficient.
-- **[V2 REPAIR]** — a requirement introduced because V2 aims to become a maintainable baseline.
-- **[OUT OF V2]** — not a V2 requirement.
+- **[PRESERVE]** — useful V1 behavior or rules that remain valid.
+- **[V2 REPAIR]** — behavior or concepts that must change to fit the new baseline.
+- **[CLARIFY]** — intent is known, while detailed design is intentionally deferred.
+- **[OUT OF V2]** — not a required V2 deliverable.
 
 ---
 
@@ -29,789 +34,727 @@ Requirements are divided into:
 ### FR-DIS-01 — Browse Resources
 **[PRESERVE]**
 
-Readers must be able to browse library resources.
+Users must be able to browse library resources.
 
-**Expected outcome**
-- A resource list is displayed.
-- Each resource provides enough summary information for a reader to decide whether to open its details.
+Each resource must provide enough summary information for the user to decide whether to open its details.
 
 ---
 
 ### FR-DIS-02 — Search Resources
-**[PRESERVE / CLARIFY]**
+**[PRESERVE]**
 
-Readers must be able to search for resources.
+Users must be able to search resources using metadata supported by the current system.
 
-V2 must preserve useful search behavior that already exists in V1.
-
-**To clarify from V1**
-- searchable fields;
-- filters;
-- sorting;
-- pagination;
-- exact search behavior currently implemented.
+V2 does not require a dedicated search engine or advanced search architecture when the current approach remains sufficient.
 
 ---
 
 ### FR-DIS-03 — View Resource Details
 **[PRESERVE]**
 
-Readers must be able to open a resource and view enough information to:
+Users must be able to inspect a resource to:
 
-- understand the resource;
-- identify available physical or digital access forms;
-- understand how the resource can be used.
+- understand what it is;
+- identify physical and digital forms;
+- inspect physical availability;
+- understand whether digital access is currently usable.
 
 ---
 
-### FR-DIS-04 — View Access Forms
+### FR-DIS-04 — View Physical Availability
 **[PRESERVE]**
 
-Readers must be able to identify whether a resource supports:
+When a resource has physical copies, the system must provide availability derived from the actual state of those copies.
 
-- physical access;
-- digital access;
-- or both.
+The client must not independently create a separate availability source of truth.
 
 ---
 
-### FR-DIS-05 — View Availability
+## 2.2 Identity & Access
+
+### FR-ID-01 — Login
 **[PRESERVE]**
 
-Readers must be able to determine whether a resource or related item is currently available.
+A user must be able to log in using a valid account.
 
-When a resource contains multiple items, availability must be presented in a reader-understandable form.
+The system must maintain an authenticated session and identify the current account.
+
+Registration is not a mandatory V2 requirement.
 
 ---
 
-## 2.2 Physical Circulation
-
-### FR-CIR-01 — Borrow a Physical Item
+### FR-ID-02 — Reader and Librarian Roles
 **[PRESERVE]**
 
-Readers must be able to submit a request to borrow a physical item.
+The system must distinguish at least:
 
-The server is responsible for deciding whether the request is valid.
+```text
+READER
+LIBRARIAN
+```
 
-**Expected outcome**
-- If eligible, a borrowing is created.
-- If not eligible, the operation is rejected with an appropriate error.
+These roles represent authorization responsibilities.
+
+A role must not be overloaded to represent institutional affiliation or paid entitlement.
 
 ---
 
-### FR-CIR-02 — Assign a Due Date
+### FR-ID-03 — Institutional Reader
+**[V2 REPAIR]**
+
+V2 must contain enough information to determine whether a reader belongs to the group eligible to use the circulation services of the current institution/library.
+
+V2 assumes:
+
+> One Librio deployment primarily represents one library/institution.
+
+Generic multi-institution support is not required.
+
+The persistence representation is defined later in `domain.md` and `database.md`.
+
+---
+
+## 2.3 Physical Circulation
+
+### FR-CIR-01 — Request a Physical Resource
 **[PRESERVE]**
 
-When a physical borrowing is successfully created, the system must provide enough information to determine its due date.
+An eligible Institutional Reader must be able to request a resource that has a borrowable physical copy.
+
+The reader requests the resource; the server selects an exact physical copy.
 
 ---
 
-### FR-CIR-03 — Determine Overdue Status
+### FR-CIR-02 — Reserve an Exact Physical Copy
+**[PRESERVE]**
+
+When a request is accepted, the system must reserve one exact physical item so competing requests cannot claim the same copy.
+
+This is an internal circulation reservation.
+
+It is not a waitlist or hold queue for unavailable resources.
+
+---
+
+### FR-CIR-03 — Prepare an Item for Pickup
 **[PRESERVE / CLARIFY]**
 
-The system must be able to determine whether an active borrowing is overdue.
+A librarian may move a valid request into a prepared-for-pickup state.
 
-The exact overdue representation will be defined in `domain.md` and `database.md`.
+V1 currently uses:
+
+```text
+REQUESTED
+→ READY_FOR_PICKUP
+→ FULFILLED
+```
+
+V2 keeps this behavior provisionally. It may be simplified if the preparation step no longer provides product value.
 
 ---
 
-### FR-CIR-04 — Return a Physical Item
+### FR-CIR-04 — Fulfil a Request and Create a Borrowing
 **[PRESERVE]**
 
-The system must support returning a borrowed physical item.
+When a physical item is actually handed to the reader:
 
-**Expected outcome**
-- the borrowing is completed;
-- circulation state is updated;
-- the item may become borrowable again unless another rule prevents it.
-
----
-
-### FR-CIR-05 — View Borrowing Status
-**[PRESERVE / CLARIFY]**
-
-Readers or librarians must be able to view enough information to understand the current state of a relevant borrowing.
-
-Exact fields must be recovered from V1.
+- the BorrowRequest must be fulfilled;
+- a Borrowing must be created;
+- the exact physical item must become borrowed;
+- a due date must be assigned.
 
 ---
 
-## 2.3 Digital Access
-
-### FR-DIG-01 — Identify Digital Access
+### FR-CIR-05 — Cancel, Reject, or Expire a Request
 **[PRESERVE]**
 
-When a resource has a digital form, readers must be able to identify that digital access exists.
+An unfulfilled request may end through valid terminal outcomes such as:
+
+```text
+CANCELLED
+REJECTED
+EXPIRED
+```
+
+Any reserved physical item must be released appropriately.
 
 ---
 
-### FR-DIG-02 — Access Digital Resources
-**[PRESERVE / CLARIFY]**
-
-Readers must be able to access digital resources according to the behavior currently supported by V1.
-
-**To clarify from V1**
-- link, viewer, or other access mechanism;
-- download support;
-- current permission model;
-- digital content types actually supported.
-
----
-
-## 2.4 User Account
-
-### FR-USR-01 — Authenticate and Identify Users
-**[PRESERVE / CLARIFY]**
-
-The system must be able to identify users so account-related and circulation operations can behave correctly.
-
-Registration, login, and profile behavior must be recovered from V1.
-
----
-
-### FR-USR-02 — Associate Borrowings with Readers
+### FR-CIR-06 — View Reader Borrowings
 **[PRESERVE]**
 
-Every borrowing must be associated with its corresponding reader.
+Readers must be able to view relevant borrowing information associated with their accounts.
 
 ---
 
-### FR-USR-03 — View Account-related Information
-**[PRESERVE / CLARIFY]**
-
-Users must be able to view account-related information currently supported by V1 and still required by the core workflow.
-
-The exact scope will be verified during the salvage pass.
-
----
-
-## 2.5 Library Administration
-
-### FR-ADM-01 — Maintain Resource Data
+### FR-CIR-07 — Librarian Circulation Operations
 **[PRESERVE]**
 
-Librarians must be able to create or maintain resource data required by the core workflow.
+Librarians must be able to inspect and process requests and borrowings required by the circulation workflow.
 
 ---
 
-### FR-ADM-02 — Maintain Items
+### FR-CIR-08 — Return a Physical Item
 **[PRESERVE]**
 
-Librarians must be able to maintain physical and digital items required for correct resource access.
+Librarians must be able to complete a return.
+
+A successful return must:
+
+- record the borrowing as returned;
+- release the exact physical item from borrowed state;
+- make the item borrowable again when inventory state allows it.
 
 ---
 
-### FR-ADM-03 — Support Circulation
+## 2.4 Digital Access
+
+### FR-DIG-01 — Identify a Digital Form
 **[PRESERVE]**
 
-Librarians must be able to perform or support the circulation operations currently provided by V1.
+When a resource has a digital representation, users must be able to identify its existence.
 
-Exact operations must be inventoried from the implementation.
+The existence of digital content does not automatically imply full access.
+
+---
+
+### FR-DIG-02 — Preview Digital Content
+**[PRESERVE / V2 REPAIR]**
+
+When preview content exists, the system may expose it without granting full digital access.
+
+Preview and full content must remain distinguishable by the server.
+
+---
+
+### FR-DIG-03 — Access Full Digital Content
+**[V2 REPAIR]**
+
+The server must decide whether a user can access full digital content.
+
+V2 must be able to distinguish at least:
+
+```text
+public/free access
+institutional access
+no full access
+```
+
+V2 is not required to productize paid external access.
+
+The design must not assume that paid membership is the only possible source of digital entitlement.
+
+---
+
+### FR-DIG-04 — Digital Content Delivery
+**[V2 REPAIR]**
+
+V2 must remove long-term dependency on demo-generated content.
+
+Digital content must use a replaceable content reference or delivery mechanism.
+
+A specific production cloud-storage provider is not required in V2.
+
+---
+
+## 2.5 Resource & Inventory Administration
+
+### FR-ADM-01 — Create and Update Resources
+**[PRESERVE]**
+
+Librarians must be able to create and maintain catalog resource metadata.
+
+---
+
+### FR-ADM-02 — Manage Physical Items
+**[PRESERVE]**
+
+Librarians must be able to maintain physical-copy information such as:
+
+- barcode;
+- location;
+- inventory status;
+- circulation-related state.
+
+The system must reject changes that would violate active circulation.
+
+---
+
+### FR-ADM-03 — Manage Digital Representations
+**[PRESERVE / V2 REPAIR]**
+
+Librarians must be able to maintain the digital representation of a resource.
+
+Digital content storage and access policy must remain separate concerns when they represent different responsibilities.
+
+---
+
+### FR-ADM-04 — Safely Reconcile Physical Copies
+**[PRESERVE]**
+
+Resource administration must not remove or withdraw physical copies involved in active requests or borrowings in a way that breaks circulation integrity.
+
+---
+
+## 2.6 ISBN & External Metadata
+
+### FR-META-01 — ISBN
+**[PRESERVE]**
+
+Book-like resources may contain an ISBN.
+
+The system must normalize ISBN into the canonical form supported by the implementation and enforce the current uniqueness policy.
+
+---
+
+### FR-META-02 — External Metadata Lookup
+**[PRESERVE]**
+
+A librarian may use an ISBN to retrieve bibliographic metadata from an external provider.
+
+Google Books is the current provider but must not become a fixed domain dependency.
+
+---
+
+### FR-META-03 — External Metadata Is Editable Prefill
+**[PRESERVE]**
+
+External metadata must not automatically become catalog truth.
+
+Expected flow:
+
+```text
+ISBN lookup
+→ provider result
+→ editable prefill
+→ librarian review
+→ persist
+```
+
+---
+
+## 2.7 Paid Access Capability
+
+### FR-PAY-01 — Paid Access Does Not Control Physical Borrowing
+**[V2 REPAIR]**
+
+Physical circulation in V2 must not require an active paid membership by default.
+
+Institutional borrowing eligibility must remain independent from payment or subscription.
+
+---
+
+### FR-PAY-02 — Payment and Subscription Are Separate from Circulation
+**[V2 REPAIR]**
+
+If the V1 payment and subscription implementation is retained, it must exist as a separate capability intended for future paid digital access.
+
+A successful payment may create or activate a subscription/access record.
+
+It must not directly grant physical borrowing privileges.
+
+---
+
+### FR-PAY-03 — External Paid Digital Access
+**[OUT OF V2]**
+
+V2 is not required to expose paid digital subscriptions to external users.
+
+This remains a V3+ candidate.
+
+V2 only needs to avoid domain decisions that would make such a capability unnecessarily difficult to introduce later.
 
 ---
 
 # 3. Business Rules
 
-## BR-01 — Resource and Access Form Are Different Concepts
+## BR-01 — Resource, Physical Item, and Digital Representation Are Different Concepts
 **[PRESERVE]**
 
-A `Resource` represents a logical or bibliographic resource.
+A `Resource` represents the logical or bibliographic resource.
 
-Physical and digital access forms may have separate lifecycles.
-
-**Example**
-
-```text
-Resource: Clean Code
-
-├── Physical Item #A
-├── Physical Item #B
-└── Digital PDF
-```
-
-`Clean Code` is one resource.
-
-The two physical copies and the PDF are not three independent resources.
+Physical copies and digital forms represent ways in which that resource exists or can be accessed.
 
 ---
 
-## BR-02 — One Physical Item Has at Most One Active Borrowing
-**[PRESERVE]**
+## BR-02 — Physical Copies Must Belong to the Managed Collection
+**[V2 REPAIR]**
 
-A physical item must not belong to multiple active borrowings at the same time.
+The current library can only lend physical items that it actually manages.
 
-**Example**
-
-```text
-Physical Item #12
-→ currently borrowed by Hoang
-```
-
-Linh attempts to borrow `Item #12`.
-
-Valid result:
-- Linh's request is rejected.
-
-Invalid result:
-- both Hoang and Linh have active borrowings for `Item #12`.
+A paid subscription cannot create physical inventory.
 
 ---
 
-## BR-03 — A Physical Item May Have Multiple Historical Borrowings
+## BR-03 — Borrowability Depends on Inventory and Circulation State
 **[PRESERVE]**
 
-BR-02 only limits simultaneous active borrowings.
-
-**Example**
-
-```text
-Item #12
-→ Hoang borrows → returns
-→ Linh borrows  → returns
-→ Nam borrows   → active
-```
-
-All three records are valid because only Nam's borrowing is active.
+A physical item is borrowable only when its inventory and circulation states allow it.
 
 ---
 
-## BR-04 — Physical Borrowings Require a Due Date
+## BR-04 — One Exact Item Has at Most One Active Request Allocation
 **[PRESERVE]**
 
-Every physical borrowing must contain enough information to determine its due date.
-
-**Example**
-
-```text
-Borrowed at: 2026-09-01
-Due at:      2026-09-15
-```
-
-Without `dueAt`, overdue status cannot be determined reliably.
+A physical copy must not be reserved by multiple active BorrowRequests simultaneously.
 
 ---
 
-## BR-05 — Overdue Applies Only to an Active Borrowing
-**[CLARIFY]**
+## BR-05 — One Exact Item Has at Most One Active Borrowing
+**[PRESERVE]**
+
+A physical copy must not belong to multiple active borrowings simultaneously.
+
+---
+
+## BR-06 — Duplicate Active Circulation for the Same Reader and Resource Is Not Allowed
+**[PRESERVE]**
+
+The current policy must prevent a reader from creating duplicate active circulation for the same resource.
+
+---
+
+## BR-07 — BorrowRequest and Borrowing Are Different Concepts
+**[PRESERVE]**
+
+A `BorrowRequest` represents the pre-checkout request/reservation workflow.
+
+A `Borrowing` represents the actual loan after the item is handed to the reader.
+
+---
+
+## BR-08 — Terminal Requests Must Release or Consume Their Reservation
+**[PRESERVE]**
+
+```text
+CANCELLED / REJECTED / EXPIRED
+→ release reservation
+
+FULFILLED
+→ consume reservation into Borrowing
+```
+
+---
+
+## BR-09 — Physical Borrowings Require a Due Date
+**[PRESERVE]**
+
+Every borrowing must contain enough information to determine `dueAt`.
+
+---
+
+## BR-10 — Overdue Is Derived
+**[PRESERVE]**
 
 A borrowing is overdue when:
 
-- it remains active;
-- its `dueAt` has passed.
-
-**Example**
-
 ```text
-dueAt = 2026-09-15
-today = 2026-09-20
-returnedAt = null
+returnedAt == null
+AND dueAt < current time
 ```
 
-→ overdue.
-
-If:
-
-```text
-returnedAt = 2026-09-18
-```
-
-→ no longer an active overdue borrowing.
-
-Whether this state is persisted or derived is not decided at the requirements level.
+A separate `isOverdue` field must not become an independent source of truth.
 
 ---
 
-## BR-06 — Borrow and Return Decisions Are Server-side
+## BR-11 — Overdue Does Not Automatically Create Fines or Payments
 **[PRESERVE]**
 
-The client must not independently decide that a borrow or return operation succeeded.
+V2 does not automatically create billing obligations from overdue borrowings.
 
-**Example**
+---
 
-Incorrect:
+## BR-12 — Inventory State and Circulation State Are Different Dimensions
+**[PRESERVE]**
+
+States such as:
 
 ```text
-set item = BORROWED
-→ then call API
+LOST
+DAMAGED
+WITHDRAWN
 ```
 
-Correct:
+represent a different concern from:
 
 ```text
-call API
-→ server validates
-→ server returns success
-→ frontend updates UI
+AVAILABLE
+RESERVED
+BORROWED
 ```
 
 ---
 
-## BR-07 — Availability Must Reflect System State
+## BR-13 — Availability Is Server-authoritative
 **[PRESERVE]**
 
-Availability must not be independently inferred by the client.
-
-**Example**
-
-If both physical copies are borrowed:
-
-```text
-Copy A = unavailable
-Copy B = unavailable
-```
-
-the frontend must not display:
-
-```text
-Physical: Available
-```
-
-because of stale local state.
+The client must not maintain an independent source of truth for resource availability.
 
 ---
 
-## BR-08 — Availability May Aggregate Multiple Items
-**[PRESERVE]**
+## BR-14 — Digital Existence and Digital Entitlement Are Different
+**[V2 REPAIR]**
 
-A resource may contain multiple items while the reader sees a summarized availability state.
-
-**Example**
+These are separate questions:
 
 ```text
-Resource: Clean Code
-
-Physical Copy A → Borrowed
-Physical Copy B → Available
-Digital PDF     → Available
+Does digital content exist?
+Does the institution grant access?
+Does this user currently have full access?
 ```
 
-A reader-facing summary may be:
-
-```text
-Physical: 1 copy available
-Digital: Available
-```
+They must not be collapsed into one boolean.
 
 ---
 
-## BR-09 — Digital Access Does Not Expire in the Baseline
-**[PRESERVE]**
+## BR-15 — Digital Access May Have Different Sources
+**[V2 REPAIR]**
 
-Digital access in the V1/V2 baseline does not automatically expire after a borrowing period.
-
-**Example**
-
-If the user is allowed to access a PDF:
+The domain must support reasoning about different access sources:
 
 ```text
-Monday  → accessible
-Friday  → still accessible
+public/free
+institutional
+personal paid access (future)
 ```
 
-There is no baseline rule such as:
-
-```text
-access expires after 7 days
-```
+V2 does not require full implementation of personal paid access.
 
 ---
 
-## BR-10 — Overdue Does Not Imply Fine or Payment
-**[PRESERVE]**
+## BR-16 — Role, Affiliation, and Entitlement Are Different Concepts
+**[V2 REPAIR]**
 
-An overdue borrowing does not automatically create a fine, payment, or billing obligation in V2.
-
-**Example**
+For example:
 
 ```text
-Borrowing = overdue
+role = READER
 ```
 
-may result in a warning or status change.
-
-It does not automatically result in:
-
-```text
-Fine = 50,000 VND
-```
+does not by itself determine institutional affiliation or digital entitlement.
 
 ---
 
-## BR-11 — Reservation Is Not Part of the Baseline
+## BR-17 — External Metadata Does Not Automatically Replace Catalog Data
 **[PRESERVE]**
 
-If an item is currently borrowed, V2 is not required to provide a reservation queue.
+External providers assist metadata acquisition.
 
-**Example**
-
-```text
-Item #12 = borrowed
-```
-
-Another reader may simply see it as unavailable.
-
-A:
-
-```text
-Reserve this item
-```
-
-operation is not required.
+Librio remains the source of truth after librarian review and persistence.
 
 ---
 
 # 4. Non-functional Requirements
 
-NFRs describe qualities the system must maintain while performing its functions.
-
-They can be treated as passive system behavior: users do not invoke them directly, but they affect correctness, safety, and maintainability.
-
----
-
-## 4.1 Data Integrity & Consistency
+## 4.1 Data Integrity & Concurrency
 
 ### NFR-CON-01 — Preserve Circulation Invariants
 **[PRESERVE]**
 
-Borrow and return operations must not violate circulation invariants.
-
-**Example**
-
-Two borrow requests for `Item #12` arrive almost simultaneously.
-
-Valid:
-
-```text
-Request A → success
-Request B → rejected
-```
-
-Invalid:
-
-```text
-Request A → success
-Request B → success
-→ 2 active borrowings
-```
+Concurrent operations must not allow the same physical item to be reserved or borrowed by multiple users.
 
 ---
 
-### NFR-CON-02 — Avoid Partial Updates
-**[PRESERVE / CLARIFY]**
+### NFR-CON-02 — Business Operations Must Be Atomic
+**[PRESERVE]**
 
-When one business operation requires multiple related persistence changes, the system must avoid inconsistent partial updates.
+Related persistence changes must commit or roll back consistently.
 
-**Example**
+---
 
-A borrow flow requires:
+### NFR-CON-03 — Use Database Constraints Where Appropriate
+**[PRESERVE]**
 
-```text
-create Borrowing
-+
-update circulation state
-```
-
-If the second step fails, the system must not remain in a state such as:
-
-```text
-Borrowing created
-but Item still Available
-```
+Persistence invariants that can be represented reasonably by FK, UNIQUE, CHECK, or similar constraints should not rely only on frontend validation.
 
 ---
 
 ## 4.2 Security
 
-### NFR-SEC-01 — Enforce Authorization on the Server
-**[CLARIFY]**
+### NFR-SEC-01 — Enforce Authentication and Authorization on the Server
+**[PRESERVE]**
 
-Operations requiring a role or ownership must not rely only on frontend restrictions.
-
-**Example**
-
-Hiding an Admin button from a reader is not enough.
-
-The reader must also be unable to directly call:
-
-```http
-DELETE /admin/resources/12
-```
-
-successfully.
+Frontend routing or hidden controls are not security boundaries.
 
 ---
 
-### NFR-SEC-02 — Do Not Hard-code Secrets
-**[V2 REPAIR]**
+### NFR-SEC-02 — Enforce Ownership
+**[PRESERVE]**
 
-Credentials, tokens, and production secrets must remain outside source code.
+Readers must only access or modify account and circulation data they are authorized to use.
 
-**Example**
+---
 
-Invalid:
+### NFR-SEC-03 — Externalize Secrets
+**[PRESERVE / V2 REPAIR]**
 
-```java
-String password = "postgres123";
-```
-
-Preferred:
-
-```text
-DB_PASSWORD=<environment variable>
-```
+Database credentials, payment secrets, and production secrets must remain outside source code.
 
 ---
 
 ## 4.3 Maintainability
 
-### NFR-MNT-01 — Responsibilities Must Be Understandable
+### NFR-MNT-01 — Responsibilities Must Be Clear
 **[V2 REPAIR]**
 
-Modules and layers must have responsibilities clear enough for the maintainer to understand the main flow.
-
-**Example**
-
-A borrowing business rule should not be scattered across:
-
-```text
-Controller
-React component
-Repository
-SQL script
-```
-
-without a clear owner.
+Important business rules must have understandable ownership instead of being scattered unnecessarily across controllers, frontend components, repositories, and SQL.
 
 ---
 
-### NFR-MNT-02 — Do Not Preserve Academic Structure Without Value
+### NFR-MNT-02 — Do Not Preserve Mock Artifacts Without Value
 **[V2 REPAIR]**
 
-Code and documentation should not preserve structure only because the Mock Project once required it.
-
-**Example**
-
-If a WBS spreadsheet no longer helps development:
-
-```text
-→ it does not need to be maintained just to make the project appear complete
-```
+Code, configuration, and documentation that exist only because of sprint, deadline, or submission constraints may be removed.
 
 ---
 
-### NFR-MNT-03 — Avoid Premature Abstraction
+### NFR-MNT-03 — Avoid Premature Generalization
 **[V2 REPAIR]**
 
-V2 should not create abstractions only for hypothetical future use cases.
+V2 must not introduce generic abstractions or entities only for hypothetical future requirements.
 
-**Example**
-
-If only one search implementation exists, there is no need to immediately introduce:
+V2 does not automatically require:
 
 ```text
-SearchProviderFactory
-SearchProviderStrategy
-SearchProviderAdapter
-SearchProviderRegistry
+Institution table
+generic Entitlement table
+BorrowingPolicy table
 ```
-
-only because Elasticsearch might be used later.
 
 ---
 
 ## 4.4 Testability
 
-### NFR-TST-01 — Core Business Rules Must Be Automatically Testable
+### NFR-TST-01 — Core Business Invariants Require Automated Tests
+**[PRESERVE / V2 REPAIR]**
+
+Important behaviors including exact-copy reservation, lifecycle transitions, returns, inventory protection, authorization, and external metadata verification must have appropriate automated tests.
+
+---
+
+### NFR-TST-02 — Browser E2E Is Not Required
 **[V2 REPAIR]**
 
-Rules capable of breaking core behavior must have appropriate automated tests.
+V2 does not require Playwright.
 
-**Example**
+Critical behavior may be protected through service, API, and integration tests when those tests provide sufficient confidence.
 
-At minimum:
+---
 
-```text
-given Item #12 is already borrowed
-when another borrow is attempted
-then the operation must fail
-```
+### NFR-TST-03 — Database-critical Behavior Must Be Verified Appropriately
+**[V2 REPAIR]**
 
-The goal is behavior protection, not coverage percentage alone.
+H2 may remain useful for fast tests.
+
+Behavior depending on PostgreSQL-specific locking, constraints, indexes, or migration semantics should be verified against PostgreSQL where necessary.
 
 ---
 
 ## 4.5 Configuration & Deployment
 
-### NFR-DEP-01 — Configuration Must Be Externalized
-**[V2 REPAIR]**
+### NFR-DEP-01 — Externalize Environment Configuration
+**[PRESERVE]**
 
-Environment-specific configuration should not require manual source-code edits.
-
-**Example**
-
-The same build should be able to target:
-
-```text
-local DB
-staging DB
-production DB
-```
-
-through configuration.
+Environment-specific configuration must not require source-code modification.
 
 ---
 
 ### NFR-DEP-02 — Deployment Must Be Reproducible
 **[V2 REPAIR]**
 
-V2 must have a deployment path that a future maintainer can reproduce from the available documentation and configuration.
-
-**Example**
-
-The project should not depend on:
-
-```text
-"it works on my machine because I clicked some setting months ago and no longer remember which one"
-```
+The application must have a deployment path reproducible from repository content and documented configuration.
 
 ---
 
-## 4.6 Observability & Error Handling
-
-### NFR-OBS-01 — Important Failures Must Be Diagnosable
+### NFR-DEP-03 — Database Schema Requires an Explicit Lifecycle
 **[V2 REPAIR]**
 
-The backend must provide enough error and log context to diagnose important server-side failures.
+V2 should not continue relying long-term on one `schema.sql` file that simultaneously performs bootstrap, backfill, and migration.
 
-**Example**
-
-Poor:
-
-```text
-500 Internal Server Error
-```
-
-with no useful server-side context.
-
-Better:
-
-```text
-operation = borrow
-itemId = 12
-exception = ...
-```
-
-without logging secrets or sensitive information.
+Database evolution should move toward versioned migrations.
 
 ---
 
-### NFR-OBS-02 — Client-facing Errors Should Be Consistent
-**[V2 REPAIR / CLARIFY]**
+### NFR-DEP-04 — Separate Demo Data from Production Data
+**[V2 REPAIR]**
 
-Common failures should use a sufficiently stable response format for the frontend to handle.
-
-**Example**
-
-Avoid unrelated endpoints returning:
-
-```text
-"error"
-"failed"
-null
-HTML error page
-```
-
-for similar failures.
-
-A consistent error contract should be defined during API/design work.
+Demo resources, accounts, and sample circulation state must not automatically populate every environment.
 
 ---
 
 # 5. V2 Scope
 
-## 5.1 V2 Must Preserve
+## 5.1 V2 Must Preserve or Repair
 
-The current baseline includes:
-
-- resource discovery;
-- resource detail;
-- availability;
-- physical borrowing;
-- due date and overdue;
-- returns;
-- basic digital access;
-- user behavior required by the core workflow;
-- minimal librarian administration.
+- resource browse, search, and detail;
+- physical and digital access-form discovery;
+- server-authoritative availability;
+- login/session/security;
+- Reader/Librarian authorization;
+- institutional physical circulation;
+- exact-copy reservation;
+- request lifecycle;
+- borrowing, due date, overdue, and return;
+- physical inventory management;
+- resource administration;
+- digital representation and server-side access decisions;
+- ISBN normalization;
+- Google Books/external metadata lookup;
+- retained payment/subscription code must be decoupled from physical borrowing;
+- automated tests for core business behavior;
+- reproducible configuration and deployment.
 
 ---
 
-## 5.2 V2 Is Not Required to Expand
+## 5.2 Not Required in V2
 
 V2 is not required to add:
 
-- reservation system;
-- fine/payment;
-- digital expiry or licensing;
-- advanced librarian administration;
-- advanced statistics/reporting;
+- external physical borrowing;
+- inter-library loan;
+- physical-book commerce;
+- external paid digital-product UX;
+- multi-institution or multi-tenant support;
+- a generic entitlement engine;
+- waitlists for resources with no available copy;
+- overdue fines or billing;
+- advanced reporting/statistics;
 - social login;
-- Google Books / ISBN integration;
-- new cloud-storage integrations;
+- a new production-grade object-storage integration;
+- reminder channels;
 - AI recommendation;
-- metadata extraction;
+- AI metadata extraction;
 - summarization;
-- plagiarism detection;
-- IoT or hardware integration.
+- plagiarism detection.
 
-These capabilities may become requirements in a later Analyze → Design cycle.
+These capabilities remain candidates for V3+.
 
 ---
 
-# 6. V2 Clarification Backlog
+# 6. Decisions Deferred to Domain and Design
 
-## 6.1 Search
-- current searchable fields;
-- existing filters/sorting/pagination;
-- behavior actually consumed by the frontend.
+The requirements layer does not prescribe the exact representation of:
 
-## 6.2 User / Security
-- registration;
-- login;
-- profile;
-- roles;
-- authorization;
-- ownership behavior.
+- institutional-reader persistence;
+- whether `READY_FOR_PICKUP` remains in the final V2 lifecycle;
+- the final set of BorrowRequest audit fields;
+- digital access classification;
+- final naming/modeling of paid subscriptions;
+- whether physical circulation policy needs its own persisted model;
+- Resource archival/soft-delete behavior;
+- the database migration tool;
+- the digital storage provider.
 
-## 6.3 Borrowing / Overdue
-- how active borrowing is represented;
-- whether overdue is persisted or derived;
-- how return state is represented.
-
-## 6.4 Availability
-- whether item availability is stored or derived;
-- where resource-level availability is aggregated;
-- which fields the frontend depends on.
-
-## 6.5 Digital Access
-- existing digital item types;
-- access mechanism;
-- download/viewer behavior;
-- current permissions.
-
-## 6.6 Librarian Administration
-- operations that actually exist in source;
-- operations that exist only in proposal/docs;
-- operations exposed by the frontend.
+These decisions belong in `domain.md`, `database.md`, `architecture.md`, or an ADR when necessary.
 
 ---
 
 # 7. Requirements Maintenance Rules
 
-- FRs describe behavior that an actor or the system can perform or observe.
-- Scope exclusions are not written as FRs.
-- Business policies that are not user actions belong under Business Rules.
-- Business Rules should include concrete examples so they can be understood independently.
-- NFRs should be grouped by quality category.
-- NFRs should include examples showing how the requirement affects runtime or design.
-- Any requirement not supported by the current source must be marked **[CLARIFY]** rather than assumed.
-- Requirements may evolve when the salvage pass or implementation provides new evidence.
+- Functional requirements describe observable behavior.
+- Business Rules describe policy and invariants.
+- NFRs describe quality requirements.
+- Implementation details should not become product requirements unless behavior depends on them.
+- Future possibilities must not silently become V2 requirements.
+- V1 behavior is preserved only when the salvage review finds continuing value.
+- Requirements may evolve as implementation and product learning provide new evidence.
